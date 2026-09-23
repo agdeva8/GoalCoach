@@ -130,6 +130,8 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           <button
             type="button"
             data-testid="auto-answer-toggle"
+            role="switch"
+            aria-checked={autoAnswer}
             onClick={() => setAutoAnswer((v) => !v)}
             title="When on, the coach makes reasonable assumptions instead of asking you clarifying questions"
             className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${autoAnswer ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}

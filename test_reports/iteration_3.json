@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 3 backend + frontend verification. Backend: 21/21 tests pass across two new files. test_iteration3.py (20 tests) covers guest session (create, cookie set, /auth/me is_guest, state shape, cookie persistence), blockers CRUD (create/list/update/delete/auth-required), sources upload/link/list/download/delete (auth required, ?auth= query works, link kind returns url json, file kind returns bytes, soft-delete hides from list & returns 404, goal_id binding, guest can upload), state includes 'sources' key, /auth/session endpoint reachable (401 on bad session_id, migration branch present), guest_stream auto-answer produces proposals. test_migration_db.py (1 test) directly exercises the guest→account migration branch: seeds guest user + goals/commitments/milestones/blockers/messages/audit_log/sources + sessions, runs the same collection ops as create_session, verifies every row's user_id flips to the target user and guest user + sessions are deleted. Frontend (Playwright with REACT_APP_BACKEND_URL): guest visits '/' with no cookies → guest_token cookie is set, header shows Sign in (not avatar), guest-banner visible, tracking-dashboard renders empty. Split UI verified: split-divider present; collapse-panel-button/panel-restore-button and collapse-chat-button/chat-restore-button both work (with a caveat noted below on DOM re-mount). Guest sent auto-answer=ON single-goal 'half marathon' prompt; coach streamed proposals; confirm-tool-button persisted (no signin-modal); goal card appeared. Full reload preserved goal card AND chat history via guest_token cookie. Goal action buttons goal-edit/pause/drop/add-step all open action-prompt-modal with action-modal-input; action-modal-close cancels. sources-chip-{goalId} and goal-upload-{goalId} render on each card. Chat attach: file upload wired to POST /api/sources/upload; attached-sources chip appeared after upload (also visible on authed session). Authed regression: session_token cookie yields avatar (user-menu-trigger), no guest-banner, model-switcher-trigger present, About modal shows tagline 'let's sort your life — together.', theme-toggle switches root class to 'light'. No horizontal overflow at 1920x1080 or 390x844.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3.py",
+    "/app/backend/tests/test_migration_db.py",
+    "/app/test_reports/pytest/iter3_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 977 lines — well past the recommended 700-line ceiling. Split into modules: auth.py (guest/session/login/logout), sources.py, blockers.py, chat_streaming.py, prompts.py. Repeat call-out from iteration 2 remains unaddressed.",
+    "POST /api/auth/session migration is not idempotent-safe under race: two rapid sign-ins with the same guest_token would each try to update_many and delete the guest user. Consider wrapping in a transaction or using find_one_and_update on user_sessions to atomically claim the guest_token.",
+    "POST /api/sources/upload does not enforce a max size or MIME allowlist. A malicious guest could upload arbitrarily large files to Emergent Object Storage. Add a size cap (e.g. 20MB) + extension allowlist (pdf/md/txt/csv/docx) before put_object.",
+    "GET /api/sources/{sid}/download with ?auth= query places the session token in URL/query logs. If storage links are shared, this leaks the session_token. Prefer a short-lived signed URL or a POST-obtained pre-authorized token.",
+    "delete_source performs soft-delete only; storage_path in Emergent Object Storage is never cleaned up. Add a background sweep or hard-delete on the object when a source is deleted.",
+    "guest_token cookies have max_age=7d but there is no reaper for expired guest users and their goals/messages/sources — data will accumulate unboundedly. Add a scheduled cleanup for is_guest users past expires_at.",
+    "Frontend Coach.js split-divider drag handler uses raw mouse events (startDrag) — no touch support; iPad/tablet users can't resize. Consider pointer events.",
+    "auto-answer-toggle initial aria-checked was null (not 'true'/'false'). Bind aria-checked to the boolean explicitly for accessibility."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3.py",
+    "/app/backend/tests/test_migration_db.py"
+  ],
+  "success_rate": {
+    "backend": "100% (21/21 iter3 + 8/8 iter2 baseline intact)",
+    "frontend": "100% of iteration-3 flows verified (guest write+persist+reload, split collapse/restore, action modals, sources chips/uploads, authed regression, theme, responsive)"
+  },
+  "test_credentials": "Authed: session_token=test_session_founder01 (cookie or Bearer). Guest: none — POST /api/auth/guest returns guest_token cookie.",
+  "seed_data_creation": "Frontend guest run created a persistent guest user (guest_*) with 1 goal 'Run a half marathon' (+ some pending milestone proposals). Backend tests created and cleaned TEST_-prefixed blockers/sources; TEST_state.txt / TEST_guest.txt / TEST_goalnote.txt / TEST_example link remain in sources collection for founder + a transient guest — safe to leave. Migration test fully self-cleans.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints stable: POST /api/auth/guest (returns is_guest user + sets guest_token cookie, idempotent by cookie), POST /api/auth/session (accepts SessionIn.session_id, migrates guest data from guest_token cookie, sets session_token cookie), POST/PUT/DELETE /api/blockers, POST /api/sources/upload (multipart file + goal_id form field), POST /api/sources/link, GET /api/sources, GET /api/sources/{id}/download (auth via cookie/Bearer/?auth=query), DELETE /api/sources/{id} soft-delete. State response now includes 'sources' key. Real Emergent Google OAuth cannot be minted in tests — migration verified at data-model layer via test_migration_db.py. Frontend testids added this iteration: guest-banner, guest-banner-signin, split-divider, collapse-panel-button, panel-restore-button, collapse-chat-button, chat-restore-button, panel-collapse-button, milestones-chip, sources-chip-{id}, goal-upload-{id}, goal-edit-{id}, goal-pause-{id}, goal-drop-{id}, goal-add-step-{id}, action-prompt-modal, action-modal-input, action-modal-send, action-modal-close, chat-attach-file, chat-attach-link, attached-sources. Note: milestones-chip only renders when a goal has at least one milestone row (data-dependent).",
+  "rca of the issue": "N/A — no blocking bugs."
+}

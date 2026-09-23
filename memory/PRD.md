@@ -56,7 +56,16 @@ Founder (User #1): self-directed IC with a primary work goal, a fitness/recovery
 - Collapsible right panel; warm dark/light theme; SVG logo; new tagline "Let's sort your life — together."; About modal (upcoming features, privacy, founder link); humanized load wording; labeled Audit button.
 - Verified: testing agent 100% backend + frontend (iteration_2.json).
 
+## Iteration 3 (2026-06) — shipped
+- Guest = real anonymous session (`/api/auth/guest`, `guest_token` cookie): guests can chat, confirm writes, and their goals/timeline persist in the browser and **auto-migrate to the Google account on sign-in** (migration inside `/api/auth/session`).
+- File & link **sources** via Emergent Object Storage: clip/link in the chat box + per-goal attach; PDF/MD/TXT text extracted server-side and injected into the coach prompt; view/download/soft-delete. Upload capped at 20MB + extension allowlist.
+- **Resizable `<>` split** with drag divider and collapse/restore on BOTH panels.
+- Guided **"why?" action modal** for goal edit/pause/drop/add-step (frames the ask, sends to the coach to confirm).
+- **Milestones RAG chip** (green/amber/red) on goal cards; **new compass logo**.
+- Blockers now have direct CRUD endpoints (`/api/blockers`) for the upcoming calendar.
+- Verified: testing agent 100% (iteration_3.json) — 21/21 backend + all frontend flows incl. guest write→reload persistence and migration at the data layer.
+
 ## Backlog / next
-- P0: Source uploads for goals (links / .md / .pdf / pasted lists) → object storage + parsing → coach uses them to build milestones/trackers. (Explicitly requested; deferred to its own turn.)
-- P1: founder LinkedIn URL to replace placeholder in AboutModal.
-- P2: split server.py into modules; extract shared streaming helper.
+- P0 (next turn): **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
+- P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider.
+- P2: split server.py into modules; signed short-lived source download URLs instead of ?auth=.

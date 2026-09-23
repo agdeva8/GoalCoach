@@ -891,8 +891,12 @@ async def _goal_title(user_id: str, goal_id: str) -> str:
 @api.post("/sources/upload")
 async def upload_source(file: UploadFile = File(...), goal_id: str = Form(""), user: dict = Depends(get_current_user)):
     data = await file.read()
+    if len(data) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 20MB)")
     fn = file.filename or "file"
     ext = fn.rsplit(".", 1)[-1].lower() if "." in fn else "bin"
+    if ext not in {"pdf", "md", "txt", "csv", "json", "png", "jpg", "jpeg", "docx"}:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
     path = f"{APP_NAME}/uploads/{user['user_id']}/{uuid.uuid4().hex}.{ext}"
     result = put_object(path, data, file.content_type or "application/octet-stream")
     rec = {
