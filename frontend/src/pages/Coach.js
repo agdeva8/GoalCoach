@@ -195,6 +195,7 @@ export default function Coach() {
     <div className="h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
       <Header
         user={user}
+        authLoading={loading}
         provider={provider}
         onProvider={changeProvider}
         onOpenAudit={() => (isGuest ? setSignInOpen(true) : setAuditOpen(true))}

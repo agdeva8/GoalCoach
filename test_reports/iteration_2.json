@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 2 backend + frontend verification. 8/8 new backend pytest cases pass (guest_stream no-auth streaming, guest gating, authed stream with auto_answer=true producing target_date + add_milestone proposals, milestone persistence, state shape v2 with milestones key, auth-required endpoints reject unauth). Frontend (browser automation with injected session_token cookie): guest mode loads app at /, guest banner + header-signin-button visible, About modal renders with 'let's sort your life — together.', Upcoming section, privacy/'Your data, privately' section, and LinkedIn link; guest confirm-tool-button and open-audit-button both open signin-modal as designed; authed flow streams multi-goal proposals, confirm persists to dashboard with target_date, panel-collapse + panel-restore work, timeline drills year→quarter with 4 buckets, timeline-back navigates up, action-chips (area-chip-health) pre-fill curated prompt into chat-input, model switch to anthropic persists, audit view + export link work, theme toggle switches to 'light', history + goals persist across reload (3 goal cards, chat history retained), no horizontal overflow at 390px mobile viewport. Refine flow verified: refine-tool-button reveals refine-input and refine-cancel restores confirm/reject buttons.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_iteration2.py",
+    "/app/test_reports/pytest/iter2_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:730 lines — approaching the recommended 700-line ceiling. Consider splitting apply_proposal, SYSTEM_PROMPT, and streaming handlers into modules (tools.py, prompts.py, streaming.py) before iteration 3.",
+    "guest_chat_stream and chat_stream share ~90% of streaming logic (delta buffering, TOOL_START detection, parse_proposals). Extract to a shared helper to avoid divergence.",
+    "SYSTEM_PROMPT CLARIFY rule: with auto_answer=OFF and a fresh single-goal message the model sometimes still proposes instead of asking ~2 questions (observed 0 question marks in one run). Not a bug per se — LLM adherence — but the prompt could be tightened with a stronger 'you MUST ask 1-2 clarifying questions before any [[TOOLS]] block when AUTO-ANSWER MODE is off and the goal is new' rule.",
+    "AboutModal privacy section title is 'Your data, privately' (works, but text 'Privacy' is not present as a literal word). Consider adding data-testid='about-privacy-section' for testability.",
+    "Coach.js: initial render can show header-signin-button briefly before /api/auth/me resolves (observed race in ~1s window). Consider suppressing header auth UI until `loading` is false to prevent flicker."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 iter2 + 15/15 iter1 baseline still valid)",
+    "frontend": "100% of iteration-2 flows verified"
+  },
+  "test_credentials": "session_token=test_session_founder01 (cookie or Bearer). No password auth. Guest tests need NO auth.",
+  "seed_data_creation": "Cleared user_founder01's goals/commitments/messages/milestones/audit_log before testing. After tests: 3 confirmed goals (Side-project MVP, Half Marathon, Spanish B1) + milestones + audit entries remain — safe to leave for main agent visual inspection.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New endpoint POST /api/chat/guest_stream returns SSE with same event shape (delta/tools/done) but message_id='guest' and no persistence. Authed POST /api/chat/stream now accepts auto_answer:boolean. GET /api/state now includes 'milestones' array. Panel view state ('state'|'timeline') is in Coach.js panelView; collapse is rightCollapsed. Timeline data-testids: timeline-view, timeline-bucket-{level}-{idx}, timeline-back, timeline-drift (only when overdue open items), timeline-prefill-button (empty state only). Refine flow inside ToolConfirmationPrompt: refine-tool-button → shows refine-input + refine-send + refine-cancel; refine-cancel restores confirm/refine/reject. Panel: panel-collapse-button (desktop >=1024), panel-restore-button when collapsed. LLM streaming can take 15-25s for multi-goal auto-answer prompts.",
+  "rca of the issue": "N/A — no blocking bugs."
+}

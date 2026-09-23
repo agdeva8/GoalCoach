@@ -45,3 +45,18 @@ Founder (User #1): self-directed IC with a primary work goal, a fitness/recovery
 
 ## Next tasks
 - Real-user founder rubric pass (≥7/10) tracking.
+
+## Iteration 2 (2026-06) — shipped
+- Guest preview: app is the landing at `/`; ephemeral chat via `/api/chat/guest_stream` (no auth). Confirming/rejecting a proposal or opening Audit prompts Google sign-in.
+- Drill-down timeline: year→quarter→month→week buckets with a drift line for overdue items; breadcrumb + back nav.
+- Planner tools: goals now carry start/target dates; new tool actions `set_goal_dates`, `add_milestone`, `add_blocker`; coach builds realistic dated plans with buffer.
+- Clarifying-questions mode with an "answer for me" toggle (`auto_answer` flag on chat endpoints).
+- "Refine" on every proposal (add a note → coach re-proposes).
+- Action chips in dashboard (Add goal + area chips; per-goal edit/pause/drop/add-step) that pre-fill curated prompts (LLM stays the only writer).
+- Collapsible right panel; warm dark/light theme; SVG logo; new tagline "Let's sort your life — together."; About modal (upcoming features, privacy, founder link); humanized load wording; labeled Audit button.
+- Verified: testing agent 100% backend + frontend (iteration_2.json).
+
+## Backlog / next
+- P0: Source uploads for goals (links / .md / .pdf / pasted lists) → object storage + parsing → coach uses them to build milestones/trackers. (Explicitly requested; deferred to its own turn.)
+- P1: founder LinkedIn URL to replace placeholder in AboutModal.
+- P2: split server.py into modules; extract shared streaming helper.

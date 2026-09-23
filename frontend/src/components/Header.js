@@ -17,7 +17,7 @@ const STORYBOARDS = [
   { id: "routine", label: "Routine return", text: "Done with the gym for today. What's next on the pivot?" },
 ];
 
-export default function Header({ user, provider, onProvider, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard }) {
+export default function Header({ user, authLoading, provider, onProvider, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard }) {
   const [provOpen, setProvOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -133,7 +133,9 @@ export default function Header({ user, provider, onProvider, onOpenAudit, onOpen
           {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
         </button>
 
-        {isGuest ? (
+        {authLoading ? (
+          <div className="h-9 w-9" aria-hidden="true" />
+        ) : isGuest ? (
           <button
             data-testid="header-signin-button"
             onClick={onSignIn}
