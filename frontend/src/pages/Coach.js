@@ -114,9 +114,10 @@ export default function Coach() {
       }
     } catch (e) {
       toast.error("Connection interrupted");
-      setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, streaming: false } : m)));
     } finally {
       setSending(false);
+      // Safety: clear the streaming caret even if the stream ended without a 'done' event.
+      setMessages((prev) => prev.map((m) => (m.streaming ? { ...m, streaming: false } : m)));
     }
   };
 
