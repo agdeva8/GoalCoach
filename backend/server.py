@@ -1,0 +1,593 @@
+import os
+import json
+import uuid
+import logging
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Any
+
+import requests
+from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends
+from fastapi.responses import StreamingResponse, JSONResponse
+from dotenv import load_dotenv
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel
+
+from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
+mongo_url = os.environ['MONGO_URL']
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ['DB_NAME']]
+
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+EMERGENT_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("goalcoach")
+
+app = FastAPI()
+api = APIRouter(prefix="/api")
+
+# ----------------------------- Model routing -----------------------------
+PROVIDER_MODELS = {
+    "gemini": ("gemini", "gemini-3-flash-preview"),
+    "openai": ("openai", "gpt-5.4"),
+    "anthropic": ("anthropic", "claude-sonnet-4-6"),
+}
+VALID_PROVIDERS = list(PROVIDER_MODELS.keys())
+
+TOOL_START = "[[TOOLS]]"
+TOOL_END = "[[/TOOLS]]"
+
+HORIZONS = ["weekly", "short", "medium", "long"]
+
+# ----------------------------- Helpers -----------------------------
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def new_id(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex[:12]}"
+
+
+async def get_current_user(request: Request) -> dict:
+    token = request.cookies.get("session_token")
+    if not token:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    expires_at = session["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Session expired")
+
+    user = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+# ----------------------------- Auth -----------------------------
+class SessionIn(BaseModel):
+    session_id: str
+
+
+@api.post("/auth/session")
+async def create_session(body: SessionIn, response: Response):
+    try:
+        r = requests.get(EMERGENT_AUTH_URL, headers={"X-Session-ID": body.session_id}, timeout=15)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Auth service error: {e}")
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid session_id")
+    data = r.json()
+
+    email = data["email"]
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        user_id = existing["user_id"]
+        await db.users.update_one(
+            {"user_id": user_id},
+            {"$set": {"name": data.get("name"), "picture": data.get("picture")}},
+        )
+        user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    else:
+        user_id = new_id("user")
+        user = {
+            "user_id": user_id,
+            "email": email,
+            "name": data.get("name"),
+            "picture": data.get("picture"),
+            "model_provider": "gemini",
+            "created_at": now_iso(),
+        }
+        await db.users.insert_one(dict(user))
+
+    session_token = data["session_token"]
+    expires = datetime.now(timezone.utc) + timedelta(days=7)
+    await db.user_sessions.update_one(
+        {"session_token": session_token},
+        {"$set": {
+            "user_id": user_id,
+            "session_token": session_token,
+            "expires_at": expires.isoformat(),
+            "created_at": now_iso(),
+        }},
+        upsert=True,
+    )
+
+    response.set_cookie(
+        key="session_token", value=session_token, max_age=7 * 24 * 60 * 60,
+        httponly=True, secure=True, samesite="none", path="/",
+    )
+    user.pop("_id", None)
+    return {"user": user}
+
+
+@api.get("/auth/me")
+async def auth_me(user: dict = Depends(get_current_user)):
+    return user
+
+
+@api.post("/auth/logout")
+async def logout(request: Request, response: Response):
+    token = request.cookies.get("session_token")
+    if token:
+        await db.user_sessions.delete_one({"session_token": token})
+    response.delete_cookie("session_token", path="/")
+    return {"ok": True}
+
+
+class PrefsIn(BaseModel):
+    model_provider: str
+
+
+@api.put("/preferences")
+async def update_prefs(body: PrefsIn, user: dict = Depends(get_current_user)):
+    if body.model_provider not in VALID_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Invalid provider")
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"model_provider": body.model_provider}})
+    return {"model_provider": body.model_provider}
+
+
+# ----------------------------- State (dashboard truth) -----------------------------
+async def load_state(user_id: str) -> dict:
+    goals = await db.goals.find({"user_id": user_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    commitments = await db.commitments.find({"user_id": user_id}, {"_id": 0}).sort("created_at", 1).to_list(1000)
+    active = [g for g in goals if g["status"] == "active"]
+    open_commits = [c for c in commitments if c["status"] == "open"]
+
+    level = "clear"
+    message = "Load looks sustainable."
+    conflicting = []
+    n = len(active)
+    if n >= 7:
+        level = "critical"
+        message = f"{n} active goals. This is not a portfolio, it's a backlog. Something has to be paused."
+        conflicting = [g["title"] for g in active[:3]]
+    elif n >= 5:
+        level = "high"
+        message = f"{n} active goals plus {len(open_commits)} open commitments. Attention is spread thin."
+        conflicting = [g["title"] for g in active[:3]]
+    elif len(open_commits) > 4:
+        level = "high"
+        message = f"{len(open_commits)} open commitments across {n} goals. More promised than a week holds."
+    elif n >= 3:
+        level = "moderate"
+        message = f"{n} active goals. Manageable, but only one can be primary this week."
+
+    return {
+        "goals": goals,
+        "commitments": commitments,
+        "over_commitment": {
+            "level": level,
+            "message": message,
+            "conflicting": conflicting,
+            "active_goals": n,
+            "open_commitments": len(open_commits),
+        },
+    }
+
+
+@api.get("/state")
+async def get_state(user: dict = Depends(get_current_user)):
+    return await load_state(user["user_id"])
+
+
+# ----------------------------- Audit log -----------------------------
+async def log_audit(user_id: str, event_type: str, summary: str, payload: dict):
+    await db.audit_log.insert_one({
+        "id": new_id("audit"),
+        "user_id": user_id,
+        "type": event_type,
+        "summary": summary,
+        "payload": payload,
+        "created_at": now_iso(),
+    })
+
+
+@api.get("/audit")
+async def get_audit(user: dict = Depends(get_current_user)):
+    events = await db.audit_log.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return events
+
+
+@api.get("/audit/export")
+async def export_audit(user: dict = Depends(get_current_user)):
+    events = await db.audit_log.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", 1).to_list(5000)
+    messages = await db.messages.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", 1).to_list(5000)
+    state = await load_state(user["user_id"])
+    export = {
+        "exported_at": now_iso(),
+        "user": {"email": user["email"], "name": user.get("name")},
+        "state": {"goals": state["goals"], "commitments": state["commitments"]},
+        "conversation": messages,
+        "audit_log": events,
+    }
+    headers = {"Content-Disposition": "attachment; filename=goalcoach-export.json"}
+    return JSONResponse(content=export, headers=headers)
+
+
+# ----------------------------- Tool application -----------------------------
+async def find_goal_by_title(user_id: str, title: str) -> Optional[dict]:
+    if not title:
+        return None
+    goals = await db.goals.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    tl = title.strip().lower()
+    for g in goals:
+        if g["title"].strip().lower() == tl:
+            return g
+    for g in goals:
+        if tl in g["title"].strip().lower() or g["title"].strip().lower() in tl:
+            return g
+    return None
+
+
+async def apply_proposal(user_id: str, p: dict) -> str:
+    action = p.get("action")
+    if action == "create_goal":
+        goal = {
+            "id": new_id("goal"),
+            "user_id": user_id,
+            "title": p.get("title", "Untitled goal"),
+            "horizon": p.get("horizon") if p.get("horizon") in HORIZONS else "medium",
+            "why": p.get("why", ""),
+            "next_action": p.get("first_action", ""),
+            "status": "active",
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        await db.goals.insert_one(dict(goal))
+        return f"Created goal '{goal['title']}' ({goal['horizon']})"
+
+    if action in ("update_goal", "drop_goal", "pause_goal"):
+        g = await find_goal_by_title(user_id, p.get("goal_title") or p.get("title"))
+        if not g:
+            return f"No matching goal for '{p.get('goal_title')}'"
+        updates = {"updated_at": now_iso()}
+        if action == "drop_goal":
+            updates["status"] = "dropped"
+        elif action == "pause_goal":
+            updates["status"] = "paused"
+        else:
+            if p.get("status") in ("active", "paused", "dropped"):
+                updates["status"] = p["status"]
+            if p.get("next_action") is not None:
+                updates["next_action"] = p["next_action"]
+            if p.get("why") is not None:
+                updates["why"] = p["why"]
+            if p.get("new_title"):
+                updates["title"] = p["new_title"]
+        await db.goals.update_one({"id": g["id"]}, {"$set": updates})
+        verb = {"drop_goal": "Dropped", "pause_goal": "Paused", "update_goal": "Updated"}[action]
+        return f"{verb} goal '{g['title']}'"
+
+    if action == "add_commitment":
+        g = await find_goal_by_title(user_id, p.get("goal_title"))
+        commit = {
+            "id": new_id("commit"),
+            "user_id": user_id,
+            "goal_id": g["id"] if g else None,
+            "goal_title": g["title"] if g else p.get("goal_title", ""),
+            "text": p.get("text", ""),
+            "due": p.get("due", ""),
+            "status": "open",
+            "created_at": now_iso(),
+        }
+        await db.commitments.insert_one(dict(commit))
+        return f"Committed: {commit['text']}"
+
+    if action in ("complete_commitment", "update_commitment"):
+        commits = await db.commitments.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
+        text = (p.get("text") or "").strip().lower()
+        target = None
+        for c in commits:
+            if c["text"].strip().lower() == text or (text and text in c["text"].strip().lower()):
+                target = c
+                break
+        if not target:
+            return f"No matching commitment for '{p.get('text')}'"
+        status = "done" if action == "complete_commitment" else p.get("status", "open")
+        await db.commitments.update_one({"id": target["id"]}, {"$set": {"status": status}})
+        return f"Commitment '{target['text']}' -> {status}"
+
+    return f"Unknown action '{action}'"
+
+
+class ConfirmIn(BaseModel):
+    message_id: str
+    proposal_id: str
+
+
+async def _find_proposal(user_id: str, message_id: str, proposal_id: str):
+    msg = await db.messages.find_one({"id": message_id, "user_id": user_id}, {"_id": 0})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    for pr in msg.get("proposals", []):
+        if pr["id"] == proposal_id:
+            return msg, pr
+    raise HTTPException(status_code=404, detail="Proposal not found")
+
+
+@api.post("/tools/confirm")
+async def confirm_tool(body: ConfirmIn, user: dict = Depends(get_current_user)):
+    msg, pr = await _find_proposal(user["user_id"], body.message_id, body.proposal_id)
+    if pr.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="Proposal already resolved")
+    result = await apply_proposal(user["user_id"], pr)
+    await db.messages.update_one(
+        {"id": body.message_id, "proposals.id": body.proposal_id},
+        {"$set": {"proposals.$.status": "confirmed", "proposals.$.result": result}},
+    )
+    await log_audit(user["user_id"], f"confirm:{pr.get('action')}", result, pr)
+    state = await load_state(user["user_id"])
+    return {"result": result, "state": state}
+
+
+@api.post("/tools/reject")
+async def reject_tool(body: ConfirmIn, user: dict = Depends(get_current_user)):
+    msg, pr = await _find_proposal(user["user_id"], body.message_id, body.proposal_id)
+    if pr.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="Proposal already resolved")
+    await db.messages.update_one(
+        {"id": body.message_id, "proposals.id": body.proposal_id},
+        {"$set": {"proposals.$.status": "rejected"}},
+    )
+    await log_audit(user["user_id"], f"reject:{pr.get('action')}", f"User rejected: {pr.get('action')}", pr)
+    return {"ok": True}
+
+
+# ----------------------------- Chat -----------------------------
+@api.get("/chat/history")
+async def chat_history(user: dict = Depends(get_current_user)):
+    msgs = await db.messages.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", 1).to_list(2000)
+    return msgs
+
+
+SYSTEM_PROMPT = """You are GoalCoach — a chat-first cross-horizon life coach. Brand line: "Think through your goals, out loud."
+
+VOICE — this is the product, get it right:
+- Precise and curious, never warm or supportive. The honest coach is harder to like but easier to trust.
+- Name the actual thing the user said. Name the actual drift. Name the actual over-commitment.
+- Do NOT validate, encourage, reassure, or coach emotion. No "great job", no "you've got this", no exclamation-point energy.
+- No greetings, no filler, no "I'm here to help". Start with the substance.
+
+YOUR WEDGE is cross-horizon synthesis — reasoning across goals of different time horizons (weekly / short (<3mo) / medium (3-12mo) / long (1-3yr)). Not "AI coach". Most tools see one horizon; you see all of them at once.
+
+RESPONSE SHAPES — pick exactly one based on the situation:
+1. MULTIPLE GOALS (2-6 active): one tight paragraph synthesizing what deserves attention now and why, then up to 3 concrete actions for the next 7 days, then exactly 1 sentence naming what they're over-committing to. Do not exceed 3 actions.
+2. ONE NEW GOAL only: acknowledge the goal in one line, then ask exactly 2 clarifying questions inline: (a) the smallest next commitment, (b) when this starts feeling routine / what "on track" looks like. Do NOT produce the synthesis+actions shape — there is nothing to synthesize across yet.
+3. OVER-COMMITTED (>=7 goals): do NOT synthesize or give actions. Diagnose the over-commitment: name 2-3 specific goals in direct conflict and recommend dropping or pausing one. The user needs permission to subtract.
+4. RETURNING AFTER A GAP: do not greet. Synthesize across the gap, surface the last concrete commitment from history, and if recent actions contradict it, name the drift plainly.
+5. META QUESTION about a past commitment: surface the exact prior commitment from history/state, contrast it against current state, name the gap.
+6. ROUTINE RETURN: continue the conversation naturally, no special greeting, no recap.
+
+STATE WRITES (critical): You are the ONLY writer of goals and commitments, but you cannot write silently. When the conversation implies a change to tracked state (the user names a goal to track, agrees to a commitment, wants to drop/pause a goal, or marks something done), you PROPOSE it as a tool call and the user confirms. Never claim state changed — say you're proposing it.
+
+To propose tool calls, end your message with a single block, after all prose:
+[[TOOLS]]
+[ {json}, {json} ]
+[[/TOOLS]]
+Emit the block ONLY when a state change is warranted. If nothing should change, do not emit it.
+
+Allowed tool objects (JSON):
+- {"action":"create_goal","title":"...","horizon":"weekly|short|medium|long","why":"...","first_action":"..."}
+- {"action":"update_goal","goal_title":"<existing title>","status":"active|paused|dropped","next_action":"...","new_title":"..."}
+- {"action":"drop_goal","goal_title":"<existing title>","reason":"..."}
+- {"action":"pause_goal","goal_title":"<existing title>","reason":"..."}
+- {"action":"add_commitment","goal_title":"<existing title>","text":"...","due":"YYYY-MM-DD or plain words"}
+- {"action":"complete_commitment","text":"<commitment text>"}
+Reference existing goals by their exact current title. Keep prose free of the raw JSON.
+
+Keep prose free of markdown headers. Short lines. No emojis."""
+
+
+def build_context(state: dict, history: List[dict], user_name: Optional[str]) -> str:
+    lines = []
+    goals = [g for g in state["goals"] if g["status"] != "dropped"]
+    if goals:
+        lines.append("CURRENT TRACKED GOALS:")
+        for g in goals:
+            na = f" | next: {g.get('next_action')}" if g.get("next_action") else ""
+            lines.append(f"- [{g['horizon']}] {g['title']} (status: {g['status']}){na}")
+    else:
+        lines.append("CURRENT TRACKED GOALS: none yet.")
+
+    open_c = [c for c in state["commitments"] if c["status"] == "open"]
+    if open_c:
+        lines.append("\nOPEN COMMITMENTS:")
+        for c in open_c:
+            due = f" (due {c['due']})" if c.get("due") else ""
+            lines.append(f"- {c['text']}{due} [goal: {c.get('goal_title','')}]")
+
+    oc = state["over_commitment"]
+    lines.append(f"\nLOAD: {oc['active_goals']} active goals, {oc['open_commitments']} open commitments. Level: {oc['level']}.")
+
+    if history:
+        lines.append("\nRECENT CONVERSATION (oldest first):")
+        for m in history[-24:]:
+            role = "User" if m["role"] == "user" else "Coach"
+            lines.append(f"{role}: {m['content']}")
+    else:
+        lines.append("\nThis is the first message from this user.")
+    return "\n".join(lines)
+
+
+def parse_proposals(full: str) -> List[dict]:
+    if TOOL_START not in full:
+        return []
+    tail = full.split(TOOL_START, 1)[1]
+    tail = tail.split(TOOL_END, 1)[0].strip()
+    if not tail:
+        return []
+    data = None
+    try:
+        data = json.loads(tail)
+    except Exception:
+        start = tail.find("[")
+        end = tail.rfind("]")
+        if start != -1 and end != -1 and end > start:
+            try:
+                data = json.loads(tail[start:end + 1])
+            except Exception:
+                data = None
+    if data is None:
+        return []
+    if isinstance(data, dict):
+        data = [data]
+    out = []
+    for d in data:
+        if isinstance(d, dict) and d.get("action"):
+            d["id"] = new_id("prop")
+            d["status"] = "pending"
+            out.append(d)
+    return out
+
+
+class ChatIn(BaseModel):
+    message: str
+
+
+def sse(obj: dict) -> str:
+    return f"data: {json.dumps(obj)}\n\n"
+
+
+@api.post("/chat/stream")
+async def chat_stream(body: ChatIn, user: dict = Depends(get_current_user)):
+    user_id = user["user_id"]
+    user_msg_text = body.message.strip()
+
+    state = await load_state(user_id)
+    history = await db.messages.find({"user_id": user_id}, {"_id": 0, "content": 1, "role": 1}).sort("created_at", 1).to_list(2000)
+
+    user_msg = {
+        "id": new_id("msg"),
+        "user_id": user_id,
+        "role": "user",
+        "content": user_msg_text,
+        "proposals": [],
+        "created_at": now_iso(),
+    }
+    await db.messages.insert_one(dict(user_msg))
+
+    provider = user.get("model_provider", "gemini")
+    if provider not in PROVIDER_MODELS:
+        provider = "gemini"
+    prov_name, model_name = PROVIDER_MODELS[provider]
+
+    context = build_context(state, history, user.get("name"))
+    system = SYSTEM_PROMPT + "\n\n=== LIVE STATE & MEMORY ===\n" + context
+
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=user_id,
+        system_message=system,
+    ).with_model(prov_name, model_name)
+
+    async def gen():
+        full = ""
+        prose_emitted = 0
+        in_tools = False
+        try:
+            async for ev in chat.stream_message(UserMessage(text=user_msg_text)):
+                if isinstance(ev, TextDelta):
+                    full += ev.content
+                    if not in_tools:
+                        idx = full.find(TOOL_START)
+                        if idx == -1:
+                            safe_upto = max(prose_emitted, len(full) - len(TOOL_START))
+                            if safe_upto > prose_emitted:
+                                yield sse({"type": "delta", "content": full[prose_emitted:safe_upto]})
+                                prose_emitted = safe_upto
+                        else:
+                            if idx > prose_emitted:
+                                yield sse({"type": "delta", "content": full[prose_emitted:idx]})
+                            prose_emitted = idx
+                            in_tools = True
+                elif isinstance(ev, StreamDone):
+                    break
+        except Exception as e:
+            logger.exception("stream error")
+            yield sse({"type": "error", "content": f"Model error: {e}"})
+            return
+
+        if not in_tools and prose_emitted < len(full):
+            yield sse({"type": "delta", "content": full[prose_emitted:]})
+
+        prose = full.split(TOOL_START, 1)[0].strip() if in_tools else full.strip()
+        proposals = parse_proposals(full)
+
+        assistant_id = new_id("msg")
+        await db.messages.insert_one({
+            "id": assistant_id,
+            "user_id": user_id,
+            "role": "assistant",
+            "content": prose,
+            "proposals": proposals,
+            "provider": provider,
+            "created_at": now_iso(),
+        })
+        if proposals:
+            yield sse({"type": "tools", "message_id": assistant_id, "proposals": proposals})
+        yield sse({"type": "done", "message_id": assistant_id, "provider": provider})
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
+
+
+@api.get("/")
+async def root():
+    return {"message": "GoalCoach API"}
+
+
+app.include_router(api)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    client.close()
