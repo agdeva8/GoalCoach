@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Any
 
 import requests
-from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Form, Query, Header
 from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -55,7 +55,7 @@ def new_id(prefix: str) -> str:
 
 
 async def get_current_user(request: Request) -> dict:
-    token = request.cookies.get("session_token")
+    token = request.cookies.get("session_token") or request.cookies.get("guest_token")
     if not token:
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
@@ -87,7 +87,7 @@ class SessionIn(BaseModel):
 
 
 @api.post("/auth/session")
-async def create_session(body: SessionIn, response: Response):
+async def create_session(body: SessionIn, request: Request, response: Response):
     try:
         r = requests.get(EMERGENT_AUTH_URL, headers={"X-Session-ID": body.session_id}, timeout=15)
     except Exception as e:
@@ -130,6 +130,18 @@ async def create_session(body: SessionIn, response: Response):
         upsert=True,
     )
 
+    # Migrate any anonymous guest data into this account, then retire the guest.
+    guest_token = request.cookies.get("guest_token")
+    if guest_token:
+        gs = await db.user_sessions.find_one({"session_token": guest_token}, {"_id": 0})
+        if gs and gs["user_id"] != user_id:
+            gid = gs["user_id"]
+            for coll in ["goals", "commitments", "milestones", "blockers", "messages", "audit_log", "sources"]:
+                await db[coll].update_many({"user_id": gid}, {"$set": {"user_id": user_id}})
+            await db.users.delete_one({"user_id": gid, "is_guest": True})
+            await db.user_sessions.delete_many({"user_id": gid})
+        response.delete_cookie("guest_token", path="/")
+
     response.set_cookie(
         key="session_token", value=session_token, max_age=7 * 24 * 60 * 60,
         httponly=True, secure=True, samesite="none", path="/",
@@ -152,6 +164,35 @@ async def logout(request: Request, response: Response):
     return {"ok": True}
 
 
+@api.post("/auth/guest")
+async def create_guest(request: Request, response: Response):
+    existing = request.cookies.get("guest_token")
+    if existing:
+        s = await db.user_sessions.find_one({"session_token": existing}, {"_id": 0})
+        if s:
+            u = await db.users.find_one({"user_id": s["user_id"]}, {"_id": 0})
+            if u:
+                return {"user": u}
+    user_id = new_id("guest")
+    user = {
+        "user_id": user_id, "email": None, "name": "Guest", "picture": "",
+        "model_provider": "gemini", "is_guest": True, "created_at": now_iso(),
+    }
+    await db.users.insert_one(dict(user))
+    token = "gsess_" + uuid.uuid4().hex + uuid.uuid4().hex
+    expires = datetime.now(timezone.utc) + timedelta(days=7)
+    await db.user_sessions.insert_one({
+        "user_id": user_id, "session_token": token,
+        "expires_at": expires.isoformat(), "created_at": now_iso(),
+    })
+    response.set_cookie(
+        key="guest_token", value=token, max_age=7 * 24 * 60 * 60,
+        httponly=True, secure=True, samesite="none", path="/",
+    )
+    user.pop("_id", None)
+    return {"user": user}
+
+
 class PrefsIn(BaseModel):
     model_provider: str
 
@@ -170,6 +211,12 @@ async def load_state(user_id: str) -> dict:
     commitments = await db.commitments.find({"user_id": user_id}, {"_id": 0}).sort("created_at", 1).to_list(1000)
     milestones = await db.milestones.find({"user_id": user_id}, {"_id": 0}).sort("target_date", 1).to_list(1000)
     blockers = await db.blockers.find({"user_id": user_id}, {"_id": 0}).sort("start_date", 1).to_list(500)
+    sources = await db.sources.find({"user_id": user_id, "is_deleted": False}, {"_id": 0, "text_excerpt": 0}).sort("created_at", -1).to_list(500)
+    by_goal = {}
+    for s in sources:
+        by_goal.setdefault(s.get("goal_id") or "", []).append(s)
+    for g in goals:
+        g["sources"] = by_goal.get(g["id"], [])
     active = [g for g in goals if g["status"] == "active"]
     open_commits = [c for c in commitments if c["status"] == "open"]
 
@@ -197,6 +244,7 @@ async def load_state(user_id: str) -> dict:
         "commitments": commitments,
         "milestones": milestones,
         "blockers": blockers,
+        "sources": sources,
         "over_commitment": {
             "level": level,
             "message": message,
@@ -579,6 +627,23 @@ async def chat_stream(body: ChatIn, user: dict = Depends(get_current_user)):
     prov_name, model_name = PROVIDER_MODELS[provider]
 
     context = build_context(state, history, user.get("name"), body.auto_answer)
+    src_docs = await db.sources.find({"user_id": user_id, "is_deleted": False}, {"_id": 0}).to_list(100)
+    if src_docs:
+        budget = 4000
+        sl = ["\nUPLOADED SOURCES (use these to shape milestones and commitments):"]
+        for s in src_docs:
+            ex = (s.get("text_excerpt") or "").strip()[:1200]
+            if not ex:
+                continue
+            tag = s.get("original_filename") or s.get("url") or "source"
+            gt = f" [goal: {s['goal_title']}]" if s.get("goal_title") else ""
+            chunk = f"- {tag}{gt}: {ex}"
+            if budget - len(chunk) < 0:
+                break
+            budget -= len(chunk)
+            sl.append(chunk)
+        if len(sl) > 1:
+            context = context + "\n" + "\n".join(sl)
     system = SYSTEM_PROMPT + "\n\n=== LIVE STATE & MEMORY ===\n" + context
 
     chat = LlmChat(
@@ -706,6 +771,189 @@ async def guest_chat_stream(body: GuestChatIn):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )
+
+
+# ----------------------------- Object storage -----------------------------
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+APP_NAME = "goalcoach"
+_storage_key = None
+
+
+def init_storage(force: bool = False):
+    global _storage_key
+    if _storage_key and not force:
+        return _storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_LLM_KEY}, timeout=30)
+    resp.raise_for_status()
+    _storage_key = resp.json()["storage_key"]
+    return _storage_key
+
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
+    if resp.status_code == 404:
+        key = init_storage(force=True)
+        resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_object(path: str):
+    key = init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+
+def extract_text(ext: str, data: bytes) -> str:
+    try:
+        if ext == "pdf":
+            import io
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            return "\n".join((p.extract_text() or "") for p in reader.pages)[:8000]
+        return data.decode("utf-8", errors="ignore")[:8000]
+    except Exception:
+        return ""
+
+
+def fetch_link_text(url: str) -> str:
+    import re
+    try:
+        r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        t = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", r.text, flags=re.S | re.I)
+        t = re.sub(r"<[^>]+>", " ", t)
+        return re.sub(r"\s+", " ", t).strip()[:8000]
+    except Exception:
+        return ""
+
+
+@app.on_event("startup")
+async def _startup():
+    try:
+        init_storage()
+        logger.info("Object storage initialized")
+    except Exception as e:
+        logger.error(f"Storage init failed: {e}")
+
+
+# ----------------------------- Blockers (direct edit) -----------------------------
+class BlockerIn(BaseModel):
+    title: str
+    start_date: str
+    end_date: Optional[str] = None
+    note: Optional[str] = ""
+
+
+@api.post("/blockers")
+async def create_blocker(body: BlockerIn, user: dict = Depends(get_current_user)):
+    b = {
+        "id": new_id("block"), "user_id": user["user_id"], "title": body.title,
+        "start_date": body.start_date, "end_date": body.end_date or body.start_date,
+        "note": body.note or "", "created_at": now_iso(),
+    }
+    await db.blockers.insert_one(dict(b))
+    b.pop("_id", None)
+    return b
+
+
+@api.put("/blockers/{bid}")
+async def update_blocker(bid: str, body: BlockerIn, user: dict = Depends(get_current_user)):
+    await db.blockers.update_one(
+        {"id": bid, "user_id": user["user_id"]},
+        {"$set": {"title": body.title, "start_date": body.start_date, "end_date": body.end_date or body.start_date, "note": body.note or ""}},
+    )
+    return {"ok": True}
+
+
+@api.delete("/blockers/{bid}")
+async def delete_blocker(bid: str, user: dict = Depends(get_current_user)):
+    await db.blockers.delete_one({"id": bid, "user_id": user["user_id"]})
+    return {"ok": True}
+
+
+# ----------------------------- Sources (files & links) -----------------------------
+class LinkIn(BaseModel):
+    url: str
+    title: Optional[str] = ""
+    goal_id: Optional[str] = ""
+
+
+async def _goal_title(user_id: str, goal_id: str) -> str:
+    if not goal_id:
+        return ""
+    g = await db.goals.find_one({"id": goal_id, "user_id": user_id}, {"_id": 0})
+    return g["title"] if g else ""
+
+
+@api.post("/sources/upload")
+async def upload_source(file: UploadFile = File(...), goal_id: str = Form(""), user: dict = Depends(get_current_user)):
+    data = await file.read()
+    fn = file.filename or "file"
+    ext = fn.rsplit(".", 1)[-1].lower() if "." in fn else "bin"
+    path = f"{APP_NAME}/uploads/{user['user_id']}/{uuid.uuid4().hex}.{ext}"
+    result = put_object(path, data, file.content_type or "application/octet-stream")
+    rec = {
+        "id": new_id("src"), "user_id": user["user_id"], "goal_id": goal_id or "",
+        "goal_title": await _goal_title(user["user_id"], goal_id), "kind": "file",
+        "storage_path": result["path"], "original_filename": fn,
+        "content_type": file.content_type or "application/octet-stream",
+        "size": result.get("size", len(data)), "url": "",
+        "text_excerpt": extract_text(ext, data), "is_deleted": False, "created_at": now_iso(),
+    }
+    await db.sources.insert_one(dict(rec))
+    rec.pop("_id", None)
+    rec.pop("text_excerpt", None)
+    return rec
+
+
+@api.post("/sources/link")
+async def add_link(body: LinkIn, user: dict = Depends(get_current_user)):
+    rec = {
+        "id": new_id("src"), "user_id": user["user_id"], "goal_id": body.goal_id or "",
+        "goal_title": await _goal_title(user["user_id"], body.goal_id or ""), "kind": "link",
+        "storage_path": "", "original_filename": body.title or body.url,
+        "content_type": "text/uri-list", "size": 0, "url": body.url,
+        "text_excerpt": fetch_link_text(body.url), "is_deleted": False, "created_at": now_iso(),
+    }
+    await db.sources.insert_one(dict(rec))
+    rec.pop("_id", None)
+    rec.pop("text_excerpt", None)
+    return rec
+
+
+@api.get("/sources")
+async def list_sources(user: dict = Depends(get_current_user)):
+    return await db.sources.find({"user_id": user["user_id"], "is_deleted": False}, {"_id": 0, "text_excerpt": 0}).sort("created_at", -1).to_list(500)
+
+
+@api.get("/sources/{sid}/download")
+async def download_source(sid: str, request: Request, auth: Optional[str] = Query(None)):
+    token = request.cookies.get("session_token") or request.cookies.get("guest_token") or auth
+    if not token:
+        a = request.headers.get("Authorization", "")
+        token = a[7:] if a.startswith("Bearer ") else None
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    sess = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+    if not sess:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    rec = await db.sources.find_one({"id": sid, "user_id": sess["user_id"], "is_deleted": False}, {"_id": 0})
+    if not rec:
+        raise HTTPException(status_code=404, detail="Not found")
+    if rec["kind"] == "link":
+        return JSONResponse({"url": rec["url"]})
+    content, ctype = get_object(rec["storage_path"])
+    return Response(content=content, media_type=rec.get("content_type", ctype),
+                    headers={"Content-Disposition": f'inline; filename="{rec["original_filename"]}"'})
+
+
+@api.delete("/sources/{sid}")
+async def delete_source(sid: str, user: dict = Depends(get_current_user)):
+    await db.sources.update_one({"id": sid, "user_id": user["user_id"]}, {"$set": {"is_deleted": True}})
+    return {"ok": True}
 
 
 @api.get("/")

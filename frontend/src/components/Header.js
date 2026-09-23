@@ -22,7 +22,7 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
   const [storyOpen, setStoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const cur = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
-  const isGuest = !user;
+  const isGuest = !user || user.is_guest;
   const rootRef = useRef(null);
 
   useEffect(() => {

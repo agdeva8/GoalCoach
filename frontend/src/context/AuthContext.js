@@ -12,7 +12,14 @@ export function AuthProvider({ children }) {
       const u = await api.me();
       setUser(u);
     } catch {
-      setUser(null);
+      // No session yet — start an anonymous guest session so work persists
+      // and auto-migrates to their Google account on sign-in.
+      try {
+        const { user: guest } = await api.guest();
+        setUser(guest);
+      } catch {
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }

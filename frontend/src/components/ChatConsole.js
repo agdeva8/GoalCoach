@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Paperclip, Link2, X, FileText } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 
 function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
@@ -38,9 +38,10 @@ function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {} }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
+  const fileRef = useRef(null);
   const [empty] = useState(messages.length === 0);
 
   useEffect(() => {
@@ -85,7 +86,24 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
       </div>
 
       <div className="shrink-0 border-t border-[var(--border)] p-3 sm:p-4 bg-[var(--bg-primary)]">
-        <div className="flex items-end gap-2 border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
+        {sources.length > 0 && (
+          <div data-testid="attached-sources" className="mb-2 flex flex-wrap gap-1.5">
+            {sources.map((s) => (
+              <span key={s.id} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
+                <FileText className="w-3 h-3" /> <span className="max-w-[140px] truncate">{s.original_filename}</span>
+                <button onClick={() => onDeleteSource(s.id)} className="text-[var(--text-muted)] hover:text-[var(--danger)]"><X className="w-3 h-3" /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-end gap-1 border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
+          <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
+          <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" className="ml-1 mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+            <Paperclip className="w-4 h-4" />
+          </button>
+          <button data-testid="chat-attach-link" onClick={onAddLink} title="Add a link as a source" className="mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+            <Link2 className="w-4 h-4" />
+          </button>
           <textarea
             ref={taRef}
             data-testid="chat-input"
@@ -95,7 +113,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             rows={1}
             placeholder="Think out loud…"
             aria-label="Message the coach"
-            className="flex-1 bg-transparent resize-none px-3 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none max-h-40"
+            className="flex-1 bg-transparent resize-none px-2 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none max-h-40"
             style={{ minHeight: "48px" }}
           />
           <button

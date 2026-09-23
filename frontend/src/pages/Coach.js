@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { MessageSquare, LayoutDashboard, CalendarClock, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { MessageSquare, LayoutDashboard, CalendarClock, PanelRightClose, PanelRightOpen, PanelLeftClose, PanelLeftOpen, GripVertical } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api, API } from "../lib/api";
 import Header from "../components/Header";
@@ -11,10 +11,11 @@ import Timeline from "../components/Timeline";
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
+import ActionPromptModal from "../components/ActionPromptModal";
 
 export default function Coach() {
   const { user, setUser, loading, logout } = useAuth();
-  const isGuest = !loading && !user;
+  const isGuest = !!user?.is_guest;
 
   const [messages, setMessages] = useState([]);
   const [state, setState] = useState(null);
@@ -24,36 +25,63 @@ export default function Coach() {
   const [auditOpen, setAuditOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
+  const [actionModal, setActionModal] = useState(null);
   const [provider, setProvider] = useState("gemini");
   const [theme, setTheme] = useState(() => localStorage.getItem("gc_theme") || "dark");
   const [mobileView, setMobileView] = useState("chat");
   const [panelView, setPanelView] = useState("state");
   const [autoAnswer, setAutoAnswer] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [splitPct, setSplitPct] = useState(58);
+  const [isLg, setIsLg] = useState(false);
   const streamIdRef = useRef(0);
+  const splitRef = useRef(null);
+  const dragging = useRef(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
     localStorage.setItem("gc_theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const on = () => setIsLg(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
   const refreshState = useCallback(async () => {
     try { setState(await api.state()); } catch (e) { /* noop */ }
   }, []);
 
   useEffect(() => {
-    if (loading) return;
-    if (user) {
-      setProvider(user.model_provider || "gemini");
-      api.history().then(setMessages).catch(() => {});
-      refreshState();
-    }
+    if (loading || !user) return;
+    setProvider(user.model_provider || "gemini");
+    api.history().then(setMessages).catch(() => {});
+    refreshState();
   }, [loading, user, refreshState]);
+
+  // Drag-to-resize divider
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging.current || !splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setSplitPct(Math.min(75, Math.max(28, pct)));
+    };
+    const onUp = () => { dragging.current = false; document.body.style.cursor = ""; document.body.style.userSelect = ""; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, []);
+
+  const startDrag = () => { dragging.current = true; document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none"; };
 
   const doLogout = async () => {
     await logout();
-    setMessages([]);
-    setState(null);
+    setMessages([]); setState(null);
     window.location.href = "/";
   };
 
@@ -61,25 +89,17 @@ export default function Coach() {
 
   const changeProvider = async (p) => {
     setProvider(p);
-    if (isGuest) { toast.message(`Preview using ${p}`); return; }
     try {
       await api.setProvider(p);
       setUser((u) => (u ? { ...u, model_provider: p } : u));
       toast.success(`Model switched to ${p}`);
-    } catch {
-      toast.error("Could not switch model");
-    }
+    } catch { toast.error("Could not switch model"); }
   };
 
-  const onStoryboard = (text) => {
-    setInput(text);
-    setMobileView("chat");
-  };
+  const prefill = (text) => { setInput(text); setMobileView("chat"); };
+  const onStoryboard = prefill;
 
-  const prefill = (text) => {
-    setInput(text);
-    setMobileView("chat");
-  };
+  const openAction = (goal, type) => setActionModal({ goalTitle: goal.title, type });
 
   const refineProposal = (proposal, thought) => {
     const name = proposal.title || proposal.new_title || proposal.goal_title || proposal.text || "";
@@ -87,12 +107,26 @@ export default function Coach() {
     send(`About your proposed ${label}${name ? ` ("${name}")` : ""}: ${thought}. Please re-propose it with that taken into account.`);
   };
 
+  const uploadFile = async (file, goalId = "") => {
+    toast.message(`Uploading ${file.name}…`);
+    try { await api.uploadSource(file, goalId); await refreshState(); toast.success(`Added ${file.name} as a source`); }
+    catch (e) { toast.error(e.message || "Upload failed"); }
+  };
+  const addLink = async (goalId = "") => {
+    const url = window.prompt("Paste a link to use as a source:");
+    if (!url) return;
+    try { await api.addLink({ url, goal_id: goalId }); await refreshState(); toast.success("Link added as a source"); }
+    catch (e) { toast.error(e.message || "Could not add link"); }
+  };
+  const deleteSource = async (id) => {
+    try { await api.deleteSource(id); await refreshState(); } catch (e) { toast.error("Could not remove source"); }
+  };
+
   const send = async (text) => {
     setSending(true);
     setInput("");
     const localUserId = `local_${Date.now()}`;
     const streamId = `stream_${++streamIdRef.current}`;
-    const priorHistory = messages.map((m) => ({ role: m.role, content: m.content }));
     setMessages((prev) => [
       ...prev,
       { id: localUserId, role: "user", content: text, proposals: [] },
@@ -100,13 +134,11 @@ export default function Coach() {
     ]);
 
     try {
-      const endpoint = isGuest ? `${API}/chat/guest_stream` : `${API}/chat/stream`;
-      const payload = isGuest ? { message: text, history: priorHistory, auto_answer: autoAnswer } : { message: text, auto_answer: autoAnswer };
-      const resp = await fetch(endpoint, {
+      const resp = await fetch(`${API}/chat/stream`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ message: text, auto_answer: autoAnswer }),
       });
       if (!resp.ok || !resp.body) throw new Error("stream failed");
 
@@ -119,11 +151,10 @@ export default function Coach() {
         if (data.type === "delta") {
           setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, content: m.content + data.content } : m)));
         } else if (data.type === "tools") {
-          finalId = isGuest ? streamId : data.message_id;
-          setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, id: finalId, proposals: data.proposals } : m)));
+          finalId = data.message_id;
+          setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, id: data.message_id, proposals: data.proposals } : m)));
         } else if (data.type === "done") {
-          const newId = isGuest ? (finalId || streamId) : data.message_id;
-          setMessages((prev) => prev.map((m) => (m.id === (finalId || streamId) ? { ...m, id: newId, streaming: false } : m)));
+          setMessages((prev) => prev.map((m) => (m.id === (finalId || streamId) ? { ...m, id: data.message_id, streaming: false } : m)));
         } else if (data.type === "error") {
           toast.error(data.content || "Model error");
           setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, streaming: false, content: m.content || "(no response)" } : m)));
@@ -138,9 +169,7 @@ export default function Coach() {
         while ((idx = buf.indexOf("\n\n")) >= 0) {
           const raw = buf.slice(0, idx);
           buf = buf.slice(idx + 2);
-          if (raw.startsWith("data: ")) {
-            try { handle(JSON.parse(raw.slice(6))); } catch {}
-          }
+          if (raw.startsWith("data: ")) { try { handle(JSON.parse(raw.slice(6))); } catch {} }
         }
       }
     } catch (e) {
@@ -152,44 +181,28 @@ export default function Coach() {
   };
 
   const confirmProposal = async (messageId, proposalId) => {
-    if (isGuest) { setSignInOpen(true); return; }
     setBusyProposal(proposalId);
     try {
       const { result, state: newState } = await api.confirm(messageId, proposalId);
       setState(newState);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "confirmed" } : p)) }
-            : m
-        )
-      );
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "confirmed" } : p)) } : m)));
       toast.success(result);
-    } catch (e) {
-      toast.error(e.message || "Could not apply");
-    } finally {
-      setBusyProposal(null);
-    }
+    } catch (e) { toast.error(e.message || "Could not apply"); }
+    finally { setBusyProposal(null); }
   };
 
   const rejectProposal = async (messageId, proposalId) => {
-    if (isGuest) { setSignInOpen(true); return; }
     setBusyProposal(proposalId);
     try {
       await api.reject(messageId, proposalId);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "rejected" } : p)) }
-            : m
-        )
-      );
-    } catch (e) {
-      toast.error(e.message || "Could not reject");
-    } finally {
-      setBusyProposal(null);
-    }
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "rejected" } : p)) } : m)));
+    } catch (e) { toast.error(e.message || "Could not reject"); }
+    finally { setBusyProposal(null); }
   };
+
+  const chatStyle = isLg ? { width: rightCollapsed ? "100%" : leftCollapsed ? "0%" : `${splitPct}%` } : undefined;
+  const panelStyle = isLg ? { width: leftCollapsed ? "100%" : rightCollapsed ? "0%" : `calc(${100 - splitPct}% - 10px)` } : undefined;
+  const generalSources = (state?.sources || []).filter((s) => !s.goal_id);
 
   return (
     <div className="h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
@@ -198,7 +211,7 @@ export default function Coach() {
         authLoading={loading}
         provider={provider}
         onProvider={changeProvider}
-        onOpenAudit={() => (isGuest ? setSignInOpen(true) : setAuditOpen(true))}
+        onOpenAudit={() => setAuditOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
         onSignIn={openSignIn}
         theme={theme}
@@ -212,44 +225,35 @@ export default function Coach() {
         <div data-testid="guest-banner" className="border-b border-[var(--border)] bg-[var(--accent)]/10 px-4 sm:px-6 py-2 flex items-center gap-3">
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)]">preview</span>
           <span className="text-xs text-[var(--text-secondary)] flex-1">
-            You're trying GoalCoach — chat freely. Sign in to save goals, build your timeline, and be remembered next week.
+            Everything you build is saved in this browser. Sign in to keep it on your account and pick up on any device.
           </span>
-          <button data-testid="guest-banner-signin" onClick={openSignIn} className="text-xs font-medium text-[var(--accent)] hover:underline shrink-0">
-            Sign in →
-          </button>
+          <button data-testid="guest-banner-signin" onClick={openSignIn} className="text-xs font-medium text-[var(--accent)] hover:underline shrink-0">Sign in →</button>
         </div>
       )}
 
       {/* Mobile view switch */}
       <div className="lg:hidden flex border-b border-[var(--border)] shrink-0">
-        <button
-          data-testid="mobile-tab-chat"
-          onClick={() => setMobileView("chat")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono uppercase tracking-wider transition-colors ${mobileView === "chat" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)]"}`}
-        >
+        <button data-testid="mobile-tab-chat" onClick={() => setMobileView("chat")} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono uppercase tracking-wider transition-colors ${mobileView === "chat" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)]"}`}>
           <MessageSquare className="w-3.5 h-3.5" /> Chat
         </button>
-        <button
-          data-testid="mobile-tab-state"
-          onClick={() => setMobileView("state")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono uppercase tracking-wider transition-colors ${mobileView === "state" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)]"}`}
-        >
+        <button data-testid="mobile-tab-state" onClick={() => setMobileView("state")} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono uppercase tracking-wider transition-colors ${mobileView === "state" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)]"}`}>
           <LayoutDashboard className="w-3.5 h-3.5" /> State
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 relative">
+      <div ref={splitRef} className="flex-1 min-h-0 flex relative">
         {rightCollapsed && (
-          <button
-            data-testid="panel-restore-button"
-            onClick={() => setRightCollapsed(false)}
-            title="Show goals & timeline"
-            className="hidden lg:flex absolute top-2 right-2 z-20 items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--border-accent)] text-xs text-[var(--text-secondary)]"
-          >
+          <button data-testid="panel-restore-button" onClick={() => setRightCollapsed(false)} title="Show goals & timeline" className="hidden lg:flex absolute top-2 right-2 z-20 items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--border-accent)] text-xs text-[var(--text-secondary)]">
             <PanelRightOpen className="w-4 h-4" /> Panel
           </button>
         )}
-        <div className={`${rightCollapsed ? "lg:col-span-12" : "lg:col-span-7"} lg:border-r border-[var(--border)] min-h-0 ${mobileView === "chat" ? "flex" : "hidden"} lg:flex`}>
+        {leftCollapsed && (
+          <button data-testid="chat-restore-button" onClick={() => setLeftCollapsed(false)} title="Show chat" className="hidden lg:flex absolute top-2 left-2 z-20 items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-[var(--border-accent)] text-xs text-[var(--text-secondary)]">
+            <PanelLeftOpen className="w-4 h-4" /> Chat
+          </button>
+        )}
+
+        <div style={chatStyle} className={`min-h-0 ${leftCollapsed ? "lg:hidden" : ""} ${mobileView === "chat" ? "flex" : "hidden"} lg:flex`}>
           <div className="w-full h-full min-h-0">
             <ChatConsole
               messages={messages}
@@ -263,49 +267,37 @@ export default function Coach() {
               busyProposal={busyProposal}
               autoAnswer={autoAnswer}
               setAutoAnswer={setAutoAnswer}
+              onUploadFile={(f) => uploadFile(f, "")}
+              onAddLink={() => addLink("")}
+              sources={generalSources}
+              onDeleteSource={deleteSource}
             />
           </div>
         </div>
-        <div className={`lg:col-span-5 min-h-0 overflow-y-auto bg-[var(--bg-primary)] flex flex-col ${mobileView === "state" ? "block" : "hidden"} ${rightCollapsed ? "lg:hidden" : "lg:flex"}`}>
+
+        {isLg && !leftCollapsed && !rightCollapsed && (
+          <div data-testid="split-divider" onMouseDown={startDrag} title="Drag to resize · click a chevron to collapse" className="hidden lg:flex flex-col items-center justify-center w-[10px] shrink-0 cursor-col-resize bg-[var(--border)]/40 hover:bg-[var(--accent)]/40 transition-colors group">
+            <button data-testid="collapse-chat-button" onMouseDown={(e) => e.stopPropagation()} onClick={() => setLeftCollapsed(true)} title="Collapse chat" className="mb-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><PanelLeftClose className="w-3.5 h-3.5" /></button>
+            <GripVertical className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-[var(--accent)]" />
+            <button data-testid="collapse-panel-button" onMouseDown={(e) => e.stopPropagation()} onClick={() => setRightCollapsed(true)} title="Collapse panel" className="mt-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><PanelRightClose className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+
+        <div style={panelStyle} className={`min-h-0 bg-[var(--bg-primary)] flex-col border-l border-[var(--border)] ${rightCollapsed ? "lg:hidden" : "lg:flex"} ${mobileView === "state" ? "flex" : "hidden"}`}>
           <div className="shrink-0 flex items-center border-b border-[var(--border)] px-4 sm:px-6 pt-3">
-            <button
-              data-testid="panel-tab-state"
-              onClick={() => setPanelView("state")}
-              className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${panelView === "state" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
-            >
+            <button data-testid="panel-tab-state" onClick={() => setPanelView("state")} className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${panelView === "state" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}>
               <LayoutDashboard className="w-3.5 h-3.5" /> Goals
             </button>
-            <button
-              data-testid="panel-tab-timeline"
-              onClick={() => setPanelView("timeline")}
-              className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${panelView === "timeline" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
-            >
+            <button data-testid="panel-tab-timeline" onClick={() => setPanelView("timeline")} className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${panelView === "timeline" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}>
               <CalendarClock className="w-3.5 h-3.5" /> Timeline
             </button>
-            <button
-              data-testid="panel-collapse-button"
-              onClick={() => setRightCollapsed(true)}
-              title="Collapse panel"
-              className="ml-auto hidden lg:flex items-center px-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-            >
+            <button data-testid="panel-collapse-button" onClick={() => setRightCollapsed(true)} title="Collapse panel" className="ml-auto hidden lg:flex items-center px-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
               <PanelRightClose className="w-4 h-4" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {isGuest ? (
-              <div className="p-6">
-                <div className="border border-dashed border-[var(--border)] p-6 text-center rounded-md">
-                  <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                    Your goals and timeline appear here once you sign in. In preview, the coach can still
-                    synthesize and propose changes — confirming one will ask you to sign in.
-                  </p>
-                  <button onClick={openSignIn} className="mt-3 text-xs font-medium text-[var(--accent)] hover:underline">
-                    Sign in to start tracking →
-                  </button>
-                </div>
-              </div>
-            ) : panelView === "state" ? (
-              <TrackingDashboard state={state} onPrefill={prefill} />
+            {panelView === "state" ? (
+              <TrackingDashboard state={state} onPrefill={prefill} onAction={openAction} onUploadSource={uploadFile} onDeleteSource={deleteSource} />
             ) : (
               <Timeline state={state} onPrefill={prefill} />
             )}
@@ -316,6 +308,7 @@ export default function Coach() {
       <HonestyAuditView open={auditOpen} onClose={() => setAuditOpen(false)} />
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
+      <ActionPromptModal action={actionModal} onClose={() => setActionModal(null)} onSend={(msg) => { setActionModal(null); send(msg); }} />
     </div>
   );
 }
