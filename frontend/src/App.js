@@ -1,23 +1,9 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import AuthCallback from "./components/AuthCallback";
-import Login from "./pages/Login";
 import Coach from "./pages/Coach";
-
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-        <span className="font-mono text-xs uppercase tracking-widest text-[var(--text-muted)]">loading</span>
-      </div>
-    );
-  }
-  if (!user) return <Navigate to="/" replace />;
-  return children;
-}
 
 function AppRouter() {
   const location = useLocation();
@@ -26,8 +12,7 @@ function AppRouter() {
   }
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/coach" element={<ProtectedRoute><Coach /></ProtectedRoute>} />
+      <Route path="/" element={<Coach />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

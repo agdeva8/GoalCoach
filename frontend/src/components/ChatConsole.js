@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 
-function Message({ m, onConfirm, onReject, busyProposal }) {
+function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
   if (m.role === "user") {
     return (
       <div data-testid="chat-message-user" className="flex flex-col items-end gc-fade-up">
@@ -29,6 +29,7 @@ function Message({ m, onConfirm, onReject, busyProposal }) {
               busy={busyProposal === p.id}
               onConfirm={() => onConfirm(m.id, p.id)}
               onReject={() => onReject(m.id, p.id)}
+              onRefine={(thought) => onRefine(p, thought)}
             />
           ))}
         </div>
@@ -37,7 +38,7 @@ function Message({ m, onConfirm, onReject, busyProposal }) {
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, busyProposal }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const [empty] = useState(messages.length === 0);
@@ -78,7 +79,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           </div>
         )}
         {messages.map((m) => (
-          <Message key={m.id} m={m} onConfirm={onConfirm} onReject={onReject} busyProposal={busyProposal} />
+          <Message key={m.id} m={m} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} busyProposal={busyProposal} />
         ))}
         <div ref={endRef} />
       </div>
@@ -107,9 +108,19 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             <ArrowUp className="w-4 h-4" />
           </button>
         </div>
-        <div className="mt-1.5 font-mono text-[10px] text-[var(--text-muted)] flex justify-between">
-          <span>enter to send · shift+enter for newline</span>
-          {sending && <span className="text-[var(--accent)]">coach is responding…</span>}
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            data-testid="auto-answer-toggle"
+            onClick={() => setAutoAnswer((v) => !v)}
+            title="When on, the coach makes reasonable assumptions instead of asking you clarifying questions"
+            className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${autoAnswer ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+          >
+            {autoAnswer ? "answering for you" : "coach may ask questions"}
+          </button>
+          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+            {sending ? <span className="text-[var(--accent)]">coach is responding…</span> : "enter to send · shift+enter = newline"}
+          </span>
         </div>
       </div>
     </div>

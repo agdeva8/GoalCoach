@@ -12,7 +12,7 @@ export default function OnboardingBanner() {
       <p className="text-xs leading-relaxed text-[var(--text-secondary)] flex-1">
         This is one chat with memory. The coach reasons across all your goals at once and remembers between sessions.
         It's the only thing that writes to your tracked state — when it wants to add, change, or drop a goal or commitment,
-        it proposes the change inline and you confirm it. The dashboard on the right is that same state, read-only.
+        it proposes the change inline and you confirm it. The panel on the right shows that same state, live.
       </p>
       <button data-testid="dismiss-onboarding" onClick={dismiss} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors" aria-label="Dismiss">
         <X className="w-4 h-4" />

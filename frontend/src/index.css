@@ -5,35 +5,35 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #090A0F;
-  --bg-secondary: #11131C;
-  --bg-tertiary: #1A1D2B;
-  --border: #282C3F;
-  --border-accent: #3E4562;
-  --text-primary: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --accent: #38BDF8;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --success: #10B981;
-  --tool-bg: #131722;
+  --bg-primary: #17120E;
+  --bg-secondary: #211A14;
+  --bg-tertiary: #2C231B;
+  --border: #3A2E24;
+  --border-accent: #574636;
+  --text-primary: #F6EEE3;
+  --text-secondary: #C6B5A1;
+  --text-muted: #94806B;
+  --accent: #E8925C;
+  --warning: #E0A458;
+  --danger: #D9705A;
+  --success: #8FB98A;
+  --tool-bg: #241C15;
 }
 
 .light {
-  --bg-primary: #FAFAFA;
-  --bg-secondary: #F1F5F9;
-  --bg-tertiary: #E2E8F0;
-  --border: #CBD5E1;
-  --border-accent: #94A3B8;
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --accent: #0284C7;
-  --warning: #D97706;
-  --danger: #DC2626;
-  --success: #059669;
-  --tool-bg: #F8FAFC;
+  --bg-primary: #FBF6EF;
+  --bg-secondary: #F3EBDF;
+  --bg-tertiary: #EADFCF;
+  --border: #E0D3C0;
+  --border-accent: #C9B7A0;
+  --text-primary: #2B2118;
+  --text-secondary: #5E4F40;
+  --text-muted: #93806A;
+  --accent: #C4683A;
+  --warning: #B9772E;
+  --danger: #C0563E;
+  --success: #5E8B57;
+  --tool-bg: #F6EFE4;
 }
 
 * {

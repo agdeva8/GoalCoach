@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { ChevronDown, LogOut, ScrollText, Sun, Moon, Sparkles } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ChevronDown, LogOut, History, Sun, Moon, Sparkles, Info, LogIn } from "lucide-react";
+import Logo from "./Logo";
 
 const PROVIDERS = [
   { id: "gemini", label: "Gemini", model: "3 Flash" },
@@ -16,30 +17,46 @@ const STORYBOARDS = [
   { id: "routine", label: "Routine return", text: "Done with the gym for today. What's next on the pivot?" },
 ];
 
-export default function Header({ user, provider, onProvider, onOpenAudit, theme, onToggleTheme, onLogout, onStoryboard }) {
+export default function Header({ user, provider, onProvider, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard }) {
   const [provOpen, setProvOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const cur = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
+  const isGuest = !user;
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setProvOpen(false);
+        setStoryOpen(false);
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
 
   return (
     <header
       data-testid="app-header"
       className="h-16 shrink-0 border-b border-[var(--border)] bg-[var(--bg-primary)]/85 backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50"
     >
-      <div className="flex items-baseline gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Logo className="w-7 h-7 text-[var(--accent)] shrink-0" />
         <span className="font-display font-bold tracking-tight text-base sm:text-lg">GoalCoach</span>
-        <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)] truncate">
-          think through your goals, out loud.
+        <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] truncate">
+          let's sort your life — together.
         </span>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div ref={rootRef} className="ml-auto flex items-center gap-2">
         {/* Storyboard picker */}
         <div className="relative">
           <button
             data-testid="storyboard-trigger"
-            onClick={() => { setStoryOpen((v) => !v); setProvOpen(false); }}
+            onClick={() => { setStoryOpen((v) => !v); setProvOpen(false); setMenuOpen(false); }}
+            title="Load a scenario prompt"
             className="hidden sm:flex items-center gap-1.5 h-9 px-3 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-mono text-[11px] uppercase tracking-wider transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" /> Scenarios <ChevronDown className="w-3 h-3" />
@@ -64,7 +81,8 @@ export default function Header({ user, provider, onProvider, onOpenAudit, theme,
         <div className="relative">
           <button
             data-testid="model-switcher-trigger"
-            onClick={() => { setProvOpen((v) => !v); setStoryOpen(false); }}
+            onClick={() => { setProvOpen((v) => !v); setStoryOpen(false); setMenuOpen(false); }}
+            title="Switch the coach's model"
             className="flex items-center gap-2 h-9 px-3 border border-[var(--border)] hover:border-[var(--border-accent)] transition-colors"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
@@ -89,27 +107,47 @@ export default function Header({ user, provider, onProvider, onOpenAudit, theme,
         </div>
 
         <button
-          data-testid="open-audit-button"
-          onClick={onOpenAudit}
-          title="Honesty audit"
+          data-testid="open-about-button"
+          onClick={onOpenAbout}
+          title="About GoalCoach, privacy & the founder"
           className="h-9 w-9 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors"
         >
-          <ScrollText className="w-4 h-4" />
+          <Info className="w-4 h-4" />
+        </button>
+
+        <button
+          data-testid="open-audit-button"
+          onClick={onOpenAudit}
+          title="Every change the coach made — timestamped and exportable"
+          className="h-9 flex items-center gap-1.5 px-2.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors rounded-md"
+        >
+          <History className="w-4 h-4" /> <span className="hidden sm:inline text-xs">Audit</span>
         </button>
 
         <button
           data-testid="theme-toggle"
           onClick={onToggleTheme}
-          title="Toggle theme"
+          title={theme === "light" ? "Switch to dark" : "Switch to light"}
           className="h-9 w-9 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors"
         >
           {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
         </button>
 
+        {isGuest ? (
+          <button
+            data-testid="header-signin-button"
+            onClick={onSignIn}
+            title="Sign in with Google to save your work"
+            className="h-9 flex items-center gap-2 px-3.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
+          >
+            <LogIn className="w-3.5 h-3.5" /> Sign in
+          </button>
+        ) : (
         <div className="relative">
           <button
             data-testid="user-menu-trigger"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => { setMenuOpen((v) => !v); setProvOpen(false); setStoryOpen(false); }}
+            title="Account"
             className="h-9 w-9 rounded-full overflow-hidden border border-[var(--border)] hover:border-[var(--border-accent)] transition-colors"
           >
             {user?.picture ? (
@@ -134,6 +172,7 @@ export default function Header({ user, provider, onProvider, onOpenAudit, theme,
             </div>
           )}
         </div>
+        )}
       </div>
     </header>
   );

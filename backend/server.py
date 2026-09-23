@@ -168,31 +168,35 @@ async def update_prefs(body: PrefsIn, user: dict = Depends(get_current_user)):
 async def load_state(user_id: str) -> dict:
     goals = await db.goals.find({"user_id": user_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
     commitments = await db.commitments.find({"user_id": user_id}, {"_id": 0}).sort("created_at", 1).to_list(1000)
+    milestones = await db.milestones.find({"user_id": user_id}, {"_id": 0}).sort("target_date", 1).to_list(1000)
+    blockers = await db.blockers.find({"user_id": user_id}, {"_id": 0}).sort("start_date", 1).to_list(500)
     active = [g for g in goals if g["status"] == "active"]
     open_commits = [c for c in commitments if c["status"] == "open"]
 
     level = "clear"
-    message = "Load looks sustainable."
+    message = "A steady, focused load."
     conflicting = []
     n = len(active)
     if n >= 7:
         level = "critical"
-        message = f"{n} active goals. This is not a portfolio, it's a backlog. Something has to be paused."
+        message = f"{n} goals at once is a wish-list, not a week. Something needs to be paused."
         conflicting = [g["title"] for g in active[:3]]
     elif n >= 5:
         level = "high"
-        message = f"{n} active goals plus {len(open_commits)} open commitments. Attention is spread thin."
+        message = f"{n} goals and {len(open_commits)} promises in flight — your attention is stretched thin."
         conflicting = [g["title"] for g in active[:3]]
     elif len(open_commits) > 4:
         level = "high"
-        message = f"{len(open_commits)} open commitments across {n} goals. More promised than a week holds."
+        message = f"{len(open_commits)} open promises across {n} goals — more than a week really holds."
     elif n >= 3:
         level = "moderate"
-        message = f"{n} active goals. Manageable, but only one can be primary this week."
+        message = f"{n} goals in play. Doable, but only one can lead this week."
 
     return {
         "goals": goals,
         "commitments": commitments,
+        "milestones": milestones,
+        "blockers": blockers,
         "over_commitment": {
             "level": level,
             "message": message,
@@ -267,6 +271,8 @@ async def apply_proposal(user_id: str, p: dict) -> str:
             "horizon": p.get("horizon") if p.get("horizon") in HORIZONS else "medium",
             "why": p.get("why", ""),
             "next_action": p.get("first_action", ""),
+            "start_date": p.get("start_date") or datetime.now(timezone.utc).date().isoformat(),
+            "target_date": p.get("target_date", ""),
             "status": "active",
             "created_at": now_iso(),
             "updated_at": now_iso(),
@@ -290,11 +296,53 @@ async def apply_proposal(user_id: str, p: dict) -> str:
                 updates["next_action"] = p["next_action"]
             if p.get("why") is not None:
                 updates["why"] = p["why"]
+            if p.get("target_date"):
+                updates["target_date"] = p["target_date"]
             if p.get("new_title"):
                 updates["title"] = p["new_title"]
         await db.goals.update_one({"id": g["id"]}, {"$set": updates})
         verb = {"drop_goal": "Dropped", "pause_goal": "Paused", "update_goal": "Updated"}[action]
         return f"{verb} goal '{g['title']}'"
+
+    if action == "set_goal_dates":
+        g = await find_goal_by_title(user_id, p.get("goal_title") or p.get("title"))
+        if not g:
+            return f"No matching goal for '{p.get('goal_title')}'"
+        updates = {"updated_at": now_iso()}
+        if p.get("start_date"):
+            updates["start_date"] = p["start_date"]
+        if p.get("target_date"):
+            updates["target_date"] = p["target_date"]
+        await db.goals.update_one({"id": g["id"]}, {"$set": updates})
+        return f"Timeline set for '{g['title']}': {p.get('start_date','?')} -> {p.get('target_date','?')}"
+
+    if action == "add_milestone":
+        g = await find_goal_by_title(user_id, p.get("goal_title"))
+        m = {
+            "id": new_id("mile"),
+            "user_id": user_id,
+            "goal_id": g["id"] if g else None,
+            "goal_title": g["title"] if g else p.get("goal_title", ""),
+            "title": p.get("title", ""),
+            "target_date": p.get("target_date", ""),
+            "status": "open",
+            "created_at": now_iso(),
+        }
+        await db.milestones.insert_one(dict(m))
+        return f"Milestone '{m['title']}' -> {m['target_date']}"
+
+    if action == "add_blocker":
+        b = {
+            "id": new_id("block"),
+            "user_id": user_id,
+            "title": p.get("title", ""),
+            "start_date": p.get("start_date", ""),
+            "end_date": p.get("end_date") or p.get("start_date", ""),
+            "note": p.get("note", ""),
+            "created_at": now_iso(),
+        }
+        await db.blockers.insert_one(dict(b))
+        return f"Blocker '{b['title']}' {b['start_date']}..{b['end_date']}"
 
     if action == "add_commitment":
         g = await find_goal_by_title(user_id, p.get("goal_title"))
@@ -378,7 +426,9 @@ async def chat_history(user: dict = Depends(get_current_user)):
     return msgs
 
 
-SYSTEM_PROMPT = """You are GoalCoach — a chat-first cross-horizon life coach. Brand line: "Think through your goals, out loud."
+SYSTEM_PROMPT = """You are GoalCoach — a chat-first cross-horizon life coach and realistic planner. Brand line: "Let's sort your life — together."
+
+You do more than track goals. You help the user build a realistic path to each one: sequencing milestones across a timeline, adding buffer for real life, and naming blockers (travel, a sibling's wedding in December, a launch crunch) that make naive plans fail. When you propose dates, be realistic and pad for slippage — a plan that assumes everything goes right is a plan that fails. When a goal is worth planning, propose target dates and 2-4 milestones so it renders on the user's timeline.
 
 VOICE — this is the product, get it right:
 - Precise and curious, never warm or supportive. The honest coach is harder to like but easier to trust.
@@ -398,6 +448,8 @@ RESPONSE SHAPES — pick exactly one based on the situation:
 
 STATE WRITES (critical): You are the ONLY writer of goals and commitments, but you cannot write silently. When the conversation implies a change to tracked state (the user names a goal to track, agrees to a commitment, wants to drop/pause a goal, or marks something done), you PROPOSE it as a tool call and the user confirms. Never claim state changed — say you're proposing it.
 
+CLARIFY: Unless AUTO-ANSWER is ON (stated in LIVE STATE), when the user gives a new goal or asks you to plan and an essential detail is missing (the smallest next step, a realistic deadline, hard constraints or blockers), ask 1-2 sharp questions BEFORE proposing tool calls. Ask only what changes the plan; do not interrogate. When AUTO-ANSWER is ON, make explicit assumptions, state them in one short line, and proceed straight to proposing.
+
 To propose tool calls, end your message with a single block, after all prose:
 [[TOOLS]]
 [ {json}, {json} ]
@@ -405,25 +457,30 @@ To propose tool calls, end your message with a single block, after all prose:
 Emit the block ONLY when a state change is warranted. If nothing should change, do not emit it.
 
 Allowed tool objects (JSON):
-- {"action":"create_goal","title":"...","horizon":"weekly|short|medium|long","why":"...","first_action":"..."}
-- {"action":"update_goal","goal_title":"<existing title>","status":"active|paused|dropped","next_action":"...","new_title":"..."}
+- {"action":"create_goal","title":"...","horizon":"weekly|short|medium|long","why":"...","first_action":"...","target_date":"YYYY-MM-DD"}
+- {"action":"update_goal","goal_title":"<existing title>","status":"active|paused|dropped","next_action":"...","new_title":"...","target_date":"YYYY-MM-DD"}
+- {"action":"set_goal_dates","goal_title":"<existing title>","start_date":"YYYY-MM-DD","target_date":"YYYY-MM-DD"}
+- {"action":"add_milestone","goal_title":"<existing title>","title":"...","target_date":"YYYY-MM-DD"}
+- {"action":"add_blocker","title":"...","start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD","note":"..."}
 - {"action":"drop_goal","goal_title":"<existing title>","reason":"..."}
 - {"action":"pause_goal","goal_title":"<existing title>","reason":"..."}
-- {"action":"add_commitment","goal_title":"<existing title>","text":"...","due":"YYYY-MM-DD or plain words"}
+- {"action":"add_commitment","goal_title":"<existing title>","text":"...","due":"YYYY-MM-DD"}
 - {"action":"complete_commitment","text":"<commitment text>"}
-Reference existing goals by their exact current title. Keep prose free of the raw JSON.
+Reference existing goals by their exact current title. Use ISO dates (YYYY-MM-DD) so they render on the timeline — anchor all dates to today's date (given in LIVE STATE) and include buffer. Keep prose free of the raw JSON.
 
 Keep prose free of markdown headers. Short lines. No emojis."""
 
 
-def build_context(state: dict, history: List[dict], user_name: Optional[str]) -> str:
-    lines = []
+def build_context(state: dict, history: List[dict], user_name: Optional[str], auto_answer: bool = False) -> str:
+    lines = [f"Today is {datetime.now(timezone.utc).date().isoformat()}.",
+             f"AUTO-ANSWER MODE: {'on' if auto_answer else 'off'}."]
     goals = [g for g in state["goals"] if g["status"] != "dropped"]
     if goals:
         lines.append("CURRENT TRACKED GOALS:")
         for g in goals:
             na = f" | next: {g.get('next_action')}" if g.get("next_action") else ""
-            lines.append(f"- [{g['horizon']}] {g['title']} (status: {g['status']}){na}")
+            td = f" | target: {g.get('target_date')}" if g.get("target_date") else ""
+            lines.append(f"- [{g['horizon']}] {g['title']} (status: {g['status']}){na}{td}")
     else:
         lines.append("CURRENT TRACKED GOALS: none yet.")
 
@@ -433,6 +490,17 @@ def build_context(state: dict, history: List[dict], user_name: Optional[str]) ->
         for c in open_c:
             due = f" (due {c['due']})" if c.get("due") else ""
             lines.append(f"- {c['text']}{due} [goal: {c.get('goal_title','')}]")
+
+    milestones = state.get("milestones", [])
+    if milestones:
+        lines.append("\nMILESTONES:")
+        for m in milestones:
+            lines.append(f"- {m.get('title')} [{m.get('goal_title','')}] target {m.get('target_date','')} ({m.get('status','open')})")
+    blockers = state.get("blockers", [])
+    if blockers:
+        lines.append("\nKNOWN BLOCKERS (plan around these):")
+        for b in blockers:
+            lines.append(f"- {b.get('title')} {b.get('start_date','')}..{b.get('end_date','')} {b.get('note','')}")
 
     oc = state["over_commitment"]
     lines.append(f"\nLOAD: {oc['active_goals']} active goals, {oc['open_commitments']} open commitments. Level: {oc['level']}.")
@@ -480,6 +548,7 @@ def parse_proposals(full: str) -> List[dict]:
 
 class ChatIn(BaseModel):
     message: str
+    auto_answer: bool = False
 
 
 def sse(obj: dict) -> str:
@@ -509,7 +578,7 @@ async def chat_stream(body: ChatIn, user: dict = Depends(get_current_user)):
         provider = "gemini"
     prov_name, model_name = PROVIDER_MODELS[provider]
 
-    context = build_context(state, history, user.get("name"))
+    context = build_context(state, history, user.get("name"), body.auto_answer)
     system = SYSTEM_PROMPT + "\n\n=== LIVE STATE & MEMORY ===\n" + context
 
     chat = LlmChat(
@@ -564,6 +633,73 @@ async def chat_stream(body: ChatIn, user: dict = Depends(get_current_user)):
         if proposals:
             yield sse({"type": "tools", "message_id": assistant_id, "proposals": proposals})
         yield sse({"type": "done", "message_id": assistant_id, "provider": provider})
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
+
+
+class GuestChatIn(BaseModel):
+    message: str
+    history: Optional[List[dict]] = None
+    auto_answer: bool = False
+
+
+@api.post("/chat/guest_stream")
+async def guest_chat_stream(body: GuestChatIn):
+    history = body.history or []
+    ctx = [
+        f"Today is {datetime.now(timezone.utc).date().isoformat()}.",
+        f"AUTO-ANSWER MODE: {'on' if body.auto_answer else 'off'}.",
+        "PREVIEW MODE: the user is NOT signed in. There is no saved state or long-term memory. You may synthesize and PROPOSE tool calls normally, but they will not be saved until the user signs in.",
+    ]
+    if history:
+        ctx.append("\nRECENT CONVERSATION (oldest first):")
+        for m in history[-16:]:
+            role = "User" if m.get("role") == "user" else "Coach"
+            ctx.append(f"{role}: {m.get('content','')}")
+    system = SYSTEM_PROMPT + "\n\n=== LIVE STATE & MEMORY ===\n" + "\n".join(ctx)
+
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"guest_{uuid.uuid4().hex}",
+        system_message=system,
+    ).with_model("gemini", "gemini-3-flash-preview")
+
+    async def gen():
+        full = ""
+        prose_emitted = 0
+        in_tools = False
+        try:
+            async for ev in chat.stream_message(UserMessage(text=body.message)):
+                if isinstance(ev, TextDelta):
+                    full += ev.content
+                    if not in_tools:
+                        idx = full.find(TOOL_START)
+                        if idx == -1:
+                            safe_upto = max(prose_emitted, len(full) - len(TOOL_START))
+                            if safe_upto > prose_emitted:
+                                yield sse({"type": "delta", "content": full[prose_emitted:safe_upto]})
+                                prose_emitted = safe_upto
+                        else:
+                            if idx > prose_emitted:
+                                yield sse({"type": "delta", "content": full[prose_emitted:idx]})
+                            prose_emitted = idx
+                            in_tools = True
+                elif isinstance(ev, StreamDone):
+                    break
+        except Exception as e:
+            logger.exception("guest stream error")
+            yield sse({"type": "error", "content": f"Model error: {e}"})
+            return
+        if not in_tools and prose_emitted < len(full):
+            yield sse({"type": "delta", "content": full[prose_emitted:]})
+        proposals = parse_proposals(full)
+        if proposals:
+            yield sse({"type": "tools", "message_id": "guest", "proposals": proposals})
+        yield sse({"type": "done", "message_id": "guest", "provider": "gemini"})
 
     return StreamingResponse(
         gen(),

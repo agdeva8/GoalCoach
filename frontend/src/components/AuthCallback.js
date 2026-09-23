@@ -27,7 +27,7 @@ export default function AuthCallback() {
         const { user } = await api.session(sessionId);
         setUser(user);
         window.history.replaceState(null, "", window.location.pathname);
-        navigate("/coach", { replace: true, state: { user } });
+        navigate("/", { replace: true, state: { user } });
       } catch (e) {
         setError(e.message);
       }
