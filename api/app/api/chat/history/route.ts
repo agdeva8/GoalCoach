@@ -171,6 +171,39 @@ export async function GET(req: NextRequest) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* DELETE handler — clear all chat history for the current user               */
+/* -------------------------------------------------------------------------- */
+
+export async function DELETE(req: NextRequest) {
+  const auth = await authenticate(req)
+  if (!auth) {
+    return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
+  }
+
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ success: true })
+  }
+
+  const { db } = await import('@/lib/db')
+  const { messages, proposals } = await import('@/db/schema')
+
+  // Delete proposals first (foreign key), then messages
+  const messageRows = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(eq(messages.userId, auth.userId))
+
+  const messageIds = messageRows.map((r) => r.id)
+
+  if (messageIds.length > 0) {
+    await db.delete(proposals).where(inArray(proposals.messageId, messageIds))
+    await db.delete(messages).where(eq(messages.userId, auth.userId))
+  }
+
+  return NextResponse.json({ success: true })
+}
+
+/* -------------------------------------------------------------------------- */
 /* Test/dev fixture                                                            */
 /*                                                                             */
 /* Matches the wire shape the v1 stub returned so the chat-flow integration    */

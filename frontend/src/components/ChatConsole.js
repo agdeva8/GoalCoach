@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { ArrowUp, Paperclip, Link2, X, FileText } from "lucide-react";
+import { ArrowUp, Paperclip, Link2, X, FileText, Trash2 } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 
 function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
@@ -38,7 +38,7 @@ function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {} }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {} }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -63,6 +63,18 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
 
   return (
     <div data-testid="chat-console" className="flex flex-col h-full min-h-0 bg-[var(--bg-primary)]">
+      {messages.length > 0 && (
+        <div className="shrink-0 flex justify-end px-4 sm:px-6 pt-4">
+          <button
+            onClick={onClearChat}
+            className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            title="Clear chat"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Clear
+          </button>
+        </div>
+      )}
       <div
         role="log"
         aria-live="polite"

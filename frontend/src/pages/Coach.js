@@ -85,6 +85,18 @@ export default function Coach() {
     window.location.href = "/";
   };
 
+  const clearChat = async () => {
+    try {
+      await api.clearHistory();
+      setMessages([]);
+      setState(null);
+      toast.success("Chat cleared");
+    } catch {
+      setMessages([]);
+      setState(null);
+    }
+  };
+
   const openSignIn = () => setSignInOpen(true);
 
   const changeProvider = async (p) => {
@@ -271,6 +283,7 @@ export default function Coach() {
               onAddLink={() => addLink("")}
               sources={generalSources}
               onDeleteSource={deleteSource}
+              onClearChat={clearChat}
             />
           </div>
         </div>

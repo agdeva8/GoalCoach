@@ -22,6 +22,7 @@ export const api = {
   setProvider: (model_provider) => req("/preferences", { method: "PUT", body: JSON.stringify({ model_provider }) }),
   state: () => req("/state"),
   history: () => req("/chat/history"),
+  clearHistory: () => req("/chat/history", { method: "DELETE" }),
   audit: () => req("/audit"),
   confirm: (message_id, proposal_id) =>
     req("/tools/confirm", { method: "POST", body: JSON.stringify({ message_id, proposal_id }) }),
