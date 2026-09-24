@@ -1,5 +1,0 @@
-/Users/deva/Documents/Projects/GoalCoach/CLAUDE.md
-/Users/deva/Documents/Projects/GoalCoach/migration/discovery/01-mongo-schema.md
-/Users/deva/Documents/Projects/GoalCoach/migration/discovery/02-fastapi-routes.md
-/Users/deva/Documents/Projects/GoalCoach/migration/discovery/03-nextjs-architecture.md
-/Users/deva/Documents/Projects/GoalCoach/y/pnpm-workspace.yaml

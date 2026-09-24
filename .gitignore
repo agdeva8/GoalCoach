@@ -90,3 +90,9 @@ credentials.json
 *.key
 .credentials
 .dyad/
+
+# GoalCoach-specific cleanup (bolt.diy prep, 2026-09-24)
+graphify-out/
+y/
+tests/
+frontend/package-lock.json
