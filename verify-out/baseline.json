@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-24T14:37:03.281Z",
+  "timestamp": "2026-09-24T15:10:11.915Z",
   "backend": "http://localhost:3001",
   "frontend": "http://localhost:3000",
   "probes": [
@@ -41,7 +41,7 @@
       "auth": "bearer",
       "status": 200,
       "contentType": "application/json",
-      "bodySnip": "[]"
+      "bodySnip": "[{\"id\":\"msg_1790262415592_ef69313e\",\"user_id\":\"user_founder01\",\"role\":\"user\",\"content\":\"i want to learn swimming\",\"provider\":\"gemini\",\"proposals\":[],\"created_at\":\"2026-09-24T15:06:56.684Z\"},{\"id\":\"msg"
     },
     {
       "method": "POST",
@@ -50,7 +50,7 @@
       "body": {},
       "status": 200,
       "contentType": "application/json",
-      "bodySnip": "{\"user\":{\"user_id\":\"user_guest_0c73ecd2c047\",\"email\":null,\"name\":\"Guest\",\"picture\":null,\"is_guest\":true,\"model_provider\":\"gemini\"}}"
+      "bodySnip": "{\"user\":{\"user_id\":\"user_guest_106b8d6c08ac\",\"email\":null,\"name\":\"Guest\",\"picture\":null,\"is_guest\":true,\"model_provider\":\"gemini\"}}"
     }
   ],
   "screenshots": [

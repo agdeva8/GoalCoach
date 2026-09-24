@@ -253,3 +253,40 @@ export const verificationTokens = pgTable(
     }),
   ]
 )
+
+/* -------------------------------------------------------------------------- */
+/* user_sessions — runtime-managed session tokens                             */
+/*                                                                             */
+/* Mirror of the legacy Python `user_sessions` collection. Links Emergent-    */
+/* issued `session_token` cookies to a `users.id`. Read/written by raw SQL   */
+/* in lib/auth.ts (see auth.ts:161 SELECT, auth.ts:229 INSERT).               */
+/* -------------------------------------------------------------------------- */
+
+export const userSessions = pgTable('user_sessions', {
+  sessionToken: text('session_token').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/* -------------------------------------------------------------------------- */
+/* state_overrides — per-user tunable overrides to computed state              */
+/*                                                                             */
+/* Referenced from lib/auth.ts:255 in the guest-migration UPDATE loop.       */
+/* Shape (jsonb `payload`) is forward-compatible — the migration only needs   */
+/* `user_id` to exist for the UPDATE SET user_id = ... WHERE user_id = ...   */
+/* to succeed; no read/write paths exist yet.                                  */
+/* -------------------------------------------------------------------------- */
+
+export const stateOverrides = pgTable('state_overrides', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  payload: jsonb('payload'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
