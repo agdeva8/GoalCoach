@@ -1,0 +1,527 @@
+{
+  "/Users/deva/Documents/Projects/GoalCoach/design_guidelines.json": {
+    "mtime": 1790205782.5434847,
+    "ast_hash": "17d0251ed75864250fc7ce1ab6964ac5",
+    "semantic_hash": "17d0251ed75864250fc7ce1ab6964ac5"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/jsconfig.json": {
+    "mtime": 1790205782.5443382,
+    "ast_hash": "a2e4e63783396d757a381e2eb62cf006",
+    "semantic_hash": "a2e4e63783396d757a381e2eb62cf006"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/tailwind.config.js": {
+    "mtime": 1790205782.5535212,
+    "ast_hash": "05f23dca6eb3739f4731abe1ecddb335",
+    "semantic_hash": "05f23dca6eb3739f4731abe1ecddb335"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/craco.config.js": {
+    "mtime": 1790205782.5441,
+    "ast_hash": "d53698072ff2aee45cf48ec2c175c842",
+    "semantic_hash": "d53698072ff2aee45cf48ec2c175c842"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/package.json": {
+    "mtime": 1790205782.5444987,
+    "ast_hash": "97f00d2cd65780cfd48881c36cf1b70a",
+    "semantic_hash": "97f00d2cd65780cfd48881c36cf1b70a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/components.json": {
+    "mtime": 1790205782.5438614,
+    "ast_hash": "ec28f583f2fc75a89c8e2361e2e963a9",
+    "semantic_hash": "ec28f583f2fc75a89c8e2361e2e963a9"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/postcss.config.js": {
+    "mtime": 1790205782.5449,
+    "ast_hash": "854b38759e7a8b4b82306ae2d9a3a833",
+    "semantic_hash": "854b38759e7a8b4b82306ae2d9a3a833"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/plugins/health-check/health-endpoints.js": {
+    "mtime": 1790205782.5447428,
+    "ast_hash": "5b2cc1a9f9d5ae8eaf0210ba3a26f635",
+    "semantic_hash": "5b2cc1a9f9d5ae8eaf0210ba3a26f635"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/plugins/health-check/webpack-health-plugin.js": {
+    "mtime": 1790205782.544827,
+    "ast_hash": "0e0fdd9b015ce8359fdc41b55826ea35",
+    "semantic_hash": "0e0fdd9b015ce8359fdc41b55826ea35"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/index.js": {
+    "mtime": 1790205782.552932,
+    "ast_hash": "3d0b661a8643ef35f75b81935cc6b776",
+    "semantic_hash": "3d0b661a8643ef35f75b81935cc6b776"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/App.js": {
+    "mtime": 1790205782.5453353,
+    "ast_hash": "6c1b84ebe18dc384bf94ec3d08413287",
+    "semantic_hash": "6c1b84ebe18dc384bf94ec3d08413287"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/context/AuthContext.js": {
+    "mtime": 1790205782.5526304,
+    "ast_hash": "d0dcb5d6275aa4c33ae55fa65e63386b",
+    "semantic_hash": "d0dcb5d6275aa4c33ae55fa65e63386b"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/constants/testIds/auth.js": {
+    "mtime": 1790205782.5523028,
+    "ast_hash": "07846c40f3cb70b309a742b111c3f588",
+    "semantic_hash": "07846c40f3cb70b309a742b111c3f588"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/constants/testIds/index.js": {
+    "mtime": 1790205782.552478,
+    "ast_hash": "841ab1e4b2a6faf664a83d42994a8499",
+    "semantic_hash": "841ab1e4b2a6faf664a83d42994a8499"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/constants/testIds/home.js": {
+    "mtime": 1790205782.5523973,
+    "ast_hash": "bb24d255c8ea733b7244f5efb9392a3f",
+    "semantic_hash": "bb24d255c8ea733b7244f5efb9392a3f"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ToolConfirmationPrompt.js": {
+    "mtime": 1790205782.546887,
+    "ast_hash": "c375dba009ff32c4c0643d9ccfa8a410",
+    "semantic_hash": "c375dba009ff32c4c0643d9ccfa8a410"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/SignInModal.js": {
+    "mtime": 1790205782.546387,
+    "ast_hash": "8e18e072c2719af20c4412351afc2156",
+    "semantic_hash": "8e18e072c2719af20c4412351afc2156"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/HonestyAuditView.js": {
+    "mtime": 1790205782.5460846,
+    "ast_hash": "f1e9e34157d350dc4c4e3a145b4312c4",
+    "semantic_hash": "f1e9e34157d350dc4c4e3a145b4312c4"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/AboutModal.js": {
+    "mtime": 1790205782.545531,
+    "ast_hash": "5b7969a4fe300f67153b3e9ec2eea544",
+    "semantic_hash": "5b7969a4fe300f67153b3e9ec2eea544"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/AuthCallback.js": {
+    "mtime": 1790205782.545702,
+    "ast_hash": "5e045c6593f7723ad59bb54a8669313a",
+    "semantic_hash": "5e045c6593f7723ad59bb54a8669313a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/Header.js": {
+    "mtime": 1790205782.5460052,
+    "ast_hash": "cc89006fee1317fa6505555070d18011",
+    "semantic_hash": "cc89006fee1317fa6505555070d18011"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/Timeline.js": {
+    "mtime": 1790205782.5466304,
+    "ast_hash": "554590fe9f33d21d3bab533117049e18",
+    "semantic_hash": "554590fe9f33d21d3bab533117049e18"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/TrackingDashboard.js": {
+    "mtime": 1790205782.5470543,
+    "ast_hash": "8d480e0886cb880aa5fdb37ffbbda0d9",
+    "semantic_hash": "8d480e0886cb880aa5fdb37ffbbda0d9"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ChatConsole.js": {
+    "mtime": 1790205782.5458417,
+    "ast_hash": "65b83b0bc8ae8dbd23bb291d55dc4420",
+    "semantic_hash": "65b83b0bc8ae8dbd23bb291d55dc4420"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ActionPromptModal.js": {
+    "mtime": 1790205782.5456195,
+    "ast_hash": "8381b3bda389489725444783e9c8ed6d",
+    "semantic_hash": "8381b3bda389489725444783e9c8ed6d"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/Logo.js": {
+    "mtime": 1790205782.5461566,
+    "ast_hash": "458ec3b00e6b73ea9ee40e8641ff46cb",
+    "semantic_hash": "458ec3b00e6b73ea9ee40e8641ff46cb"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/OnboardingBanner.js": {
+    "mtime": 1790205782.5462668,
+    "ast_hash": "6544a3eaa34c667ca7a310a2b824bedd",
+    "semantic_hash": "6544a3eaa34c667ca7a310a2b824bedd"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/dialog.jsx": {
+    "mtime": 1790205782.5486255,
+    "ast_hash": "7526e69363d71ed8e4741a59abfa774f",
+    "semantic_hash": "7526e69363d71ed8e4741a59abfa774f"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/menubar.jsx": {
+    "mtime": 1790205782.5494938,
+    "ast_hash": "76de0fdc258c69233bb9dad1b2ead685",
+    "semantic_hash": "76de0fdc258c69233bb9dad1b2ead685"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/avatar.jsx": {
+    "mtime": 1790205782.5475519,
+    "ast_hash": "6942dcddc4ed7fc0a3edd8292802ff1a",
+    "semantic_hash": "6942dcddc4ed7fc0a3edd8292802ff1a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/toggle-group.jsx": {
+    "mtime": 1790205782.5517683,
+    "ast_hash": "412d4d6584ecc4d83bfd932264cc920f",
+    "semantic_hash": "412d4d6584ecc4d83bfd932264cc920f"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/command.jsx": {
+    "mtime": 1790205782.5484056,
+    "ast_hash": "a7b24b38bb14e05323854414d0a3ccc0",
+    "semantic_hash": "a7b24b38bb14e05323854414d0a3ccc0"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/radio-group.jsx": {
+    "mtime": 1790205782.5499747,
+    "ast_hash": "8cac0146cc583c688bdf9033ca63df38",
+    "semantic_hash": "8cac0146cc583c688bdf9033ca63df38"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/breadcrumb.jsx": {
+    "mtime": 1790205782.547713,
+    "ast_hash": "8d52bb207a0c22a848f3e673bc2e4bef",
+    "semantic_hash": "8d52bb207a0c22a848f3e673bc2e4bef"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/calendar.jsx": {
+    "mtime": 1790205782.5478714,
+    "ast_hash": "f0c3446bc43ba202dde8e53d3ff42ed2",
+    "semantic_hash": "f0c3446bc43ba202dde8e53d3ff42ed2"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/switch.jsx": {
+    "mtime": 1790205782.5507407,
+    "ast_hash": "0c565401f63acad7b14f0ec6e13290c0",
+    "semantic_hash": "0c565401f63acad7b14f0ec6e13290c0"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/carousel.jsx": {
+    "mtime": 1790205782.548131,
+    "ast_hash": "73097c01891da2443bfa35ca82f0368c",
+    "semantic_hash": "73097c01891da2443bfa35ca82f0368c"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/form.jsx": {
+    "mtime": 1790205782.549005,
+    "ast_hash": "ef4515f7808e65651967ad30f04b441d",
+    "semantic_hash": "ef4515f7808e65651967ad30f04b441d"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/context-menu.jsx": {
+    "mtime": 1790205782.5485475,
+    "ast_hash": "3ee728bb62494a4f541423ee660ba865",
+    "semantic_hash": "3ee728bb62494a4f541423ee660ba865"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/skeleton.jsx": {
+    "mtime": 1790205782.550518,
+    "ast_hash": "87846ae3c6cd0144bcfbfd71410e8314",
+    "semantic_hash": "87846ae3c6cd0144bcfbfd71410e8314"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/input.jsx": {
+    "mtime": 1790205782.5492668,
+    "ast_hash": "b0c39fba1fc918e09d0744ee8e9036fc",
+    "semantic_hash": "b0c39fba1fc918e09d0744ee8e9036fc"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/textarea.jsx": {
+    "mtime": 1790205782.5509892,
+    "ast_hash": "113fe695e1934fbfa176125cd0c95347",
+    "semantic_hash": "113fe695e1934fbfa176125cd0c95347"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/select.jsx": {
+    "mtime": 1790205782.5502722,
+    "ast_hash": "32ed30930ef17ac6b8355ba15015ce38",
+    "semantic_hash": "32ed30930ef17ac6b8355ba15015ce38"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/dropdown-menu.jsx": {
+    "mtime": 1790205782.5489063,
+    "ast_hash": "a650bd37dfa6f601952b41bddf2a4f95",
+    "semantic_hash": "a650bd37dfa6f601952b41bddf2a4f95"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/collapsible.jsx": {
+    "mtime": 1790205782.5483108,
+    "ast_hash": "8bcc61ee503a05663fb77ad9b7ec064a",
+    "semantic_hash": "8bcc61ee503a05663fb77ad9b7ec064a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/checkbox.jsx": {
+    "mtime": 1790205782.5482275,
+    "ast_hash": "33b0ff952b4c2094fa962bf5cab913ae",
+    "semantic_hash": "33b0ff952b4c2094fa962bf5cab913ae"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/toast.jsx": {
+    "mtime": 1790205782.5510776,
+    "ast_hash": "4fa38eeff1a6e4cd3d364db78c0e2c42",
+    "semantic_hash": "4fa38eeff1a6e4cd3d364db78c0e2c42"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/toggle.jsx": {
+    "mtime": 1790205782.5519238,
+    "ast_hash": "ab16fd10c5e2847b4aa721c533de12ab",
+    "semantic_hash": "ab16fd10c5e2847b4aa721c533de12ab"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/button.jsx": {
+    "mtime": 1790205782.5477915,
+    "ast_hash": "387004a6f0f093b18baec2bccc07c394",
+    "semantic_hash": "387004a6f0f093b18baec2bccc07c394"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/separator.jsx": {
+    "mtime": 1790205782.5503516,
+    "ast_hash": "4a4fc06502b6519f8501596e18f484c9",
+    "semantic_hash": "4a4fc06502b6519f8501596e18f484c9"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/table.jsx": {
+    "mtime": 1790205782.550821,
+    "ast_hash": "3304001746391d713a8ef283e093f7cf",
+    "semantic_hash": "3304001746391d713a8ef283e093f7cf"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/badge.jsx": {
+    "mtime": 1790205782.5476341,
+    "ast_hash": "afe71078256d1422c4c32828f741d371",
+    "semantic_hash": "afe71078256d1422c4c32828f741d371"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/input-otp.jsx": {
+    "mtime": 1790205782.5491803,
+    "ast_hash": "008713487d735427a12b40ce56b6076c",
+    "semantic_hash": "008713487d735427a12b40ce56b6076c"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/toaster.jsx": {
+    "mtime": 1790205782.551489,
+    "ast_hash": "661eae99885514725f4ecc3fbfa5e506",
+    "semantic_hash": "661eae99885514725f4ecc3fbfa5e506"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/progress.jsx": {
+    "mtime": 1790205782.5498915,
+    "ast_hash": "0b9e4a21587b5dc12948e088e23d294b",
+    "semantic_hash": "0b9e4a21587b5dc12948e088e23d294b"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/popover.jsx": {
+    "mtime": 1790205782.5498064,
+    "ast_hash": "e042654021f7d92a37308604404a39d2",
+    "semantic_hash": "e042654021f7d92a37308604404a39d2"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/slider.jsx": {
+    "mtime": 1790205782.550594,
+    "ast_hash": "cc26259918376289640630884d607c7f",
+    "semantic_hash": "cc26259918376289640630884d607c7f"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/card.jsx": {
+    "mtime": 1790205782.5479782,
+    "ast_hash": "c4ab037e78fd913416348b87e1d39e84",
+    "semantic_hash": "c4ab037e78fd913416348b87e1d39e84"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/tabs.jsx": {
+    "mtime": 1790205782.550907,
+    "ast_hash": "443ed89ab0103f18accad1c7952707d5",
+    "semantic_hash": "443ed89ab0103f18accad1c7952707d5"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/pagination.jsx": {
+    "mtime": 1790205782.5497289,
+    "ast_hash": "a3f6f84586fc39df42bbdf9917217518",
+    "semantic_hash": "a3f6f84586fc39df42bbdf9917217518"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/alert-dialog.jsx": {
+    "mtime": 1790205782.5472999,
+    "ast_hash": "55a45548dd7058810f0afcb588c767c9",
+    "semantic_hash": "55a45548dd7058810f0afcb588c767c9"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/aspect-ratio.jsx": {
+    "mtime": 1790205782.5474744,
+    "ast_hash": "ea9c6ff6c2931b5089972bfba3fa5c1f",
+    "semantic_hash": "ea9c6ff6c2931b5089972bfba3fa5c1f"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/alert.jsx": {
+    "mtime": 1790205782.5473948,
+    "ast_hash": "40ba651ed8db0d491c8cc3b71b67d018",
+    "semantic_hash": "40ba651ed8db0d491c8cc3b71b67d018"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/tooltip.jsx": {
+    "mtime": 1790205782.5520205,
+    "ast_hash": "793f6e39c07eb115695812df1ce04fa4",
+    "semantic_hash": "793f6e39c07eb115695812df1ce04fa4"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/drawer.jsx": {
+    "mtime": 1790205782.548704,
+    "ast_hash": "bdab7d540f51fba632b2848d663cc230",
+    "semantic_hash": "bdab7d540f51fba632b2848d663cc230"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/accordion.jsx": {
+    "mtime": 1790205782.5472038,
+    "ast_hash": "777d1d2fb09ca9fce821db1a5805b574",
+    "semantic_hash": "777d1d2fb09ca9fce821db1a5805b574"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/navigation-menu.jsx": {
+    "mtime": 1790205782.5496457,
+    "ast_hash": "a84c0973375b097c8f0a006cbb3291b4",
+    "semantic_hash": "a84c0973375b097c8f0a006cbb3291b4"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/sonner.jsx": {
+    "mtime": 1790205782.550668,
+    "ast_hash": "ea08c6605c1d7f709c0c5b9dcc259ad2",
+    "semantic_hash": "ea08c6605c1d7f709c0c5b9dcc259ad2"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/label.jsx": {
+    "mtime": 1790205782.5493488,
+    "ast_hash": "d838ab50ba0e7c81fbe9f108a75c8960",
+    "semantic_hash": "d838ab50ba0e7c81fbe9f108a75c8960"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/resizable.jsx": {
+    "mtime": 1790205782.550051,
+    "ast_hash": "61525f84a1a2eda188f4acbad939b5cb",
+    "semantic_hash": "61525f84a1a2eda188f4acbad939b5cb"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/scroll-area.jsx": {
+    "mtime": 1790205782.5501285,
+    "ast_hash": "7b0ef0c618bed094716902c5e45de1bb",
+    "semantic_hash": "7b0ef0c618bed094716902c5e45de1bb"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/sheet.jsx": {
+    "mtime": 1790205782.5504336,
+    "ast_hash": "bb54bf331f59fcab43dcf869bdb34735",
+    "semantic_hash": "bb54bf331f59fcab43dcf869bdb34735"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/components/ui/hover-card.jsx": {
+    "mtime": 1790205782.5490952,
+    "ast_hash": "44c495d1a642df8997885e3478a26eda",
+    "semantic_hash": "44c495d1a642df8997885e3478a26eda"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/hooks/use-toast.js": {
+    "mtime": 1790205782.552772,
+    "ast_hash": "7914e66fc5945b37aa1a797715b458b6",
+    "semantic_hash": "7914e66fc5945b37aa1a797715b458b6"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/lib/utils.js": {
+    "mtime": 1790205782.5531585,
+    "ast_hash": "83545aa57e5a38a104b53d08868db698",
+    "semantic_hash": "83545aa57e5a38a104b53d08868db698"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/lib/api.js": {
+    "mtime": 1790205782.5530722,
+    "ast_hash": "c957ac4c1d7a6ed810a729aeaed8a9da",
+    "semantic_hash": "c957ac4c1d7a6ed810a729aeaed8a9da"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/pages/Coach.js": {
+    "mtime": 1790205782.5533278,
+    "ast_hash": "ff79607e5ff4d06014d292a09eb18111",
+    "semantic_hash": "ff79607e5ff4d06014d292a09eb18111"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/src/pages/Login.js": {
+    "mtime": 1790205782.5534291,
+    "ast_hash": "4565ec75404f3226c16596f8508ddd64",
+    "semantic_hash": "4565ec75404f3226c16596f8508ddd64"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/tests/__init__.py": {
+    "mtime": 1790205782.5549443,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/backend/server.py": {
+    "mtime": 1790205782.542075,
+    "ast_hash": "2b45f6c32d468e14541ea5b0f15a7d18",
+    "semantic_hash": "2b45f6c32d468e14541ea5b0f15a7d18"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/backend/tests/test_migration_db.py": {
+    "mtime": 1790205782.5431035,
+    "ast_hash": "7268cee3a778384a01b4ec72b7750843",
+    "semantic_hash": "7268cee3a778384a01b4ec72b7750843"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/backend/tests/backend_test.py": {
+    "mtime": 1790205782.5423093,
+    "ast_hash": "ff23f62609cb4f423afe3efc3dc6273c",
+    "semantic_hash": "ff23f62609cb4f423afe3efc3dc6273c"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/backend/tests/test_iteration2.py": {
+    "mtime": 1790205782.542434,
+    "ast_hash": "2220e01d4591c0c2e65285342391802e",
+    "semantic_hash": "2220e01d4591c0c2e65285342391802e"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/backend/tests/test_iteration3.py": {
+    "mtime": 1790205782.5427415,
+    "ast_hash": "d8db5be608d46c6c1b9d26bbe28122c1",
+    "semantic_hash": "d8db5be608d46c6c1b9d26bbe28122c1"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/test_reports/iteration_1.json": {
+    "mtime": 1790205782.5539937,
+    "ast_hash": "b42e14f68e79dd5ce65d7c50480b6221",
+    "semantic_hash": "b42e14f68e79dd5ce65d7c50480b6221"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/test_reports/iteration_3.json": {
+    "mtime": 1790205782.5542758,
+    "ast_hash": "e1f875e77f73b52cae9f2cde989f270a",
+    "semantic_hash": "e1f875e77f73b52cae9f2cde989f270a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/test_reports/iteration_2.json": {
+    "mtime": 1790205782.554133,
+    "ast_hash": "1242877cea2f32279a4efbfa5401eaa9",
+    "semantic_hash": "1242877cea2f32279a4efbfa5401eaa9"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/postcss.config.mjs": {
+    "mtime": 1790206334.1203136,
+    "ast_hash": "a32d7b7ea32bacdef41803f34daf384a",
+    "semantic_hash": "a32d7b7ea32bacdef41803f34daf384a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/package.json": {
+    "mtime": 1790206334.1482713,
+    "ast_hash": "d5879ae29dfb13fb90554e24ced2b508",
+    "semantic_hash": "d5879ae29dfb13fb90554e24ced2b508"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/tsconfig.json": {
+    "mtime": 1790206334.12064,
+    "ast_hash": "36837e15dc87aec57defe3e8ef0b9b6f",
+    "semantic_hash": "36837e15dc87aec57defe3e8ef0b9b6f"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/eslint.config.mjs": {
+    "mtime": 1790206334.1195054,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/next.config.ts": {
+    "mtime": 1790206334.1199532,
+    "ast_hash": "b7b435554429918651a4f01cecf6ed6b",
+    "semantic_hash": "b7b435554429918651a4f01cecf6ed6b"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/app/layout.tsx": {
+    "mtime": 1790206334.1189535,
+    "ast_hash": "257a34d55df0335e2bd4d5d307b5faed",
+    "semantic_hash": "257a34d55df0335e2bd4d5d307b5faed"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/app/page.tsx": {
+    "mtime": 1790206334.1190746,
+    "ast_hash": "74754db5ddc9eabbd40bc47128dc3504",
+    "semantic_hash": "74754db5ddc9eabbd40bc47128dc3504"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/components/theme-provider.tsx": {
+    "mtime": 1790206334.119379,
+    "ast_hash": "676cb26b1b800af72a249a4adfab205a",
+    "semantic_hash": "676cb26b1b800af72a249a4adfab205a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/auth_testing.md": {
+    "mtime": 1790205782.5416985,
+    "ast_hash": "4a2258d2d8de295edd267f8e0bd47eb8",
+    "semantic_hash": "4a2258d2d8de295edd267f8e0bd47eb8"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/README.md": {
+    "mtime": 1790205782.5416224,
+    "ast_hash": "f5813178da1575cfca2786842e76af7f",
+    "semantic_hash": "f5813178da1575cfca2786842e76af7f"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/test_result.md": {
+    "mtime": 1790205782.5548484,
+    "ast_hash": "f1bb70f6dfeb50071b4c09b97d90cba8",
+    "semantic_hash": "f1bb70f6dfeb50071b4c09b97d90cba8"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/memory/PRD.md": {
+    "mtime": 1790205782.5537822,
+    "ast_hash": "ffc66e1a62dea620ff7696be452a47a5",
+    "semantic_hash": "ffc66e1a62dea620ff7696be452a47a5"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/README.md": {
+    "mtime": 1790205782.5437794,
+    "ast_hash": "33822368bfb3ad3de6fceb9cd76aa0dd",
+    "semantic_hash": "33822368bfb3ad3de6fceb9cd76aa0dd"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/frontend/public/index.html": {
+    "mtime": 1790205782.5450947,
+    "ast_hash": "2a66d7b1d55831eb3b195ea79ddc9286",
+    "semantic_hash": "2a66d7b1d55831eb3b195ea79ddc9286"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/.emergent/emergent.yml": {
+    "mtime": 1790205782.5411952,
+    "ast_hash": "12e11479314f3fc0569d4004c4fb3393",
+    "semantic_hash": "12e11479314f3fc0569d4004c4fb3393"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/backend/requirements.txt": {
+    "mtime": 1790205782.5419247,
+    "ast_hash": "c4f1d401ddccf3da4583d11ed45cb7d6",
+    "semantic_hash": "c4f1d401ddccf3da4583d11ed45cb7d6"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/README.md": {
+    "mtime": 1790206334.118394,
+    "ast_hash": "a596f16c7397cd9c31b2c33bfcd1663a",
+    "semantic_hash": "a596f16c7397cd9c31b2c33bfcd1663a"
+  },
+  "/Users/deva/Documents/Projects/GoalCoach/y/AGENTS.md": {
+    "mtime": 1790206334.1182582,
+    "ast_hash": "9e09241799026ac05be315a2f0b50055",
+    "semantic_hash": "9e09241799026ac05be315a2f0b50055"
+  }
+}

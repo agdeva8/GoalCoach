@@ -1,0 +1,1 @@
+{"nodes": [{"id": "frontend_tailwind_config", "label": "Tailwind config with CSS variable tokens (shadcn-style HSL palette)", "file_type": "code", "source_file": "frontend/tailwind.config.js", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

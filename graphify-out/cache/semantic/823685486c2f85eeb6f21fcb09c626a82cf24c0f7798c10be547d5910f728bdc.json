@@ -1,0 +1,1 @@
+{"nodes": [{"id": "components_signinmodal", "label": "SignInModal component (Google OAuth redirect to auth.emergentagent.com)", "file_type": "code", "source_file": "frontend/src/components/SignInModal.js", "source_location": "4", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
