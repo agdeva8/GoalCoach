@@ -227,7 +227,7 @@ export default function Coach() {
           <span className="text-xs text-[var(--text-secondary)] flex-1">
             Everything you build is saved in this browser. Sign in to keep it on your account and pick up on any device.
           </span>
-          <button data-testid="guest-banner-signin" onClick={openSignIn} className="text-xs font-medium text-[var(--accent)] hover:underline shrink-0">Sign in →</button>
+          <button data-testid="guest-banner-signin" onClick={openSignIn} className="text-xs font-medium text-[var(--accent)] hover:underline shrink-0">Sign in to save →</button>
         </div>
       )}
 

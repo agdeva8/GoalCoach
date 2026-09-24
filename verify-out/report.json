@@ -1,0 +1,94 @@
+{
+  "timestamp": "2026-09-24T14:38:16.234Z",
+  "backend": "http://localhost:3001",
+  "frontend": "http://localhost:3000",
+  "probes": [
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "auth": "bearer",
+      "status": 401,
+      "contentType": "application/json",
+      "bodySnip": "{\"detail\":\"Not authenticated\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "auth": "bearer",
+      "status": 200,
+      "contentType": "application/json",
+      "bodySnip": "{\"goals\":[],\"commitments\":[],\"milestones\":[],\"blockers\":[],\"sources\":[],\"over_commitment\":{\"level\":\"clear\",\"message\":\"A steady, focused load.\",\"conflicting\":[],\"active_goals\":0,\"open_commitments\":0},\""
+    },
+    {
+      "method": "GET",
+      "path": "/api/blockers",
+      "auth": "bearer",
+      "status": 200,
+      "contentType": "application/json",
+      "bodySnip": "{\"blockers\":[]}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/audit",
+      "auth": "bearer",
+      "status": 401,
+      "contentType": "application/json",
+      "bodySnip": "{\"detail\":\"Not authenticated\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/history",
+      "auth": "bearer",
+      "status": 200,
+      "contentType": "application/json",
+      "bodySnip": "[]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/guest",
+      "auth": "none",
+      "body": {},
+      "status": 200,
+      "contentType": "application/json",
+      "bodySnip": "{\"user\":{\"user_id\":\"user_guest_f5b1dea1c2a9\",\"email\":null,\"name\":\"Guest\",\"picture\":null,\"is_guest\":true,\"model_provider\":\"gemini\"}}"
+    }
+  ],
+  "screenshots": [
+    {
+      "viewport": "1920x800",
+      "file": "/Users/deva/Documents/Projects/GoalCoach/verify-out/desktop_1920x800.png",
+      "title": "Emergent | Fullstack App",
+      "bodySnippet": "GoalCoach\nLET'S SORT YOUR LIFE — TOGETHER.\nSCENARIOS\nGEMINI\nAudit\nSign in\n\nThis is one chat with memory. The coach reasons across all your goals at once and remembers between sessions. It's the only thing that writes to your tracked state — when it wants to add, change, or drop a goal or commitment,",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "networkErrors": [
+        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
+        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
+        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED"
+      ]
+    },
+    {
+      "viewport": "390x844",
+      "file": "/Users/deva/Documents/Projects/GoalCoach/verify-out/mobile_390x844.png",
+      "title": "Emergent | Fullstack App",
+      "bodySnippet": "GoalCoach\nGEMINI\nSign in\n\nThis is one chat with memory. The coach reasons across all your goals at once and remembers between sessions. It's the only thing that writes to your tracked state — when it wants to add, change, or drop a goal or commitment, it proposes the change inline and you confirm it",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "networkErrors": [
+        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
+        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
+        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED"
+      ]
+    }
+  ],
+  "summary": {
+    "routeFailures": 0,
+    "route401": 2,
+    "consoleErrors": 4,
+    "networkErrors": 6
+  }
+}
