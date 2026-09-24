@@ -187,13 +187,16 @@ export async function setSessionCookie(
   sessionToken: string,
 ): Promise<void> {
   const jar = await cookies()
+  // Use lax in development (localhost over HTTP) to avoid the
+  // SameSite=None+Secure constraint. In production, require
+  // HTTPS by using sameSite:none + secure.
   const isProd = process.env.NODE_ENV === 'production'
   jar.set({
     name: SESSION_TOKEN_COOKIE,
     value: sessionToken,
     httpOnly: true,
     secure: isProd,
-    sameSite: 'none',
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: SESSION_TOKEN_TTL_SECONDS,
     path: '/',
   })
@@ -204,12 +207,13 @@ export async function setSessionCookie(
  */
 export async function clearSessionCookie(): Promise<void> {
   const jar = await cookies()
+  const isProd = process.env.NODE_ENV === 'production'
   jar.set({
     name: SESSION_TOKEN_COOKIE,
     value: '',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: 0,
     path: '/',
   })

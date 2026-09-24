@@ -160,7 +160,9 @@ async function resolveSessionTokenUserId(sessionToken: string): Promise<string |
   const result = await db.execute(
     sql`SELECT user_id, expires_at FROM user_sessions WHERE session_token = ${sessionToken} LIMIT 1`,
   )
-  const rows = (result as unknown as Array<{ user_id: string; expires_at: string | Date | null }>) ?? []
+  // Result shape differs by driver: pg Pool gives { rows, ... }, neon gives direct array
+  const rawResult = result as unknown as { rows?: Array<{ user_id: string; expires_at: string | Date | null }> } | Array<{ user_id: string; expires_at: string | Date | null }>
+  const rows = Array.isArray(rawResult) ? rawResult : (rawResult.rows ?? [])
   const row = rows[0]
   if (!row) return null
   const exp = row.expires_at
