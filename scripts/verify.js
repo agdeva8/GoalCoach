@@ -5,7 +5,7 @@
  * What it does:
  *   1. Hits every key backend route (with bearer + guest cookie fallback)
  *   2. Opens the running frontend in headless Chromium
- *   3. Captures screenshots at 1920x800 + 390x844 (BUILDER_PROMPT.md viewports)
+ *   3. Captures screenshots at 1920x800 + 390x844 (AGENT_BUILDER.md viewports)
  *   4. Captures console errors + failed network requests
  *   5. Writes a JSON report + saves screenshots to ./verify-out/
  *

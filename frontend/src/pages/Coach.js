@@ -12,6 +12,8 @@ import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
 import ActionPromptModal from "../components/ActionPromptModal";
+import SourceActionDialog from "../components/SourceActionDialog";
+import GoalBoundaryConfirmDialog from "../components/GoalBoundaryConfirmDialog";
 
 export default function Coach() {
   const { user, setUser, loading, logout } = useAuth();
@@ -31,6 +33,11 @@ export default function Coach() {
   const [mobileView, setMobileView] = useState("chat");
   const [panelView, setPanelView] = useState("state");
   const [autoAnswer, setAutoAnswer] = useState(false);
+  const [grillMe, setGrillMe] = useState(false);
+  const [pendingClarifications, setPendingClarifications] = useState(null);
+  const [sourceDialogMode, setSourceDialogMode] = useState(null); // null | "link" | "upload"
+  const [sourceDialogSource, setSourceDialogSource] = useState(null);
+  const [boundaryConfirm, setBoundaryConfirm] = useState(null); // { changeType, sourceName, affectedGoals }
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [splitPct, setSplitPct] = useState(58);
@@ -124,14 +131,74 @@ export default function Coach() {
     try { await api.uploadSource(file, goalId); await refreshState(); toast.success(`Added ${file.name} as a source`); }
     catch (e) { toast.error(e.message || "Upload failed"); }
   };
-  const addLink = async (goalId = "") => {
-    const url = window.prompt("Paste a link to use as a source:");
+  const addLink = async (url, goalId = "") => {
     if (!url) return;
-    try { await api.addLink({ url, goal_id: goalId }); await refreshState(); toast.success("Link added as a source"); }
-    catch (e) { toast.error(e.message || "Could not add link"); }
+    try {
+      await api.addLink({ url, goal_id: goalId });
+      const prevState = state;
+      await refreshState();
+      // Boundary check: if the link is scoped to a goal, flag it so the
+      // user can choose to re-plan that goal with the new context.
+      if (goalId && prevState?.goals) {
+        const goal = prevState.goals.find((g) => g.id === goalId);
+        if (goal) {
+          setBoundaryConfirm({
+            changeType: "added",
+            sourceName: url,
+            affectedGoals: [{
+              id: goal.id,
+              title: goal.title,
+              reason: "This link is now attached as a source — it may change what the goal is really about or which milestones still make sense.",
+            }],
+          });
+        }
+      }
+      toast.success("Link added as a source");
+    } catch (e) { toast.error(e.message || "Could not add link"); throw e; }
   };
   const deleteSource = async (id) => {
-    try { await api.deleteSource(id); await refreshState(); } catch (e) { toast.error("Could not remove source"); }
+    try {
+      const prevState = state;
+      const deleted = (prevState?.sources || []).find((s) => s.id === id);
+      await api.deleteSource(id);
+      await refreshState();
+      // Boundary check: if the deleted source was attached to a goal,
+      // offer a re-plan — removing evidence often invalidates a
+      // milestone or next_action.
+      if (deleted?.goal_id && prevState?.goals) {
+        const goal = prevState.goals.find((g) => g.id === deleted.goal_id);
+        if (goal) {
+          setBoundaryConfirm({
+            changeType: "removed",
+            sourceName: deleted.original_filename || deleted.url || "",
+            affectedGoals: [{
+              id: goal.id,
+              title: goal.title,
+              reason: "This goal was using that source. The coach may want to revise the milestones or next action.",
+            }],
+          });
+        }
+      }
+    } catch (e) { toast.error("Could not remove source"); throw e; }
+  };
+  const openSourceLinkDialog = () => {
+    setSourceDialogSource(null);
+    setSourceDialogMode("link");
+  };
+  const closeSourceDialog = () => {
+    setSourceDialogMode(null);
+    setSourceDialogSource(null);
+  };
+  const handleBoundaryReplan = async ({ goalIds }) => {
+    const goalTitles = (state?.goals || [])
+      .filter((g) => goalIds.includes(g.id))
+      .map((g) => g.title);
+    if (goalTitles.length === 0) return;
+    const goalList = goalTitles.map((t) => `"${t}"`).join(", ");
+    send(`I just changed the sources for ${goalList}. Re-plan ${goalTitles.length === 1 ? "it" : "them"} based on the new context.`);
+  };
+  const handleBoundaryKeep = () => {
+    // no-op — the user wants to leave the goal as-is
   };
 
   const send = async (text) => {
@@ -150,7 +217,7 @@ export default function Coach() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, auto_answer: autoAnswer }),
+        body: JSON.stringify({ message: text, auto_answer: autoAnswer, clarify: grillMe }),
       });
       if (!resp.ok || !resp.body) throw new Error("stream failed");
 
@@ -165,6 +232,17 @@ export default function Coach() {
         } else if (data.type === "tools") {
           finalId = data.message_id;
           setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, id: data.message_id, proposals: data.proposals } : m)));
+        } else if (data.type === "needs_clarification") {
+          // Backend says the coach needs to ask before proposing. Surface
+          // 1-2 sharp questions as MCQ chips above the chat input, plus a
+          // free-text fallback so the user can answer in their own words.
+          finalId = data.message_id;
+          setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, id: data.message_id, streaming: false } : m)));
+          setPendingClarifications({
+            messageId: data.message_id,
+            prompt: data.prompt,
+            questions: data.questions || [],
+          });
         } else if (data.type === "done") {
           setMessages((prev) => prev.map((m) => (m.id === (finalId || streamId) ? { ...m, id: data.message_id, streaming: false } : m)));
         } else if (data.type === "error") {
@@ -279,8 +357,13 @@ export default function Coach() {
               busyProposal={busyProposal}
               autoAnswer={autoAnswer}
               setAutoAnswer={setAutoAnswer}
+              grillMe={grillMe}
+              setGrillMe={setGrillMe}
+              pendingClarifications={pendingClarifications}
+              onAnswerClarification={(text) => { setPendingClarifications(null); send(text); }}
+              onDismissClarifications={() => setPendingClarifications(null)}
               onUploadFile={(f) => uploadFile(f, "")}
-              onAddLink={() => addLink("")}
+              onAddLink={openSourceLinkDialog}
               sources={generalSources}
               onDeleteSource={deleteSource}
               onClearChat={clearChat}
@@ -310,7 +393,7 @@ export default function Coach() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {panelView === "state" ? (
-              <TrackingDashboard state={state} onPrefill={prefill} onAction={openAction} onUploadSource={uploadFile} onDeleteSource={deleteSource} />
+              <TrackingDashboard state={state} onPrefill={prefill} onAction={openAction} onUploadSource={uploadFile} onAddLink={addLink} onDeleteSource={deleteSource} onCreated={(newState) => setState(newState)} autoAnswer={autoAnswer} />
             ) : (
               <Timeline state={state} onPrefill={prefill} />
             )}
@@ -322,6 +405,24 @@ export default function Coach() {
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
       <ActionPromptModal action={actionModal} onClose={() => setActionModal(null)} onSend={(msg) => { setActionModal(null); send(msg); }} />
+      <SourceActionDialog
+        open={!!sourceDialogMode}
+        onClose={closeSourceDialog}
+        mode={sourceDialogMode || "link"}
+        source={sourceDialogSource}
+        goalId=""
+        onAddLink={addLink}
+        onDeleteSource={deleteSource}
+      />
+      <GoalBoundaryConfirmDialog
+        open={!!boundaryConfirm}
+        onClose={() => setBoundaryConfirm(null)}
+        changeType={boundaryConfirm?.changeType}
+        sourceName={boundaryConfirm?.sourceName}
+        affectedGoals={boundaryConfirm?.affectedGoals || []}
+        onReplan={handleBoundaryReplan}
+        onKeep={handleBoundaryKeep}
+      />
     </div>
   );
 }

@@ -122,6 +122,9 @@ interface ChatRequestBody {
   message?: unknown
   autoAnswer?: unknown
   auto_answer?: unknown
+  clarify?: unknown
+  grillMe?: unknown
+  grill_me?: unknown
   provider?: unknown
 }
 
@@ -152,6 +155,11 @@ export async function POST(req: NextRequest) {
       : auth.provider
 
   const autoAnswer = body.autoAnswer === true || body.auto_answer === true
+  // `clarify` (alias: grill_me) — explicit "grill me" mode: the model
+  // MUST respond with 1-2 sharp clarifying questions and MUST NOT emit
+  // a [[TOOLS]] block. Wins over autoAnswer so a user pressing "grill
+  // me" gets asked even when the auto-answer toggle is on.
+  const clarify = body.clarify === true || body.grillMe === true || body.grill_me === true
 
   // Persist the user's message first so it's in history by the time
   // `buildContext` runs. The assistant message + proposals are
@@ -265,56 +273,91 @@ export async function POST(req: NextRequest) {
         // `tools` SSE event tagged with the same message_id so the
         // confirm/reject UI behaves like any other turn.
         //
+        // If the follow-up also produces no proposals, we surface a
+        // `needs_clarification` SSE event with a short clarifying question
+        // (or two) so the frontend can prompt the user instead of leaving
+        // them staring at a prose-only dump. This is the "grill me" hook —
+        // the coach falls back to clarifying questions when it can't
+        // safely auto-answer.
+        //
         // Gates:
-        //   - auto_answer must be on
+        //   - auto_answer must be on (clarify mode wins — see below)
         //   - first pass produced zero proposals
         //   - first pass produced some prose (nothing to base proposals on
         //     otherwise — a fully empty response is a different failure)
         //   - first pass did NOT contain [[TOOLS]] (don't retry when the
         //     model tried and `parseProposals` simply failed to extract
         //     anything — retrying won't help)
-        if (
-          autoAnswer &&
-          proposals.length === 0 &&
-          prose.trim().length > 0 &&
-          !fullText.includes(TOOL_START)
-        ) {
-          try {
-            const followUpMessages = [
-              ...coreMessages,
-              { role: 'assistant' as const, content: prose },
-              {
-                role: 'user' as const,
-                content:
-                  'You stated assumptions above but did not emit a [[TOOLS]] block. ' +
-                  'Reply now with ONLY a [[TOOLS]] block (a short prose intro is optional) ' +
-                  'that proposes create_goal + 2-4 add_milestone actions based on the ' +
-                  'assumptions you just stated. Use the format:\n\n' +
-                  '[[TOOLS]]\n[ { ... }, { ... } ]\n[[/TOOLS]]',
-              },
-            ]
+        let needsClarification: string | null = null
+        let clarifyingQuestions: string[] = []
+        if (autoAnswer && !clarify) {
+          if (
+            proposals.length === 0 &&
+            prose.trim().length > 0 &&
+            !fullText.includes(TOOL_START)
+          ) {
+            try {
+              const followUpMessages = [
+                ...coreMessages,
+                { role: 'assistant' as const, content: prose },
+                {
+                  role: 'user' as const,
+                  content:
+                    'SYSTEM CORRECTION — your previous turn only stated assumptions in prose. ' +
+                    'You MUST now emit a [[TOOLS]] block (with a short prose intro if useful) so ' +
+                    'the user has something concrete to confirm. ' +
+                    'Reply with EXACTLY this shape — one create_goal plus 2-4 add_milestone ' +
+                    'actions based on the assumptions you just stated:\n\n' +
+                    '[[TOOLS]]\n' +
+                    '[\n' +
+                    '  {"action":"create_goal","title":"<concise title>","horizon":"weekly|short|medium|long","why":"<one sentence>","first_action":"<smallest next step>","target_date":"YYYY-MM-DD"},\n' +
+                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 1>","target_date":"YYYY-MM-DD"},\n' +
+                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 2>","target_date":"YYYY-MM-DD"}\n' +
+                    ']\n' +
+                    '[[/TOOLS]]\n\n' +
+                    'Anchor the target_date to today (see LIVE STATE) and include buffer for slippage.',
+                },
+              ]
 
-            let followUpFull = ''
-            for await (const ev of streamChat({
-              provider: requestedProvider,
-              system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString,
-              messages: followUpMessages,
-              sessionId: auth.userId,
-            })) {
-              if (ev.type === 'text_delta') {
-                followUpFull += ev.content
+              let followUpFull = ''
+              for await (const ev of streamChat({
+                provider: requestedProvider,
+                system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString,
+                messages: followUpMessages,
+                sessionId: auth.userId,
+              })) {
+                if (ev.type === 'text_delta') {
+                  followUpFull += ev.content
+                }
               }
-            }
 
-            const { proposals: followUpProposals } = splitProseAndTools(followUpFull)
-            if (followUpProposals.length > 0) {
-              proposals = followUpProposals
+              const { proposals: followUpProposals } = splitProseAndTools(followUpFull)
+              if (followUpProposals.length > 0) {
+                proposals = followUpProposals
+              } else {
+                // Both passes produced prose-only — pull clarifying questions
+                // out of the follow-up so the frontend can surface them as
+                // MCQ-style chips instead of leaving the user with a dump.
+                clarifyingQuestions = extractClarifyingQuestions(followUpFull || prose)
+                if (clarifyingQuestions.length > 0) {
+                  needsClarification = 'I want to make a real proposal, but I need a couple of details first.'
+                }
+              }
+            } catch {
+              // Fallback is best-effort. If the follow-up stream errors (network,
+              // proxy rate-limit, etc.), we still persist the original prose
+              // and emit `done` without proposals — the strengthened prompt
+              // should make this rare.
             }
-          } catch {
-            // Fallback is best-effort. If the follow-up stream errors (network,
-            // proxy rate-limit, etc.), we still persist the original prose
-            // and emit `done` without proposals — the strengthened prompt
-            // should make this rare.
+          }
+        }
+
+        // Grill-me mode — the user explicitly asked to be grilled. Always
+        // surface clarifying questions, even if the model emitted proposals.
+        if (clarify && proposals.length === 0) {
+          clarifyingQuestions = extractClarifyingQuestions(prose)
+          if (clarifyingQuestions.length > 0) {
+            needsClarification = 'Before I propose anything, a couple of details would change the plan meaningfully:'
           }
         }
 
@@ -345,6 +388,14 @@ export async function POST(req: NextRequest) {
         if (proposals.length > 0) {
           enqueue({ type: 'tools', message_id: assistantMessageId, proposals })
         }
+        if (needsClarification && clarifyingQuestions.length > 0) {
+          enqueue({
+            type: 'needs_clarification',
+            message_id: assistantMessageId,
+            prompt: needsClarification,
+            questions: clarifyingQuestions,
+          })
+        }
         enqueue({ type: 'done', message_id: assistantMessageId, provider: requestedProvider })
       } catch (e) {
         enqueue({ type: 'error', content: `Model error: ${(e as Error).message ?? String(e)}` })
@@ -362,6 +413,52 @@ export async function POST(req: NextRequest) {
       Connection: 'keep-alive',
     },
   })
+}
+
+/* -------------------------------------------------------------------------- */
+/* extractClarifyingQuestions — pull 1-2 short questions out of a coach turn  */
+/*                                                                             */
+/* Used by the autoAnswer fallback when both the first pass AND the           */
+/* follow-up retry produced prose-only output. Returns short, single-sentence */
+/* questions the frontend can render as MCQ chips next to the chat input.    */
+/*                                                                             */
+/* Heuristic (intentionally simple — the prompt is the real lever here):     */
+/*   - Split into sentences, drop empty / too-long / non-interrogative ones. */
+/*   - Keep at most 2 — the system prompt says "1-2 sharp clarifying         */
+/*     questions", so anything more is over-eager.                            */
+/*   - Strip a leading question mark / bullet / number if the model used      */
+/*     a list format.                                                         */
+/* -------------------------------------------------------------------------- */
+
+function extractClarifyingQuestions(text: string, max = 2): string[] {
+  if (!text || !text.trim()) return []
+
+  // Normalize bullets / numbers — "1)" / "1." / "- " prefixes often show up
+  // when the coach lists its questions in prose.
+  const cleaned = text
+    .replace(/\r/g, '')
+    .split(/\n+/)
+    .map((line) => line.replace(/^\s*(?:\d+[.)]\s+|[-*•]\s+)/, '').trim())
+    .filter(Boolean)
+    .join(' ')
+
+  // Sentence split — keep the trailing punctuation so we can detect "?"
+  const sentences = cleaned
+    .split(/(?<=[.?!])\s+(?=[A-Z(])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.length <= 220 && s.endsWith('?'))
+
+  // De-dupe while preserving order.
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const s of sentences) {
+    const key = s.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(s)
+    if (out.length >= max) break
+  }
+  return out
 }
 
 /* -------------------------------------------------------------------------- */

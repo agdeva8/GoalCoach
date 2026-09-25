@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { ArrowUp, Paperclip, Link2, X, FileText, Trash2 } from "lucide-react";
+import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 
 function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
@@ -38,15 +38,92 @@ function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {} }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {} }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
   const [empty] = useState(messages.length === 0);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
+
+  // Voice input via Web Speech API. We feature-detect on mount so we
+  // can hide the mic button on browsers that don't support it
+  // (Firefox desktop, older Safari). On the unsupported path, the
+  // user can still type — no broken UI.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setVoiceSupported(false);
+      return;
+    }
+    setVoiceSupported(true);
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = (typeof navigator !== "undefined" && navigator.language) || "en-US";
+
+    recognition.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText += t;
+        else interimText += t;
+      }
+      // Replace, not append, while listening — the interim stream already
+      // contains the prefix we showed previously, and committing a final
+      // chunk re-emits the whole transcript.
+      setInput((prev) => {
+        // Drop any prefix the model echoed back from a prior interim.
+        const base = interimText ? "" : prev;
+        const merged = `${base}${finalText || interimText}`.trim();
+        return merged;
+      });
+    };
+
+    recognition.onerror = (event) => {
+      setVoiceListening(false);
+      const err = event?.error || "unknown";
+      if (err === "no-speech") setVoiceError("Didn't catch that — try again?");
+      else if (err === "not-allowed" || err === "service-not-allowed") setVoiceError("Microphone access blocked");
+      else setVoiceError(`Voice input failed (${err})`);
+    };
+
+    recognition.onend = () => {
+      setVoiceListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    return () => {
+      try { recognition.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+    };
+  }, [setInput]);
+
+  const toggleVoice = () => {
+    const r = recognitionRef.current;
+    if (!r) return;
+    if (voiceListening) {
+      try { r.stop(); } catch { /* ignore */ }
+      setVoiceListening(false);
+    } else {
+      setVoiceError("");
+      try {
+        r.start();
+        setVoiceListening(true);
+      } catch (e) {
+        setVoiceError(e?.message || "Could not start voice input");
+        setVoiceListening(false);
+      }
+    }
+  };
 
   const submit = () => {
     const text = input.trim();
@@ -123,11 +200,28 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
             rows={1}
-            placeholder="Think out loud…"
+            placeholder={voiceListening ? "Listening…" : "Think out loud…"}
             aria-label="Message the coach"
             className="flex-1 bg-transparent resize-none px-2 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none max-h-40"
             style={{ minHeight: "48px" }}
           />
+          {voiceSupported && (
+            <button
+              type="button"
+              data-testid="chat-voice-button"
+              onClick={toggleVoice}
+              title={voiceListening ? "Stop listening" : "Dictate with your voice"}
+              aria-label={voiceListening ? "Stop dictating" : "Dictate with your voice"}
+              aria-pressed={voiceListening}
+              className={`m-2 h-9 w-9 flex items-center justify-center transition-colors shrink-0 ${
+                voiceListening
+                  ? "bg-[var(--danger)] text-[var(--bg-primary)] animate-pulse"
+                  : "text-[var(--text-muted)] hover:text-[var(--accent)]"
+              }`}
+            >
+              {voiceListening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-4 h-4" />}
+            </button>
+          )}
           <button
             data-testid="chat-send-button"
             onClick={submit}
@@ -139,21 +233,78 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           </button>
         </div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            data-testid="auto-answer-toggle"
-            role="switch"
-            aria-checked={autoAnswer}
-            onClick={() => setAutoAnswer((v) => !v)}
-            title="When on, the coach makes reasonable assumptions instead of asking you clarifying questions"
-            className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${autoAnswer ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
-          >
-            {autoAnswer ? "answering for you" : "coach may ask questions"}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              data-testid="auto-answer-toggle"
+              role="switch"
+              aria-checked={autoAnswer}
+              onClick={() => setAutoAnswer((v) => !v)}
+              title="When on, the coach makes reasonable assumptions instead of asking you clarifying questions"
+              className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${autoAnswer ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+            >
+              {autoAnswer ? "answering for you" : "coach may ask questions"}
+            </button>
+            <button
+              type="button"
+              data-testid="grill-me-toggle"
+              role="switch"
+              aria-checked={grillMe}
+              onClick={() => setGrillMe((v) => !v)}
+              title="Force the coach to ask 1-2 sharp clarifying questions before proposing anything"
+              className={`flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${grillMe ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+            >
+              <HelpCircle className="w-3 h-3" /> {grillMe ? "grill me" : "grill me"}
+            </button>
+          </div>
           <span className="font-mono text-[10px] text-[var(--text-muted)]">
-            {sending ? <span className="text-[var(--accent)]">coach is responding…</span> : "enter to send · shift+enter = newline"}
+            {voiceError ? (
+              <span data-testid="voice-error" className="text-[var(--danger)]">{voiceError}</span>
+            ) : voiceListening ? (
+              <span data-testid="voice-listening" className="text-[var(--accent)]">● listening — tap mic to stop</span>
+            ) : sending ? (
+              <span className="text-[var(--accent)]">coach is responding…</span>
+            ) : (
+              "enter to send · shift+enter = newline"
+            )}
           </span>
         </div>
+
+        {pendingClarifications && pendingClarifications.questions?.length > 0 && (
+          <div data-testid="clarification-chips" className="mt-2 p-3 border border-[var(--border-accent)]/40 rounded-md bg-[var(--bg-secondary)]">
+            <div className="flex items-start gap-2">
+              <HelpCircle className="w-3.5 h-3.5 mt-0.5 text-[var(--accent)] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  {pendingClarifications.prompt || "I want to make a real proposal, but I need a couple of details first."}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {pendingClarifications.questions.map((q, i) => (
+                    <button
+                      key={i}
+                      data-testid={`clarification-chip-${i}`}
+                      onClick={() => onAnswerClarification(q)}
+                      className="text-left text-[11px] leading-relaxed px-2.5 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors max-w-full"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 font-mono text-[10px] text-[var(--text-muted)]">
+                  Tap a question to answer it — or just type your own response below.
+                </p>
+              </div>
+              <button
+                onClick={onDismissClarifications}
+                data-testid="clarification-dismiss"
+                title="Dismiss"
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
