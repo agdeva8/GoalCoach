@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Sparkles, CircleDot, PauseCircle, CheckCircle2, Circle, Plus, Pencil, Trash2, Pause, Milestone, Paperclip, FileText, Link2, ExternalLink, X } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Sparkles, CircleDot, PauseCircle, CheckCircle2, Circle, Plus, Pencil, Trash2, Pause, Milestone, Paperclip, FileText, Link2, ExternalLink, X, MessageSquare, ArrowRight } from "lucide-react";
 import { sourceDownloadUrl } from "../lib/api";
 import AddGoalDialog from "./AddGoalDialog";
 import SourceActionDialog from "./SourceActionDialog";
@@ -203,17 +203,41 @@ export default function TrackingDashboard({
   onAddLink = () => {},
   onDeleteSource = () => {},
   onCreated = () => {},
+  onOpenChat = () => {},
   autoAnswer = false,
   grillMe = false,
+  isGuest = false,
 }) {
   const [addGoalOpen, setAddGoalOpen] = useState(false);
+
+  const visibleGoals = (state?.goals || []).filter((g) => g.status !== "dropped");
+  const milestones = state?.milestones || [];
+
+  // First-visit auto-open: when there are zero goals AND the
+  // localStorage sentinel is unset, surface the AddGoalDialog half a
+  // second after paint so the user lands inside it instead of staring
+  // at an empty dark panel. The sentinel sticks so a returning user
+  // never gets re-surprised. `closeAddGoalDialog` writes the same
+  // sentinel, so closing the dialog is enough to mark the user onboarded.
+  useEffect(() => {
+    if (!state) return;
+    if (visibleGoals.length !== 0) return;
+    try {
+      if (localStorage.getItem("gc_first_visit_v1") === "done") return;
+    } catch { return; }
+    const t = setTimeout(() => setAddGoalOpen(true), 600);
+    return () => clearTimeout(t);
+  }, [state, visibleGoals.length]);
+
   if (!state) return <div className="p-6 font-mono text-xs text-[var(--text-muted)]">loading…</div>;
-  const visibleGoals = state.goals.filter((g) => g.status !== "dropped");
-  const milestones = state.milestones || [];
+
   const grouped = HORIZON_ORDER.map((h) => ({ horizon: h, goals: visibleGoals.filter((g) => g.horizon === h) })).filter((g) => g.goals.length > 0);
 
   const openAddGoalDialog = () => setAddGoalOpen(true);
-  const closeAddGoalDialog = () => setAddGoalOpen(false);
+  const closeAddGoalDialog = () => {
+    setAddGoalOpen(false);
+    try { localStorage.setItem("gc_first_visit_v1", "done"); } catch { /* ignore */ }
+  };
 
   return (
     <div data-testid="tracking-dashboard" className="p-4 sm:p-6 space-y-6">
@@ -222,16 +246,43 @@ export default function TrackingDashboard({
           <h2 className="font-display text-sm font-semibold tracking-tight text-[var(--text-primary)]">Your goals</h2>
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Everything the coach is keeping track of for you.</p>
         </div>
-        <button data-testid="add-goal-button" onClick={openAddGoalDialog} className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity shrink-0">
-          <Plus className="w-3.5 h-3.5" /> Add goal
-        </button>
+        {visibleGoals.length > 0 && (
+          <button data-testid="add-goal-button" onClick={openAddGoalDialog} className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity shrink-0">
+            <Plus className="w-3.5 h-3.5" /> Add goal
+          </button>
+        )}
       </div>
 
       <OverCommitmentIndicator oc={state.over_commitment} />
 
       {visibleGoals.length === 0 ? (
-        <div className="border border-dashed border-[var(--border)] p-6 text-center rounded-md">
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">Nothing tracked yet. Hit <span className="text-[var(--text-primary)]">Add goal</span> or just say what you're working on in the chat.</p>
+        <div data-testid="empty-state" className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
+          <div className="mx-auto h-12 w-12 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/30 flex items-center justify-center mb-4">
+            <Sparkles className="h-6 w-6 text-[var(--accent)]" />
+          </div>
+          <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">
+            What's the first thing you want to sort out?
+          </h3>
+          <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
+            Pick a category and the coach will propose a goal with milestones — you confirm it before anything gets saved.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              data-testid="empty-state-add-goal"
+              onClick={openAddGoalDialog}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity rounded-md"
+            >
+              <Plus className="h-4 w-4" /> Add your first goal
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              data-testid="empty-state-open-chat"
+              onClick={onOpenChat}
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] text-sm hover:border-[var(--border-accent)] transition-colors rounded-md"
+            >
+              <MessageSquare className="h-4 w-4" /> Or just chat with the coach
+            </button>
+          </div>
         </div>
       ) : (
         grouped.map((group) => (

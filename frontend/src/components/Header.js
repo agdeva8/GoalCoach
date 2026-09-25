@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, LogOut, History, Sun, Moon, Sparkles, Info, LogIn } from "lucide-react";
+import { ChevronDown, LogOut, History, Sun, Moon, Sparkles, Info, LogIn, MessageSquare } from "lucide-react";
 import Logo from "./Logo";
 
 const PROVIDERS = [
@@ -17,7 +17,7 @@ const STORYBOARDS = [
   { id: "routine", label: "Routine return", text: "Done with the gym for today. What's next on the pivot?" },
 ];
 
-export default function Header({ user, authLoading, provider, onProvider, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard }) {
+export default function Header({ user, authLoading, provider, onProvider, onOpenChat, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard }) {
   const [provOpen, setProvOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -51,6 +51,17 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
       </div>
 
       <div ref={rootRef} className="ml-auto flex items-center gap-2">
+        {/* Chat-with-coach — the primary in-product action. */}
+        <button
+          data-testid="open-chat-button"
+          onClick={onOpenChat}
+          title="Chat with your coach"
+          className="h-9 flex items-center gap-1.5 px-3 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>Chat</span>
+        </button>
+
         {/* Storyboard picker */}
         <div className="relative">
           <button
