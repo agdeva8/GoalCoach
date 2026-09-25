@@ -32,6 +32,8 @@ export const api = {
   createBlocker: (b) => req("/blockers", { method: "POST", body: JSON.stringify(b) }),
   updateBlocker: (id, b) => req(`/blockers/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteBlocker: (id) => req(`/blockers/${id}`, { method: "DELETE" }),
+  // Commitments (direct edit)
+  createCommitment: (c) => req("/commitments", { method: "POST", body: JSON.stringify(c) }),
   // Sources
   sources: () => req("/sources"),
   addLink: (body) => req("/sources/link", { method: "POST", body: JSON.stringify(body) }),

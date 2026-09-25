@@ -2,6 +2,50 @@ import { useRef, useEffect, useState } from "react";
 import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 
+/**
+ * SpeechWave — animated audio feedback rendered above the chat input
+ * while the user is dictating. Each bar has a randomized height that
+ * updates on a short interval so the visualization actually moves while
+ * the model is still producing interim transcripts. Mirrors the look of
+ * the assistant's streaming caret so it reads as part of the chat UI.
+ */
+function SpeechWave({ text }) {
+  const [bars, setBars] = useState(() => Array.from({ length: 16 }, () => 0.4));
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setBars((prev) =>
+        prev.map(() => 0.25 + Math.random() * 0.75),
+      );
+    }, 110);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div
+      data-testid="speech-wave"
+      aria-live="polite"
+      className="mb-2 flex items-center gap-2 px-3 py-2 border border-[var(--danger)]/40 bg-[var(--danger)]/5 rounded-md"
+    >
+      <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--danger)] shrink-0">
+        listening
+      </span>
+      <div className="flex items-end gap-[3px] h-5 flex-1 min-w-0">
+        {bars.map((h, i) => (
+          <span
+            key={i}
+            className="flex-1 min-w-[2px] max-w-[6px] rounded-sm bg-[var(--danger)] transition-[height] duration-100 ease-linear"
+            style={{ height: `${h * 100}%` }}
+          />
+        ))}
+      </div>
+      <span className="font-mono text-[10px] text-[var(--text-muted)] truncate min-w-0 max-w-[40%]" title={text}>
+        {text ? text.slice(-32) : "…"}
+      </span>
+    </div>
+  );
+}
+
 function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
   if (m.role === "user") {
     return (
@@ -185,6 +229,9 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             ))}
           </div>
         )}
+        {voiceSupported && voiceListening && (
+          <SpeechWave text={input} />
+        )}
         <div className="flex items-end gap-1 border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
           <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
           <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" className="ml-1 mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
@@ -232,7 +279,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             <ArrowUp className="w-4 h-4" />
           </button>
         </div>
-        <div className="mt-1.5 flex items-center justify-between gap-2">
+        <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -240,10 +287,17 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               role="switch"
               aria-checked={autoAnswer}
               onClick={() => setAutoAnswer((v) => !v)}
-              title="When on, the coach makes reasonable assumptions instead of asking you clarifying questions"
-              className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${autoAnswer ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+              disabled={grillMe}
+              title="When ON: coach makes reasonable assumptions and just proposes. Default mode is OFF — coach may ask 1-2 light clarifying questions before proposing."
+              className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
+                autoAnswer
+                  ? "border-[var(--accent)] text-[var(--accent)]"
+                  : grillMe
+                  ? "border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                  : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              }`}
             >
-              {autoAnswer ? "answering for you" : "coach may ask questions"}
+              {autoAnswer ? "answering for you" : "coach may ask (light)"}
             </button>
             <button
               type="button"
@@ -251,10 +305,17 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               role="switch"
               aria-checked={grillMe}
               onClick={() => setGrillMe((v) => !v)}
-              title="Force the coach to ask 1-2 sharp clarifying questions before proposing anything"
-              className={`flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${grillMe ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+              disabled={autoAnswer}
+              title="When ON: coach pushes back hard — asks 5+ sharp questions, demands constraints, won't propose until you answer them. Use when you want to be challenged, not coddled."
+              className={`flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
+                grillMe
+                  ? "border-[var(--danger)] text-[var(--danger)]"
+                  : autoAnswer
+                  ? "border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                  : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              }`}
             >
-              <HelpCircle className="w-3 h-3" /> {grillMe ? "grill me" : "grill me"}
+              <HelpCircle className="w-3 h-3" /> grill me (intense)
             </button>
           </div>
           <span className="font-mono text-[10px] text-[var(--text-muted)]">
@@ -273,26 +334,41 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         {pendingClarifications && pendingClarifications.questions?.length > 0 && (
           <div data-testid="clarification-chips" className="mt-2 p-3 border border-[var(--border-accent)]/40 rounded-md bg-[var(--bg-secondary)]">
             <div className="flex items-start gap-2">
-              <HelpCircle className="w-3.5 h-3.5 mt-0.5 text-[var(--accent)] shrink-0" />
+              <HelpCircle className="w-4 h-4 mt-0.5 text-[var(--accent)] shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                   {pendingClarifications.prompt || "I want to make a real proposal, but I need a couple of details first."}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                {/* Claude-style: full-width single-choice options + a free-text fallback input below */}
+                <div className="mt-2.5 space-y-1.5">
                   {pendingClarifications.questions.map((q, i) => (
                     <button
                       key={i}
+                      type="button"
                       data-testid={`clarification-chip-${i}`}
                       onClick={() => onAnswerClarification(q)}
-                      className="text-left text-[11px] leading-relaxed px-2.5 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors max-w-full"
+                      className="w-full text-left text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
                     >
+                      <span className="font-mono text-[10px] text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
                       {q}
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 font-mono text-[10px] text-[var(--text-muted)]">
-                  Tap a question to answer it — or just type your own response below.
-                </p>
+                <div className="mt-2.5 flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    data-testid="clarification-free-text"
+                    placeholder="Or type your own answer…"
+                    aria-label="Type your own answer"
+                    className="flex-1 min-w-0 bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] outline-none rounded-md px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                        onAnswerClarification(e.currentTarget.value);
+                        e.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                </div>
               </div>
               <button
                 onClick={onDismissClarifications}

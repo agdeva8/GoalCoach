@@ -20,16 +20,9 @@ const LEVEL_STYLES = {
 };
 
 const AREAS = ["Health", "Career", "Learning", "Relationship", "Finance", "Side project"];
-
-const GOAL_CATEGORIES = [
-  { id: "health",       label: "Health",       prompt: "Help me set up a health goal. Ask anything you need, then propose it." },
-  { id: "career",       label: "Career",       prompt: "Help me set up a career goal. Ask anything you need, then propose it." },
-  { id: "learning",     label: "Learning",     prompt: "Help me set up a learning goal. Ask anything you need, then propose it." },
-  { id: "relationship", label: "Relationship", prompt: "Help me set up a relationship goal. Ask anything you need, then propose it." },
-  { id: "finance",      label: "Finance",      prompt: "Help me set up a finance goal. Ask anything you need, then propose it." },
-  { id: "side-project", label: "Side project", prompt: "Help me set up a side-project goal. Ask anything you need, then propose it." },
-  { id: "custom",       label: "Something else", prompt: "" },
-];
+// GOAL_CATEGORIES is now defined in AddGoalDialog.js — the dialog is the
+// single source of truth for category tiles so we don't fragment the
+// surface.
 
 function OverCommitmentIndicator({ oc }) {
   const style = LEVEL_STYLES[oc.level] || LEVEL_STYLES.clear;
@@ -202,18 +195,25 @@ function GoalCard({ goal, commitments, milestones, onAction, onUploadSource, onA
   );
 }
 
-export default function TrackingDashboard({ state, onPrefill = () => {}, onAction = () => {}, onUploadSource = () => {}, onAddLink = () => {}, onDeleteSource = () => {}, onCreated = () => {}, autoAnswer = false }) {
-  const [showAreas, setShowAreas] = useState(false);
+export default function TrackingDashboard({
+  state,
+  onPrefill = () => {},
+  onAction = () => {},
+  onUploadSource = () => {},
+  onAddLink = () => {},
+  onDeleteSource = () => {},
+  onCreated = () => {},
+  autoAnswer = false,
+  // Chat state forwarded to AddGoalDialog so it can host the full
+  // ChatConsole (upload, mic, grill-me, MCQ chips, sources) instead of
+  // a stripped-down inner chat.
+  chatState = {},
+}) {
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   if (!state) return <div className="p-6 font-mono text-xs text-[var(--text-muted)]">loading…</div>;
   const visibleGoals = state.goals.filter((g) => g.status !== "dropped");
   const milestones = state.milestones || [];
   const grouped = HORIZON_ORDER.map((h) => ({ horizon: h, goals: visibleGoals.filter((g) => g.horizon === h) })).filter((g) => g.goals.length > 0);
-
-  const addArea = (area) => {
-    setShowAreas(false);
-    onPrefill(`Help me set up a ${area.toLowerCase()} goal. Ask me anything you need, then propose it.`);
-  };
 
   const openAddGoalDialog = () => setAddGoalOpen(true);
   const closeAddGoalDialog = () => setAddGoalOpen(false);
@@ -229,15 +229,6 @@ export default function TrackingDashboard({ state, onPrefill = () => {}, onActio
           <Plus className="w-3.5 h-3.5" /> Add goal
         </button>
       </div>
-
-      {showAreas && (
-        <div data-testid="area-chips" className="flex flex-wrap gap-1.5 -mt-3">
-          {AREAS.map((a) => (
-            <button key={a} data-testid={`area-chip-${a.toLowerCase().replace(/\s/g, "-")}`} onClick={() => addArea(a)} className="text-xs px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">{a}</button>
-          ))}
-          <button data-testid="area-chip-custom" onClick={() => { setShowAreas(false); onPrefill("I want to add a new goal. Here's what I'm thinking: "); }} className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Something else…</button>
-        </div>
-      )}
 
       <OverCommitmentIndicator oc={state.over_commitment} />
 
@@ -272,6 +263,7 @@ export default function TrackingDashboard({ state, onPrefill = () => {}, onActio
         onClose={closeAddGoalDialog}
         autoAnswer={autoAnswer}
         onCreated={onCreated}
+        {...chatState}
       />
     </div>
   );

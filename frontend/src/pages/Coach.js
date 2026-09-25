@@ -4,10 +4,10 @@ import { MessageSquare, LayoutDashboard, CalendarClock, PanelRightClose, PanelRi
 import { useAuth } from "../context/AuthContext";
 import { api, API } from "../lib/api";
 import Header from "../components/Header";
-import OnboardingBanner from "../components/OnboardingBanner";
 import ChatConsole from "../components/ChatConsole";
 import TrackingDashboard from "../components/TrackingDashboard";
 import Timeline from "../components/Timeline";
+import Calendar from "../components/Calendar";
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
@@ -32,8 +32,21 @@ export default function Coach() {
   const [theme, setTheme] = useState(() => localStorage.getItem("gc_theme") || "dark");
   const [mobileView, setMobileView] = useState("chat");
   const [panelView, setPanelView] = useState("state");
-  const [autoAnswer, setAutoAnswer] = useState(false);
-  const [grillMe, setGrillMe] = useState(false);
+  const [autoAnswer, setAutoAnswerRaw] = useState(false);
+  const [grillMe, setGrillMeRaw] = useState(false);
+  // Mutually-exclusive wrappers: turning on one turns the other off.
+  // "Coach may ask questions" (autoAnswer=off, grillMe=off) is the
+  // default state — coach decides based on the message shape.
+  const setAutoAnswer = (v) => {
+    const next = typeof v === "function" ? v(autoAnswer) : v;
+    setAutoAnswerRaw(next);
+    if (next) setGrillMeRaw(false);
+  };
+  const setGrillMe = (v) => {
+    const next = typeof v === "function" ? v(grillMe) : v;
+    setGrillMeRaw(next);
+    if (next) setAutoAnswerRaw(false);
+  };
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [sourceDialogMode, setSourceDialogMode] = useState(null); // null | "link" | "upload"
   const [sourceDialogSource, setSourceDialogSource] = useState(null);
@@ -60,7 +73,14 @@ export default function Coach() {
   }, []);
 
   const refreshState = useCallback(async () => {
-    try { setState(await api.state()); } catch (e) { /* noop */ }
+    try {
+      const newState = await api.state();
+      setState(newState);
+      // Default to calendar tab when no goals exist yet (first-time users)
+      if (newState && (!newState.goals || newState.goals.filter((g) => g.status !== "dropped").length === 0)) {
+        setPanelView("calendar");
+      }
+    } catch (e) { /* noop */ }
   }, []);
 
   useEffect(() => {
@@ -309,7 +329,6 @@ export default function Coach() {
         onLogout={doLogout}
         onStoryboard={onStoryboard}
       />
-      <OnboardingBanner />
 
       {isGuest && (
         <div data-testid="guest-banner" className="border-b border-[var(--border)] bg-[var(--accent)]/10 px-4 sm:px-6 py-2 flex items-center gap-3">
@@ -384,6 +403,9 @@ export default function Coach() {
             <button data-testid="panel-tab-state" onClick={() => setPanelView("state")} className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${panelView === "state" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}>
               <LayoutDashboard className="w-3.5 h-3.5" /> Goals
             </button>
+            <button data-testid="panel-tab-calendar" onClick={() => setPanelView("calendar")} className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${panelView === "calendar" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}>
+              <CalendarClock className="w-3.5 h-3.5" /> Calendar
+            </button>
             <button data-testid="panel-tab-timeline" onClick={() => setPanelView("timeline")} className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${panelView === "timeline" ? "text-[var(--accent)] border-b-2 border-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}>
               <CalendarClock className="w-3.5 h-3.5" /> Timeline
             </button>
@@ -393,7 +415,38 @@ export default function Coach() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {panelView === "state" ? (
-              <TrackingDashboard state={state} onPrefill={prefill} onAction={openAction} onUploadSource={uploadFile} onAddLink={addLink} onDeleteSource={deleteSource} onCreated={(newState) => setState(newState)} autoAnswer={autoAnswer} />
+              <TrackingDashboard
+                state={state}
+                onPrefill={prefill}
+                onAction={openAction}
+                onUploadSource={uploadFile}
+                onAddLink={addLink}
+                onDeleteSource={deleteSource}
+                onCreated={(newState) => setState(newState)}
+                autoAnswer={autoAnswer}
+                chatState={{
+                  messages,
+                  sending,
+                  input,
+                  setInput,
+                  busyProposal,
+                  grillMe,
+                  setGrillMe,
+                  pendingClarifications,
+                  onAnswerClarification: (text) => { setPendingClarifications(null); send(text); },
+                  onDismissClarifications: () => setPendingClarifications(null),
+                  sources: generalSources,
+                  onSend: send,
+                  onConfirm: confirmProposal,
+                  onReject: rejectProposal,
+                  onRefine: refineProposal,
+                  onUploadFile: (f) => uploadFile(f, ""),
+                  onAddLink: openSourceLinkDialog,
+                  onClearChat: clearChat,
+                }}
+              />
+            ) : panelView === "calendar" ? (
+              <Calendar state={state} onPrefill={prefill} onBlockerChange={refreshState} />
             ) : (
               <Timeline state={state} onPrefill={prefill} />
             )}
