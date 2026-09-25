@@ -39,14 +39,14 @@ interface PreviewResult {
   ok: boolean
   url: string
   host: string | null
-  final_url: string | null
-  title: string | null
-  description: string | null
-  image: string | null
-  favicon: string | null
-  snippet: string
-  content_type: string | null
-  status: number | null
+  final_url?: string | null
+  title?: string | null
+  description?: string | null
+  image?: string | null
+  favicon?: string | null
+  snippet?: string
+  content_type?: string | null
+  status?: number | null
   error: string | null
 }
 

@@ -33,12 +33,12 @@ export async function DELETE(
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
   const { id } = await params
-  const result = await db
+  const deleted = await db
     .delete(memories)
     .where(and(eq(memories.userId, userId), eq(memories.id, id)))
-    .returning({ id: memories.id })
-  if (result.length === 0) {
+    .returning()
+  if (deleted.length === 0) {
     return NextResponse.json({ detail: 'Memory not found' }, { status: 404 })
   }
-  return NextResponse.json({ ok: true, deleted: result[0].id })
+  return NextResponse.json({ ok: true, deleted: deleted[0].id })
 }
