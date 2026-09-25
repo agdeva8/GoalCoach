@@ -1,22 +1,91 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import {
+  Sparkles,
+  ArrowLeft,
+  HeartPulse,
+  Briefcase,
+  BookOpen,
+  HeartHandshake,
+  TrendingUp,
+  Wrench,
+  Wand2,
+} from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
 import { api, API } from "../lib/api";
 
 /**
- * CATEGORIES — big aesthetic tiles for picking a goal area. Each entry
- * has an icon, label, and a clarifying prompt the coach uses if the
- * user submits an empty message.
+ * CATEGORIES — modern hero cards for picking a goal area. Each
+ * entry pairs a brand-shaped icon with a category-themed gradient
+ * (warm amber for action categories, cooler hues for craft / quiet
+ * categories). The card is the same height on every viewport so
+ * the grid stays balanced — the typography + gradient do the visual
+ * lifting, not the size of the icon.
  */
 const CATEGORIES = [
-  { id: "health",       label: "Health",       icon: "🏃", prompt: "Help me set up a health goal. Ask anything you need, then propose it." },
-  { id: "career",       label: "Career",       icon: "💼", prompt: "Help me set up a career goal. Ask anything you need, then propose it." },
-  { id: "learning",     label: "Learning",     icon: "📚", prompt: "Help me set up a learning goal. Ask anything you need, then propose it." },
-  { id: "relationship", label: "Relationship", icon: "💞", prompt: "Help me set up a relationship goal. Ask anything you need, then propose it." },
-  { id: "finance",      label: "Finance",      icon: "💰", prompt: "Help me set up a finance goal. Ask anything you need, then propose it." },
-  { id: "side-project", label: "Side project", icon: "🛠️", prompt: "Help me set up a side-project goal. Ask anything you need, then propose it." },
-  { id: "custom",       label: "Something else", icon: "✨", prompt: "" },
+  {
+    id: "health",
+    label: "Health",
+    Icon: HeartPulse,
+    gradient: "from-emerald-500/30 via-emerald-400/15 to-emerald-500/0",
+    ring: "ring-emerald-400/40",
+    glow: "bg-emerald-400/20",
+    prompt: "Help me set up a health goal. Ask anything you need, then propose it.",
+  },
+  {
+    id: "career",
+    label: "Career",
+    Icon: Briefcase,
+    gradient: "from-amber-500/35 via-amber-400/15 to-orange-500/0",
+    ring: "ring-amber-400/40",
+    glow: "bg-amber-400/20",
+    prompt: "Help me set up a career goal. Ask anything you need, then propose it.",
+  },
+  {
+    id: "learning",
+    label: "Learning",
+    Icon: BookOpen,
+    gradient: "from-indigo-500/30 via-violet-500/15 to-fuchsia-500/0",
+    ring: "ring-violet-400/40",
+    glow: "bg-violet-400/20",
+    prompt: "Help me set up a learning goal. Ask anything you need, then propose it.",
+  },
+  {
+    id: "relationship",
+    label: "Relationship",
+    Icon: HeartHandshake,
+    gradient: "from-rose-500/30 via-pink-400/15 to-rose-500/0",
+    ring: "ring-rose-400/40",
+    glow: "bg-rose-400/20",
+    prompt: "Help me set up a relationship goal. Ask anything you need, then propose it.",
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    Icon: TrendingUp,
+    gradient: "from-teal-500/30 via-cyan-400/15 to-blue-500/0",
+    ring: "ring-teal-400/40",
+    glow: "bg-teal-400/20",
+    prompt: "Help me set up a finance goal. Ask anything you need, then propose it.",
+  },
+  {
+    id: "side-project",
+    label: "Side project",
+    Icon: Wrench,
+    gradient: "from-zinc-500/30 via-zinc-400/15 to-zinc-600/0",
+    ring: "ring-zinc-400/40",
+    glow: "bg-zinc-400/20",
+    prompt: "Help me set up a side-project goal. Ask anything you need, then propose it.",
+  },
+  {
+    id: "custom",
+    label: "Something else",
+    Icon: Wand2,
+    gradient: "from-orange-400/30 via-amber-300/20 to-rose-400/0",
+    ring: "ring-[var(--accent)]/40",
+    glow: "bg-[var(--accent)]/20",
+    prompt: "",
+  },
 ];
 
 /**
@@ -217,13 +286,17 @@ export default function AddGoalDialog({
       testId="add-goal-dialog"
     >
       {/* Tiles — always visible, clickable to change selection or
-          return to step 1 from step 2. */}
+          return to step 1 from step 2.
+          Each card is a gradient hero with a category-themed icon glyph,
+          not a plain text tile. Hovering slightly raises the glow;
+          active state shows an accent ring + a tinted gradient. */}
       <div
         data-testid="add-goal-categories"
         className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-4"
       >
         {CATEGORIES.map((cat) => {
           const isActive = activeCategory === cat.id;
+          const { Icon, gradient, ring, glow } = cat;
           return (
             <button
               key={cat.id}
@@ -231,14 +304,40 @@ export default function AddGoalDialog({
               data-testid={`add-goal-category-${cat.id}`}
               onClick={() => pickCategory(cat)}
               aria-pressed={isActive}
-              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-all min-h-[72px] ${
+              className={`relative flex flex-col items-start justify-between text-left rounded-xl border min-h-[112px] p-3.5 overflow-hidden transition-all group ${
                 isActive
-                  ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                  : "border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-tertiary)]"
+                  ? `border-transparent ring-1 ${ring} bg-gradient-to-br ${gradient}`
+                  : `border-[var(--border)] bg-[var(--bg-primary)] hover:border-[var(--border-accent)] hover:-translate-y-0.5`
               }`}
             >
-              <span aria-hidden="true" className="text-2xl leading-none">{cat.icon}</span>
-              <span className="text-sm font-medium leading-tight">{cat.label}</span>
+              {/* Gradient wash — only visible on active state, fades to
+                  subtle on hover. */}
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} ${
+                  isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+                } transition-opacity`}
+              />
+              {/* Soft glow halo at the top-left, intensifies on active. */}
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute -top-6 -left-6 h-20 w-20 rounded-full blur-2xl ${glow} ${
+                  isActive ? "opacity-80" : "opacity-30 group-hover:opacity-50"
+                } transition-opacity`}
+              />
+              <Icon
+                className={`relative w-6 h-6 ${
+                  isActive ? "text-[var(--text-primary)]" : "text-[var(--accent)] group-hover:text-[var(--text-primary)]"
+                } transition-colors`}
+                strokeWidth={1.6}
+              />
+              <span
+                className={`relative text-sm font-semibold leading-tight tracking-tight ${
+                  isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                } transition-colors`}
+              >
+                {cat.label}
+              </span>
             </button>
           );
         })}

@@ -3,6 +3,7 @@ import { Sparkles, CircleDot, PauseCircle, CheckCircle2, Circle, Plus, Pencil, T
 import { sourceDownloadUrl } from "../lib/api";
 import AddGoalDialog from "./AddGoalDialog";
 import SourceActionDialog from "./SourceActionDialog";
+import TrackerCard from "./TrackerCard";
 
 const HORIZON_ORDER = ["weekly", "short", "medium", "long"];
 const HORIZON_LABELS = {
@@ -254,6 +255,8 @@ export default function TrackingDashboard({
       </div>
 
       <OverCommitmentIndicator oc={state.over_commitment} />
+
+      <TrackerCard state={state} onOpenChat={onOpenChat} />
 
       {visibleGoals.length === 0 ? (
         <div data-testid="empty-state" className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
