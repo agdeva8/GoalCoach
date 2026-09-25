@@ -1,58 +1,77 @@
 import { useEffect, useRef, useState } from "react";
-import { UserRound, Plus, RefreshCw } from "lucide-react";
+import { UserRound, Plus, RefreshCw, Pencil, Check, X } from "lucide-react";
 import { API, api } from "../lib/api";
 
 /**
  * PersonaMenu — dev-only quick-swap dropdown for guest personas.
  *
- * Visible only when:
- *   1. The current user is a guest (not signed in with Google).
- *   2. The server has `ALLOW_DEV_LOGIN=true` (the same flag that
- *      enables /api/auth/dev-login and the SignInModal dev button).
+ * Why this exists: when the LLM-driven goal/milestone creation runs
+ * end-to-end, every test account accumulates state. Each persona
+ * (Devansh-the-runner, Devansh-the-founder, …) is essentially an
+ * empty hermetic DB identity that lets you reload with a different
+ * starting state without disconnecting the OAuth host.
  *
- * Reads the list of saved personas from GET /api/auth/personas,
- * shows them as one-click entries, and lets the user pick:
- *   - An existing persona (POSTs /api/auth/dev-login with the
- *     persona's user_id, then reloads so the auth context re-resolves).
- *   - A fresh guest (calls continueAsGuestAction from the server
- *     action, which sets the guest cookie + redirects to /coach).
+ * Bug fix baked into this rewrite: previously the "new guest"
+ * action called /api/auth/guest (which sets the `guest_token` cookie)
+ * BUT the global auth router checks `session_token` first, so the
+ * existing session_token for the dev-user kept resolving and the
+ * user reported getting the founder account instead. We now route
+ * new-guest creation through /api/auth/dev-login with a fresh uuid,
+ * which writes a `session_token` cookie like every other persona
+ * and therefore wins the precedence race consistently.
  *
- * Why the dual implementation: persona switch reads from the existing
- * dev-login route so the cookie shape and DB row exactly match what
- * a "Continue as Dev User" click does; the "new guest" path uses the
- * real guest-token signup so a brand-new identity gets created.
+ * Friendly-name flow: when the user clicks "new guest" we pop an
+ * inline modal asking for a display name. The default is "Guest N"
+ * where N is the persisted-persona count + 1 (predictable, easy to
+ * spot). Anyone using the env-flag bypass appreciates not having to
+ * type "user_guest_abcdef123456" in the dropdown to find their
+ * identity again.
+ *
+ * Rename: each persona row has an inline pencil that flips into a
+ * textarea + check/cancel. Rename issues a POST to /api/auth/dev-login
+ * with `user_id=<existing>&name=<new>` — which upserts the user row
+ * server-side, so the rename survives across reloads.
  */
-export default function PersonaMenu({ currentName }) {
+export default function PersonaMenu({ currentName, currentUserId }) {
   const [open, setOpen] = useState(false);
   const [personas, setPersonas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [renameId, setRenameId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [newPersonaOpen, setNewPersonaOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newBusy, setNewBusy] = useState(false);
+  const [newError, setNewError] = useState("");
   const rootRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    setError(null);
+  const fetchPersonas = () => {
+    setLoading(true)
+    setError(null)
     fetch(`${API}/auth/personas`, { credentials: "include" })
       .then(async (r) => {
-        if (r.status === 404) {
-          // Server doesn't have the flag on — keep the menu visible
-          // but with a single "new guest" action so it degrades
-          // gracefully.
-          setPersonas([]);
-          return
-        }
+        if (r.status === 404) { setPersonas([]); return }
         if (!r.ok) throw new Error(`${r.status}`)
         const data = await r.json()
         setPersonas(data.personas || [])
       })
       .catch((e) => setError(e?.message || "Couldn't load personas"))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    fetchPersonas()
   }, [open])
 
   useEffect(() => {
     const onDown = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false)
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setOpen(false)
+        setRenameId(null)
+        setNewPersonaOpen(false)
+      }
     }
     document.addEventListener("mousedown", onDown)
     return () => document.removeEventListener("mousedown", onDown)
@@ -68,16 +87,56 @@ export default function PersonaMenu({ currentName }) {
     window.location.reload()
   }
 
-  const chipLabel = currentName ? currentName.split(" ")[0] || "Guest" : "Guest"
-
-  const startFreshGuest = async () => {
+  const createPersona = async (rawName) => {
+    setNewBusy(true)
+    setNewError("")
     try {
-      await api.guest()
+      // Fresh uuid — distinct from any existing persona. Server's
+      // dev-login route uses this for the user_id column.
+      const newId = `user_guest_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`
+      const defaultName = `Guest ${personas.length + 1}`
+      const finalName = (rawName || "").trim() || defaultName
+      const params = new URLSearchParams({ user_id: newId, name: finalName })
+      const res = await fetch(`${API}/auth/dev-login?${params.toString()}`, {
+        method: "POST",
+        credentials: "include",
+      })
+      if (!res.ok) throw new Error("dev-login failed")
+      // The dev-login route sets session_token + writes the user row.
+      // Refresh so we land on the new identity and the persona list.
       window.location.reload()
-    } catch {
-      // ignore — the menu closes either way
+    } catch (e) {
+      setNewError(e?.message || "Could not create persona")
+      setNewBusy(false)
     }
   }
+
+  const submitRename = async (userId) => {
+    const trimmed = renameValue.trim()
+    if (!trimmed) { setRenameId(null); return }
+    setRenameBusy(true)
+    try {
+      const params = new URLSearchParams({ user_id: userId, name: trimmed })
+      const res = await fetch(`${API}/auth/dev-login?${params.toString()}`, {
+        method: "POST",
+        credentials: "include",
+      })
+      if (!res.ok) throw new Error("rename failed")
+      // Local-state update keeps the dropdown snappy; no need to reload
+      // the page just for a name change.
+      setPersonas((prev) =>
+        prev.map((p) => (p.user_id === userId ? { ...p, name: trimmed } : p)),
+      )
+      setRenameId(null)
+      setRenameValue("")
+    } catch (e) {
+      setError(e?.message || "Could not rename")
+    } finally {
+      setRenameBusy(false)
+    }
+  }
+
+  const chipLabel = currentName ? currentName.split(" ")[0] || "Guest" : "Guest"
 
   return (
     <div ref={rootRef} className="relative">
@@ -93,7 +152,7 @@ export default function PersonaMenu({ currentName }) {
       {open && (
         <div
           data-testid="persona-menu"
-          className="absolute right-0 mt-1 w-72 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-2xl z-50"
+          className="absolute right-0 mt-1 w-80 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-2xl z-50"
         >
           <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
             <div>
@@ -101,20 +160,15 @@ export default function PersonaMenu({ currentName }) {
                 Personas · dev only
               </div>
               <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                Swap identity to test different starts.
+                Switch identity to test different starts.
               </div>
             </div>
             <button
               type="button"
-              onClick={() => {
-                setLoading(true)
-                fetch(`${API}/auth/personas`, { credentials: "include" })
-                  .then((r) => (r.ok ? r.json() : { personas: [] }))
-                  .then((d) => setPersonas(d.personas || []))
-                  .finally(() => setLoading(false))
-              }}
+              onClick={fetchPersonas}
               title="Refresh"
               className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              data-testid="persona-menu-refresh"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
@@ -131,28 +185,91 @@ export default function PersonaMenu({ currentName }) {
             <ul className="max-h-72 overflow-y-auto">
               {personas.length === 0 ? (
                 <li className="px-3 py-3 text-xs text-[var(--text-muted)]">
-                  No saved personas yet. Pick "Continue as new guest" below to create the first.
+                  No saved personas yet. Click "Continue as new person below" below to create the first.
                 </li>
               ) : (
-                personas.map((p) => (
-                  <li key={p.user_id}>
-                    <button
-                      type="button"
+                personas.map((p) => {
+                  const isCurrent = currentUserId && p.user_id === currentUserId
+                  const isRenaming = renameId === p.user_id
+                  return (
+                    <li
+                      key={p.user_id}
                       data-testid={`persona-item-${p.user_id}`}
-                      onClick={() => switchTo(p.user_id, p.name || "Guest")}
-                      className="w-full text-left px-3 py-2.5 border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
+                      className="border-b border-[var(--border)] last:border-0"
                     >
-                      <div className="text-sm text-[var(--text-primary)] truncate">
-                        {p.name || "Guest"}
+                      <div className="flex items-start gap-2 px-3 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => switchTo(p.user_id, p.name || "Guest")}
+                          disabled={isCurrent}
+                          className="flex-1 text-left min-w-0 hover:bg-[var(--bg-tertiary)] -mx-1 px-1 py-0.5 rounded transition-colors disabled:cursor-default disabled:hover:bg-transparent"
+                        >
+                          {isRenaming ? (
+                            <input
+                              autoFocus
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") submitRename(p.user_id)
+                                if (e.key === "Escape") setRenameId(null)
+                              }}
+                              className="w-full bg-[var(--bg-primary)] border border-[var(--border-accent)] rounded px-1.5 py-1 text-sm"
+                              data-testid={`persona-rename-input-${p.user_id}`}
+                            />
+                          ) : (
+                            <>
+                              <div className="text-sm text-[var(--text-primary)] truncate">
+                                {p.name || "Guest"}
+                                {isCurrent && (
+                                  <span className="ml-1.5 font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
+                                    current
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mt-0.5 truncate">
+                                {p.user_id}
+                                <span className="mx-1.5">·</span>
+                                {new Date(p.created_at).toLocaleDateString()}
+                              </div>
+                            </>
+                          )}
+                        </button>
+                        {isRenaming ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => submitRename(p.user_id)}
+                              disabled={renameBusy || !renameValue.trim()}
+                              className="text-[var(--success)] hover:opacity-80 disabled:opacity-40"
+                              title="Save"
+                              data-testid={`persona-rename-save-${p.user_id}`}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setRenameId(null); setRenameValue("") }}
+                              className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => { setRenameId(p.user_id); setRenameValue(p.name || "") }}
+                            className="text-[var(--text-muted)] hover:text-[var(--accent)] shrink-0"
+                            title="Rename persona"
+                            data-testid={`persona-rename-trigger-${p.user_id}`}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
-                      <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mt-0.5">
-                        {p.user_id}
-                        <span className="mx-1.5">·</span>
-                        {new Date(p.created_at).toLocaleDateString()}
-                      </div>
-                    </button>
-                  </li>
-                ))
+                    </li>
+                  )
+                })
               )}
             </ul>
           )}
@@ -161,13 +278,61 @@ export default function PersonaMenu({ currentName }) {
             <button
               type="button"
               data-testid="persona-new-guest"
-              onClick={startFreshGuest}
+              onClick={() => setNewPersonaOpen(true)}
               className="w-full flex items-center gap-2 px-3 py-3 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              Continue as new guest (new identity)
+              Continue as new person (fresh identity)
             </button>
           </div>
+
+          {newPersonaOpen && (
+            <div
+              data-testid="persona-new-modal"
+              className="absolute inset-x-0 top-0 bg-[var(--bg-secondary)] border border-[var(--border-accent)] p-3 shadow-2xl z-10 rounded"
+            >
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+                New persona
+              </div>
+              <div className="text-xs text-[var(--text-secondary)] mt-1">
+                Give this identity a display name so it's easy to pick later. Leave blank for "Guest N".
+              </div>
+              <input
+                autoFocus
+                data-testid="persona-new-name-input"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") createPersona(newName)
+                  if (e.key === "Escape") setNewPersonaOpen(false)
+                }}
+                placeholder={`Guest ${personas.length + 1}`}
+                className="mt-2 w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+              />
+              {newError && (
+                <div className="mt-1.5 text-[11px] text-[var(--danger)]">{newError}</div>
+              )}
+              <div className="mt-2.5 flex items-center gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setNewPersonaOpen(false); setNewError("") }}
+                  className="text-[11px] px-2.5 py-1.5 rounded border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
+                  data-testid="persona-new-cancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => createPersona(newName)}
+                  disabled={newBusy}
+                  className="text-[11px] px-2.5 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 disabled:opacity-50"
+                  data-testid="persona-new-save"
+                >
+                  {newBusy ? "Creating…" : "Create & switch"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

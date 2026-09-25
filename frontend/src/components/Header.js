@@ -18,7 +18,7 @@ const STORYBOARDS = [
   { id: "routine", label: "Routine return", text: "Done with the gym for today. What's next on the pivot?" },
 ];
 
-export default function Header({ user, authLoading, provider, onProvider, onOpenChat, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard, devLoginAvailable = false }) {
+export default function Header({ user, authLoading, provider, onProvider, onOpenChat, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard, devLoginAvailable = false, currentUserId }) {
   const [provOpen, setProvOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -149,7 +149,7 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
           <div className="h-9 w-9" aria-hidden="true" />
         ) : isGuest ? (
           <>
-            {devLoginAvailable && <PersonaMenu currentName={user?.name} />}
+            {devLoginAvailable && <PersonaMenu currentName={user?.name} currentUserId={currentUserId} />}
             <button
               data-testid="header-signin-button"
               onClick={onSignIn}

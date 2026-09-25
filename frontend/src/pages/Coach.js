@@ -6,7 +6,6 @@ import { api } from "../lib/api";
 import Header from "../components/Header";
 import TrackingDashboard from "../components/TrackingDashboard";
 import Timeline from "../components/Timeline";
-import Calendar from "../components/Calendar";
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
@@ -41,8 +40,13 @@ export default function Coach() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const [actionModal, setActionModal] = useState(null);
-  const [autoAnswer, setAutoAnswerRaw] = useState(true);
-  const [grillMe, setGrillMeRaw] = useState(false);
+  // Default mode is "coach may ask" — the coach asks the user
+  // questions before proposing. The user has to explicitly flip the
+  // switch to "auto" before the coach writes to state without a
+  // follow-up. This is closer to a coaching relationship than the
+  // old "always emit a tool call" default.
+  const [autoAnswer, setAutoAnswerRaw] = useState(false);
+  const [grillMe, setGrillMeRaw] = useState(true);
   const [sourceDialogMode, setSourceDialogMode] = useState(null);
   const [sourceDialogSource, setSourceDialogSource] = useState(null);
   const [boundaryConfirm, setBoundaryConfirm] = useState(null);
@@ -263,6 +267,7 @@ export default function Coach() {
         onLogout={doLogout}
         onStoryboard={onStoryboard}
         devLoginAvailable={devLoginAvailable}
+        currentUserId={user?.user_id || user?.id}
       />
 
       {isGuest && (
@@ -300,17 +305,6 @@ export default function Coach() {
             <LayoutDashboard className="w-3.5 h-3.5" /> Goals
           </button>
           <button
-            data-testid="panel-tab-calendar"
-            onClick={() => setPanelView("calendar")}
-            className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
-              panelView === "calendar"
-                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <CalendarClock className="w-3.5 h-3.5" /> Calendar
-          </button>
-          <button
             data-testid="panel-tab-timeline"
             onClick={() => setPanelView("timeline")}
             className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
@@ -336,13 +330,6 @@ export default function Coach() {
               autoAnswer={autoAnswer}
               grillMe={grillMe}
               isGuest={isGuest}
-            />
-          ) : panelView === "calendar" ? (
-            <Calendar
-              state={state}
-              onPrefill={() => setChatOpen(true)}
-              onBlockerChange={refreshState}
-              onOpenChat={() => setChatOpen(true)}
             />
           ) : (
             <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChat={() => setChatOpen(true)} />

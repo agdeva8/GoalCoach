@@ -11,6 +11,21 @@ const HORIZON_COLORS = {
   long: "var(--success)",
 };
 
+/**
+ * Span presets the user can pick in the timeline chart mode. The
+ * chart's visible date range = today ± half(days). "auto" falls
+ * back to the user's data range with default padding (used when the
+ * dataset is too tight to fit a year otherwise).
+ */
+const SPAN_PRESETS = [
+  { key: "day", label: "Day", days: 1 },
+  { key: "week", label: "Week", days: 7 },
+  { key: "month", label: "Month", days: 30 },
+  { key: "quarter", label: "Quarter", days: 90 },
+  { key: "year", label: "Year", days: 365 },
+  { key: "5y", label: "5 Yr", days: 365 * 5 },
+]
+
 const parse = (s) => {
   if (!s) return null;
   const d = new Date(s + "T00:00:00");
@@ -81,6 +96,7 @@ export default function Timeline({ state, onPrefill }) {
   const [view, setView] = useState({ level: "year", anchor: new Date(new Date().getFullYear(), 0, 1) });
   const [mode, setMode] = useState("chart"); // 'chart' | 'drill'
   const [zoom, setZoom] = useState(1); // 0.5 / 1 / 2 for chart mode
+  const [span, setSpan] = useState("auto"); // span preset key for chart mode
   const today = useMemo(() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }, []);
 
   const goals = useMemo(() => (state?.goals || []).filter((g) => g.status !== "dropped"), [state]);
@@ -251,27 +267,57 @@ export default function Timeline({ state, onPrefill }) {
           </div>
         )}
         {mode === "chart" && (
-          <div className="flex items-center gap-0.5 ml-1">
-            <button
-              data-testid="timeline-zoom-out"
-              onClick={() => setZoom((z) => clamp(z - 0.25, 0.5, 2))}
-              className="h-7 w-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] border border-[var(--border)] transition-colors"
-              title="Zoom out (more time on screen)"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] px-1.5 min-w-[3rem] text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              data-testid="timeline-zoom-in"
-              onClick={() => setZoom((z) => clamp(z + 0.25, 0.5, 2))}
-              className="h-7 w-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] border border-[var(--border)] transition-colors"
-              title="Zoom in (less time on screen)"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <>
+            <div className="inline-flex rounded-md border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-0.5">
+              {SPAN_PRESETS.map((s) => (
+                <button
+                  key={s.key}
+                  data-testid={`timeline-span-${s.key}`}
+                  onClick={() => setSpan(s.key)}
+                  className={`px-2 h-7 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                    span === s.key
+                      ? "bg-[var(--accent)] text-[var(--bg-primary)] rounded"
+                      : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+              <button
+                data-testid="timeline-span-auto"
+                onClick={() => setSpan("auto")}
+                title="Fit to actual goal data"
+                className={`px-2 h-7 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                  span === "auto"
+                    ? "bg-[var(--accent)] text-[var(--bg-primary)] rounded"
+                    : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
+                }`}
+              >
+                auto
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5 ml-1">
+              <button
+                data-testid="timeline-zoom-out"
+                onClick={() => setZoom((z) => clamp(z - 0.25, 0.5, 2))}
+                className="h-7 w-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] border border-[var(--border)] transition-colors"
+                title="Zoom out (more time on screen)"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] px-1.5 min-w-[3rem] text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                data-testid="timeline-zoom-in"
+                onClick={() => setZoom((z) => clamp(z + 0.25, 0.5, 2))}
+                className="h-7 w-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] border border-[var(--border)] transition-colors"
+                title="Zoom in (less time on screen)"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </>
         )}
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
           {mode === "chart" ? "chart view" : `${view.level} view`}
@@ -286,6 +332,7 @@ export default function Timeline({ state, onPrefill }) {
           commitments={(state?.commitments || []).filter((c) => c.status === "open")}
           today={today}
           zoom={zoom}
+          span={span}
           onOpenChat={onPrefill}
         />
       ) : (
@@ -371,13 +418,22 @@ export default function Timeline({ state, onPrefill }) {
  * always visible). Zoom adjusts pixels-per-day so the chart works
  * across a 1-week horizon and a 3-year horizon.
  */
-function ChartView({ goals, milestones, blockers, commitments, today, zoom, onOpenChat }) {
+function ChartView({ goals, milestones, blockers, commitments, today, zoom, span, onOpenChat }) {
   const pxPerDay = Math.round(14 * zoom); // 7 / 14 / 28
-  // Compute the date range that contains every goal + blocker + today,
-  // padded so things at the edges don't get clipped.
   const range = useMemo(() => {
+    // Span presets: today-centered, fixed-width window.
+    if (span && span !== "auto") {
+      const preset = SPAN_PRESETS.find((s) => s.key === span)
+      if (preset) {
+        return {
+          start: addDays(today, -Math.floor(preset.days / 2)),
+          end: addDays(today, Math.ceil(preset.days / 2)),
+        }
+      }
+    }
+    // 'auto' — fit the user's actual data with ±padding, so the
+    // chart never lies empty.
     if (goals.length === 0 && blockers.length === 0) {
-      // No data — default to ±30 days from today.
       return {
         start: addDays(today, -30),
         end: addDays(today, 60),
@@ -399,17 +455,17 @@ function ChartView({ goals, milestones, blockers, commitments, today, zoom, onOp
       if (b.start) allDates.push(b.start)
       if (b.end) allDates.push(b.end)
     })
-    if (allDates.length === 0) return { start: addDays(today, -30), end: addDays(today, 60) }
+    if (allDates.length === 0) {
+      return { start: addDays(today, -30), end: addDays(today, 60) }
+    }
     let min = allDates[0]
     let max = allDates[0]
     for (const d of allDates) {
       if (d < min) min = d
       if (d > max) max = d
     }
-    const start = addDays(min, -7)
-    const end = addDays(max, 30)
-    return { start, end }
-  }, [goals, blockers, milestones, commitments, today])
+    return { start: addDays(min, -7), end: addDays(max, 30) }
+  }, [goals, blockers, milestones, commitments, today, span])
 
   const startMs = range.start.getTime()
   const totalDays = Math.max(1, Math.round((range.end.getTime() - startMs) / 86400000))
@@ -465,19 +521,27 @@ function ChartView({ goals, milestones, blockers, commitments, today, zoom, onOp
                 className="absolute top-0 h-full border-l border-[var(--border)]/50"
                 style={{ left: m.px }}
               >
-                <span className="absolute top-1 left-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-                  {MONTHS[m.date.getMonth()]} {m.date.getFullYear()}
+                <span className="absolute top-1 left-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] leading-none">
+                  {MONTHS[m.date.getMonth()]}{" "}
+                  <span className="opacity-60">{m.date.getFullYear()}</span>
                 </span>
               </div>
             ))}
-            {/* Today line spanning the axis */}
+            {/* Today line spanning the axis — DEDICATED strip with its
+                own space so the date label never collides with the
+                month tick to its left. The strip is a fixed-width
+                band (40px) so the dashed line and the "today" text
+                live together, independently of the surrounding month
+                labels. */}
             {todayPx >= 0 && todayPx <= totalWidth && (
               <div
                 className="absolute top-0 h-full border-l-2 border-dashed border-[var(--danger)]/70"
-                style={{ left: todayPx }}
+                style={{ left: todayPx - 14 }}
                 title="Today"
               >
-                <span className="absolute top-1 left-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--danger)]">
+                <span
+                  className="absolute top-1 left-1.5 whitespace-nowrap px-1.5 py-0.5 rounded bg-[var(--danger)]/15 text-[var(--danger)] font-mono text-[9px] uppercase tracking-widest leading-none"
+                >
                   today
                 </span>
               </div>
