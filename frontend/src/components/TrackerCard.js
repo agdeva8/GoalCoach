@@ -166,6 +166,28 @@ export default function TrackerCard({ state, onOpenChat }) {
             <MessageSquare className="w-4 h-4" />
             Ask the coach for today's read
           </button>
+
+          {/* Plan my day — opens the chat in interview mode. The coach
+              then walks the user wake-time → bedtime, slotting
+              commitments into specific hours as it goes. */}
+          <button
+            data-testid="tracker-plan-day-cta"
+            onClick={() => {
+              const today = new Date().toISOString().slice(0, 10)
+              onOpenChat?.(
+                `Plan my day with me. Today is ${today}. ` +
+                  `Walk me through it hour by hour, from when I wake up to when I sleep. ` +
+                  `Ask one question at a time. After each answer, propose concrete ` +
+                  `add_commitment + add_milestone entries so the day lands in the system. ` +
+                  `When we're done, I'll have a real timetable I can put on screen. ` +
+                  `Let's start: what time are you actually getting out of bed tomorrow?`,
+              )
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
+          >
+            <CalendarDays className="w-4 h-4" />
+            Plan my day with the coach
+          </button>
         </div>
 
         {/* Col 2 — today's timetable */}
