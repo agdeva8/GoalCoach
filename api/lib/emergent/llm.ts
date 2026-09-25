@@ -417,3 +417,175 @@ export function proposeGoalFromMessage(messageText: string): Proposal | null {
     status: 'pending',
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Drop/pause-intent detector                                                  */
+/*                                                                             */
+/* Reads the same user message and returns ONE `drop_goal` (or `pause_goal`) */
+/* proposal when the message clearly targets an existing goal. The chat route   */
+/* prefers this output over `proposeGoalFromMessage` so "drop swimming"        */
+/* drops the swimming goal rather than creating one titled "Drop swimming".   */
+/*                                                                             */
+/* Trigger vocabulary: drop, pause, stop, delete, remove, cancel, kill,         */
+/* forget, scratch, ditch + "no longer doing", "not doing anymore", etc.     */
+/*                                                                             */
+/* Resolution rules (in order):                                                */
+/*   1. Quoted title (e.g. "drop \"learn swimming\"")  — exact match.         */
+/*   2. Trailing noun phrase (e.g. "drop swimming", "pause the MVP").         */
+/*      - First try exact case-insensitive title match against `goals`.       */
+/*      - Then ≥6-char substring match (same convention as                     */
+/*        `resolveGoalRef` — never "Runn" → "Running").                       */
+/*        If no substring match, but the message still clearly names an        */
+/*        active goal, fall back to the longest goal title that appears in   */
+/*        the message (a softer "best effort" so the user gets ONE             */
+/*        confirmable proposal instead of a silent dead-end).                 */
+/*                                                                             */
+/* Returns null when nothing matches — the chat route then falls through to   */
+/* the create-goal fallback (or stays silent).                                */
+/* -------------------------------------------------------------------------- */
+
+const DROP_VERBS = [
+  'drop', 'pause', 'stop', 'delete', 'remove', 'cancel', 'kill',
+  'forget', 'scratch', 'ditch', 'abandon', 'shelve', 'shut down',
+] as const
+
+const DROP_PHRASES = [
+  'no longer doing', 'not doing', 'no longer want',
+  'no longer want to', 'stop tracking', 'drop tracking',
+  'drop the goal', 'drop that goal', 'drop this goal',
+  'get rid of', 'let go of', 'put on hold',
+] as const
+
+interface DropCandidate {
+  title: string
+  goalId?: string
+}
+
+function findGoalByReference(
+  needle: string,
+  goals: DropCandidate[],
+): DropCandidate | null {
+  const n = needle.trim().toLowerCase()
+  if (!n) return null
+  const exact = goals.find((g) => g.title.trim().toLowerCase() === n)
+  if (exact) return exact
+  if (n.length >= 6) {
+    const partial = goals.find((g) =>
+      g.title.trim().toLowerCase().includes(n),
+    )
+    if (partial) return partial
+  }
+  return null
+}
+
+export function parseDropIntent(
+  messageText: string,
+  goals: DropCandidate[],
+): Proposal | null {
+  const raw = (messageText ?? '').trim()
+  if (raw.length < 3 || raw.length > 280) return null
+  const lower = raw.toLowerCase()
+  if (!goals || goals.length === 0) return null
+
+  // 1) Phrase-style intent first — "no longer doing X" / "stop tracking X".
+  for (const phrase of DROP_PHRASES) {
+    if (lower.includes(phrase)) {
+      const after = lower.split(phrase, 2)[1] || ''
+      const tail =
+        after
+          .replace(/^(?:the|a|an|my|this|that)\s+/i, '')
+          .replace(/[.?!]+$/g, '')
+          .trim() || raw.replace(new RegExp(phrase, 'i'), '').trim()
+      const hit = findGoalByReference(tail, goals)
+        || findGoalByReference(raw, goals)
+        || bestEffortGoal(raw, goals)
+      if (hit) return buildDropProposal(raw, hit, phrase)
+    }
+  }
+
+  // 2) Verb-led intent — "drop X", "pause the X", "stop tracking X".
+  //    Split on the verb and pick the longest trailing noun phrase.
+  let matchedVerb: string | null = null
+  let matchedIdx = -1
+  for (const verb of DROP_VERBS) {
+    const re = new RegExp(`\\b${verb}\\b`, 'i')
+    const m = re.exec(lower)
+    if (m && (matchedVerb === null || m.index < matchedIdx || matchedIdx < 0)) {
+      matchedVerb = verb
+      matchedIdx = m.index
+    }
+  }
+  if (matchedVerb === null) return null
+  const idx = matchedIdx
+  const after = raw
+    .slice(idx + matchedVerb.length)
+    .replace(/^\s*(?:the|a|an|my|this|that|up\s+with|tracking|on)\s+/i, '')
+    .replace(/[.?!]+$/g, '')
+    .trim()
+
+  // Try a quoted title first, then the tail, then best-effort on the
+  // full raw text.
+  const quoted = after.match(/^["'`„"«»‹›]([^"'`„"«»‹›]{2,80})["'`„"«»‹›]/)
+  let target: DropCandidate | null = null
+  if (quoted) {
+    target = findGoalByReference(quoted[1], goals)
+  }
+  if (!target) target = findGoalByReference(after, goals)
+  if (!target) target = findGoalByReference(raw, goals)
+  if (!target) target = bestEffortGoal(raw, goals)
+
+  if (!target) return null
+  return buildDropProposal(raw, target, matchedVerb)
+}
+
+/**
+ * Soft fallback — pick the goal whose title appears in the user
+ * message as the largest substring match. Used only when the message
+ * clearly references a drop/pause verb but doesn't name the target
+ * precisely (e.g. "drop it" with multiple goals → returns the first
+ * active goal; "drop the side project" → returns the goal titled
+ * "Ship side-project MVP"). The point is to surface ONE confirmable
+ * proposal so the user is never left looking at a silent chat.
+ */
+function bestEffortGoal(
+  raw: string,
+  goals: DropCandidate[],
+): DropCandidate | null {
+  const lower = raw.toLowerCase()
+  // Prefer the longest title that appears at all.
+  const sorted = [...goals].sort((a, b) => b.title.length - a.title.length)
+  for (const g of sorted) {
+    if (g.title.trim().length >= 4 && lower.includes(g.title.trim().toLowerCase())) {
+      return g
+    }
+  }
+  // Last-ditch: if the user said "drop it" / "pause that" with no
+  // explicit name, and there's only one active goal, return it.
+  if (/^(?:drop|pause|stop|delete|remove|cancel|kill|forget|scratch|ditch|abandon|shelve|shut down)\s+(?:it|that|this|everything|all)(?:\s+[a-z]+)?\.?$/i.test(raw)) {
+    return goals[0] ?? null
+  }
+  return null
+}
+
+function buildDropProposal(
+  raw: string,
+  target: DropCandidate,
+  matchedVia: string,
+): Proposal {
+  const lower = raw.toLowerCase()
+  const action: 'drop_goal' | 'pause_goal' = lower.includes('pause') ||
+    lower.includes('hold')
+    ? 'pause_goal'
+    : 'drop_goal'
+  const verb = action === 'drop_goal' ? 'Drop' : 'Pause'
+  return {
+    id: newPropId(),
+    action,
+    args: {
+      ...(target.goalId ? { goal_id: target.goalId } : {}),
+      goal_title: target.title,
+      reason: `Detected via "${matchedVia}" in the user's message.`,
+    },
+    status: 'pending',
+  }
+}

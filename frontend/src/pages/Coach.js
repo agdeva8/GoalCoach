@@ -47,6 +47,7 @@ export default function Coach() {
   const [sourceDialogSource, setSourceDialogSource] = useState(null);
   const [boundaryConfirm, setBoundaryConfirm] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [devLoginAvailable, setDevLoginAvailable] = useState(false);
 
   const setAutoAnswer = (v) => {
     const next = typeof v === "function" ? v(autoAnswer) : v;
@@ -63,6 +64,30 @@ export default function Coach() {
     document.documentElement.classList.toggle("light", theme === "light");
     localStorage.setItem("gc_theme", theme);
   }, [theme]);
+
+  // Probe /api/auth/dev-login once on mount to learn whether the
+  // server-side dev bypass is on. 200 = enabled (persona menu and
+  // SignInModal's "Continue as Dev User" CTA both render); 404 =
+  // disabled (they stay hidden). The shared flag prevents every
+  // component from probing on its own.
+  useEffect(() => {
+    let cancelled = false
+    import("../lib/api").then(({ API }) => {
+      fetch(`${API}/auth/dev-login`, {
+        method: "GET",
+        credentials: "include",
+      })
+        .then((r) => {
+          if (!cancelled) setDevLoginAvailable(r.status === 200)
+        })
+        .catch(() => {
+          if (!cancelled) setDevLoginAvailable(false)
+        })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const refreshState = useCallback(async () => {
     try {
@@ -237,6 +262,7 @@ export default function Coach() {
         }
         onLogout={doLogout}
         onStoryboard={onStoryboard}
+        devLoginAvailable={devLoginAvailable}
       />
 
       {isGuest && (

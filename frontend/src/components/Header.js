@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, LogOut, History, Sun, Moon, Sparkles, Info, LogIn, MessageSquare } from "lucide-react";
 import Logo from "./Logo";
+import PersonaMenu from "./PersonaMenu";
 
 const PROVIDERS = [
   { id: "gemini", label: "Gemini", model: "3 Flash" },
@@ -17,7 +18,7 @@ const STORYBOARDS = [
   { id: "routine", label: "Routine return", text: "Done with the gym for today. What's next on the pivot?" },
 ];
 
-export default function Header({ user, authLoading, provider, onProvider, onOpenChat, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard }) {
+export default function Header({ user, authLoading, provider, onProvider, onOpenChat, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, onStoryboard, devLoginAvailable = false }) {
   const [provOpen, setProvOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -147,14 +148,17 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
         {authLoading ? (
           <div className="h-9 w-9" aria-hidden="true" />
         ) : isGuest ? (
-          <button
-            data-testid="header-signin-button"
-            onClick={onSignIn}
-            title="Sign in with Google to save your work"
-            className="h-9 flex items-center gap-2 px-3.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
-          >
-            <LogIn className="w-3.5 h-3.5" /> Sign in
-          </button>
+          <>
+            {devLoginAvailable && <PersonaMenu currentName={user?.name} />}
+            <button
+              data-testid="header-signin-button"
+              onClick={onSignIn}
+              title="Sign in with Google to save your work"
+              className="h-9 flex items-center gap-2 px-3.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
+            >
+              <LogIn className="w-3.5 h-3.5" /> Sign in
+            </button>
+          </>
         ) : (
         <div className="relative">
           <button
