@@ -98,6 +98,76 @@ function todayIso(): string {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Goal reference resolver                                                    */
+/*                                                                             */
+/* The system prompt (`lib/llm/prompts.ts`) advertises the goal reference     */
+/* field as `goal_title` ("Reference existing goals by their exact current   */
+/* title") — that mirrors the original Python prompt's phrasing and is the   */
+/* only thing the model can actually emit, since it doesn't have goal IDs     */
+/* in its context.                                                            */
+/*                                                                             */
+/* The original Python server fuzzy-matched by title; the new Postgres build   */
+/* is keyed by ID (`y/db/schema.ts` every row has a stable `goal_xxx` ID).   */
+/* This helper bridges the two: prefer `goal_id` when the caller supplies it */
+/* (and verify ownership), otherwise look the goal up by exact title.        */
+/* Returns `null` when neither resolves — callers translate that into a       */
+/* "No matching goal" result, never a half-written row.                      */
+/*                                                                             */
+/* Title matching is exact-case-insensitive trimmed equality. The original   */
+/* Python code did a fuzzy `re.search` which surfaced substring matches like  */
+/* "Runn" → "Running"; we deliberately tighten this to avoid that class of   */
+/* bug while still letting the LLM reference goals by their natural title.   */
+/* -------------------------------------------------------------------------- */
+
+interface GoalRef {
+  goalId: string
+  goalTitle: string
+}
+
+async function resolveGoalRef(
+  db: any,
+  schema: any,
+  userId: string,
+  args: Record<string, any>
+): Promise<GoalRef | null> {
+  const idRaw = typeof args.goal_id === 'string' ? args.goal_id.trim() : ''
+  const titleRaw = typeof args.goal_title === 'string' ? args.goal_title.trim() : ''
+
+  if (idRaw) {
+    const rows = await db
+      .select({ id: schema.goals.id, title: schema.goals.title })
+      .from(schema.goals)
+      .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, idRaw)))
+      .limit(1)
+    if (rows.length) return { goalId: rows[0].id, goalTitle: rows[0].title }
+    // Fall through to title lookup so a stale ID still has a chance — the
+    // title is the stable surface the LLM actually sees.
+  }
+
+  if (titleRaw) {
+    const all = await db
+      .select({ id: schema.goals.id, title: schema.goals.title })
+      .from(schema.goals)
+      .where(eq(schema.goals.userId, userId))
+      .limit(500)
+    const needle = titleRaw.toLowerCase()
+    const exact = all.find((g: { title: string }) => g.title.trim().toLowerCase() === needle)
+    if (exact) return { goalId: exact.id, goalTitle: exact.title }
+    // Last-ditch: substring that covers the common "title slightly
+    // rephrased" case while staying tighter than the old regex fuzzy
+    // match. We never want a goal called "Runn" to land on "Running".
+    const partial = all.find(
+      (g: { title: string }) =>
+        g.title.trim().toLowerCase() === needle ||
+        (needle.length >= 6 && g.title.trim().toLowerCase().includes(needle))
+    )
+    if (partial) return { goalId: partial.id, goalTitle: partial.title }
+  }
+
+  return null
+}
+
+/* -------------------------------------------------------------------------- */
 /* Public entry point                                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -163,7 +233,15 @@ async function applyCreateGoal(
     ? args.horizon
     : 'medium'
   const why: string = args.why ?? ''
-  const nextAction: string = args.next_action ?? ''
+  // The system prompt in `lib/llm/prompts.ts` advertises the field as
+  // `first_action` (it reads naturally for new-goal prose), while the
+  // original Python implementation stored it as `next_action`. The
+  // DB column is `next_action`; accept either alias so a model that
+  // follows the prompt literally doesn't silently lose the field.
+  const nextAction: string =
+    (typeof args.next_action === 'string' && args.next_action) ||
+    (typeof args.first_action === 'string' && args.first_action) ||
+    ''
   const startDate: string = args.start_date ?? todayIso()
   const targetDate: string | null = args.target_date ?? null
 
@@ -203,24 +281,28 @@ async function applyUpdateGoal(
   proposal: Proposal
 ): Promise<ApplyProposalResult> {
   const args = proposal.args
-  const goalId: string | undefined = args.goal_id
-  if (!goalId) {
-    return { success: false, result: `Missing goal_id for update_goal` }
+  // Resolve the goal by `goal_id` first (fast path — the schema advertises
+  // this) or `goal_title` (what the system prompt actually asks the model
+  // to emit). Without this fallback `update_goal` returned "Missing
+  // goal_id" for every real LLM response, which made the dashboard
+  // look broken end-to-end.
+  const ref = await resolveGoalRef(db, schema, userId, args)
+  if (!ref) {
+    return {
+      success: false,
+      result: `No matching goal for '${args.goal_id ?? args.goal_title ?? ''}'`,
+    }
   }
-
-  // Pre-flight: confirm the goal exists and is owned by this user.
-  const existing = await db
-    .select({ id: schema.goals.id, title: schema.goals.title })
-    .from(schema.goals)
-    .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, goalId)))
-    .limit(1)
-  if (!existing.length) {
-    return { success: false, result: `No matching goal for '${goalId}'` }
-  }
+  const goalId = ref.goalId
 
   const updates: Record<string, any> = { updatedAt: new Date() }
   if (typeof args.title === 'string' && args.title.length > 0) {
     updates.title = args.title
+  }
+  // The prompt's `update_goal` action accepts both `new_title` (rename)
+  // and `title`. New title wins over plain title when both are present.
+  if (typeof args.new_title === 'string' && args.new_title.length > 0) {
+    updates.title = args.new_title
   }
   if (typeof args.why === 'string') {
     updates.why = args.why
@@ -238,22 +320,20 @@ async function applyUpdateGoal(
     updates.targetDate = args.target_date
   }
 
-  const existingTitle = existing[0].title
-
   await db.transaction(async (tx: any) => {
     await tx.update(schema.goals).set(updates).where(eq(schema.goals.id, goalId))
     await tx.insert(schema.auditLog).values({
       id: newId('audit'),
       userId,
       type: `confirm:${proposal.action}`,
-      summary: `Updated goal '${existingTitle}'`,
+      summary: `Updated goal '${ref.goalTitle}'`,
       payload: { proposal_id: proposal.id, args },
     })
   })
 
   return {
     success: true,
-    result: `Updated goal '${existingTitle}'`,
+    result: `Updated goal '${ref.goalTitle}'`,
   }
 }
 
@@ -273,37 +353,33 @@ async function applyStatusChange(
   newStatus: GoalStatus,
   verb: 'Dropped' | 'Paused'
 ): Promise<ApplyProposalResult> {
-  const goalId: string | undefined = proposal.args.goal_id
-  if (!goalId) {
-    return { success: false, result: `Missing goal_id for ${proposal.action}` }
+  // Same goal-reference resolution as `applyUpdateGoal` — see comment
+  // there. Without it, "drop the swimming goal" silently returns
+  // "Missing goal_id" because the LLM never sees goal IDs.
+  const ref = await resolveGoalRef(db, schema, userId, proposal.args)
+  if (!ref) {
+    return {
+      success: false,
+      result: `No matching goal for '${proposal.args.goal_id ?? proposal.args.goal_title ?? ''}'`,
+    }
   }
   const reason: string | undefined = proposal.args.reason
-
-  const rows = await db
-    .select({ id: schema.goals.id, title: schema.goals.title })
-    .from(schema.goals)
-    .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, goalId)))
-    .limit(1)
-  if (!rows.length) {
-    return { success: false, result: `No matching goal for '${goalId}'` }
-  }
-  const title = rows[0].title
 
   await db.transaction(async (tx: any) => {
     await tx
       .update(schema.goals)
       .set({ status: newStatus, updatedAt: new Date() })
-      .where(eq(schema.goals.id, goalId))
+      .where(eq(schema.goals.id, ref.goalId))
     await tx.insert(schema.auditLog).values({
       id: newId('audit'),
       userId,
       type: `confirm:${proposal.action}`,
-      summary: `${verb} goal '${title}'${reason ? ` (${reason})` : ''}`,
+      summary: `${verb} goal '${ref.goalTitle}'${reason ? ` (${reason})` : ''}`,
       payload: { proposal_id: proposal.id, args: proposal.args },
     })
   })
 
-  return { success: true, result: `${verb} goal '${title}'` }
+  return { success: true, result: `${verb} goal '${ref.goalTitle}'` }
 }
 
 async function applySetGoalDates(
@@ -313,9 +389,13 @@ async function applySetGoalDates(
   proposal: Proposal
 ): Promise<ApplyProposalResult> {
   const args = proposal.args
-  const goalId: string | undefined = args.goal_id
-  if (!goalId) {
-    return { success: false, result: `Missing goal_id for set_goal_dates` }
+  // Same goal-reference resolution as the other actions.
+  const ref = await resolveGoalRef(db, schema, userId, args)
+  if (!ref) {
+    return {
+      success: false,
+      result: `No matching goal for '${args.goal_id ?? args.goal_title ?? ''}'`,
+    }
   }
 
   const updates: Record<string, any> = { updatedAt: new Date() }
@@ -328,30 +408,20 @@ async function applySetGoalDates(
     }
   }
 
-  const rows = await db
-    .select({ id: schema.goals.id, title: schema.goals.title })
-    .from(schema.goals)
-    .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, goalId)))
-    .limit(1)
-  if (!rows.length) {
-    return { success: false, result: `No matching goal for '${goalId}'` }
-  }
-  const title = rows[0].title
-
   await db.transaction(async (tx: any) => {
-    await tx.update(schema.goals).set(updates).where(eq(schema.goals.id, goalId))
+    await tx.update(schema.goals).set(updates).where(eq(schema.goals.id, ref.goalId))
     await tx.insert(schema.auditLog).values({
       id: newId('audit'),
       userId,
       type: `confirm:${proposal.action}`,
-      summary: `Timeline set for '${title}': ${args.start_date ?? '?'} -> ${args.target_date ?? '?'}`,
+      summary: `Timeline set for '${ref.goalTitle}': ${args.start_date ?? '?'} -> ${args.target_date ?? '?'}`,
       payload: { proposal_id: proposal.id, args },
     })
   })
 
   return {
     success: true,
-    result: `Timeline set for '${title}': ${args.start_date ?? '?'} -> ${args.target_date ?? '?'}`,
+    result: `Timeline set for '${ref.goalTitle}': ${args.start_date ?? '?'} -> ${args.target_date ?? '?'}`,
   }
 }
 
@@ -362,26 +432,30 @@ async function applyAddMilestone(
   proposal: Proposal
 ): Promise<ApplyProposalResult> {
   const args = proposal.args
-  const goalId: string | undefined = args.goal_id
   const title: string = args.title ?? ''
   const targetDate: string | null = args.target_date ?? null
 
-  let goalTitle = ''
-  if (goalId) {
-    const rows = await db
-      .select({ title: schema.goals.title })
-      .from(schema.goals)
-      .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, goalId)))
-      .limit(1)
-    if (rows.length) goalTitle = rows[0].title
+  // Resolve the parent goal. Without this fallback, milestones created
+  // by the LLM were inserted with `goalId=null, goalTitle=''` — they
+  // persisted, but never rendered on the goal card / Timeline because
+  // the dashboard joins them by `goal_id` (and falls back to title
+  // only when both are non-empty). This was the headline bug: the
+  // user reported "milestones aren't being created", but they were
+  // being created — just orphaned.
+  const ref = await resolveGoalRef(db, schema, userId, args)
+  if (!ref) {
+    return {
+      success: false,
+      result: `No matching goal for '${args.goal_id ?? args.goal_title ?? ''}'`,
+    }
   }
 
   await db.transaction(async (tx: any) => {
     await tx.insert(schema.milestones).values({
       id: newId('mile'),
       userId,
-      goalId: goalId ?? null,
-      goalTitle,
+      goalId: ref.goalId,
+      goalTitle: ref.goalTitle,
       title,
       targetDate,
       status: 'open',
@@ -390,14 +464,14 @@ async function applyAddMilestone(
       id: newId('audit'),
       userId,
       type: `confirm:${proposal.action}`,
-      summary: `Milestone '${title}' -> ${targetDate ?? ''}`,
+      summary: `Milestone '${title}' -> ${ref.goalTitle}`,
       payload: { proposal_id: proposal.id, args },
     })
   })
 
   return {
     success: true,
-    result: `Milestone '${title}' -> ${targetDate ?? ''}`,
+    result: `Milestone '${title}' -> ${ref.goalTitle}`,
   }
 }
 
@@ -445,17 +519,18 @@ async function applyAddCommitment(
 ): Promise<ApplyProposalResult> {
   const args = proposal.args
   const text: string = args.text ?? ''
-  const goalId: string | null = args.goal_id ?? null
   const due: string | null = args.due ?? null
 
-  let goalTitle = ''
-  if (goalId) {
-    const rows = await db
-      .select({ title: schema.goals.title })
-      .from(schema.goals)
-      .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, goalId)))
-      .limit(1)
-    if (rows.length) goalTitle = rows[0].title
+  // Resolve parent goal (id or title). Same orphan-prevention logic as
+  // applyAddMilestone — without this, every commitment logged by the
+  // model came back with `goal_title=''`, so it never appeared under
+  // the goal card or on the timeline.
+  let goalId: string | null = null
+  let goalTitle: string = ''
+  const ref = await resolveGoalRef(db, schema, userId, args)
+  if (ref) {
+    goalId = ref.goalId
+    goalTitle = ref.goalTitle
   }
 
   await db.transaction(async (tx: any) => {
@@ -472,12 +547,15 @@ async function applyAddCommitment(
       id: newId('audit'),
       userId,
       type: `confirm:${proposal.action}`,
-      summary: `Committed: ${text}`,
+      summary: `Committed: ${text}${goalTitle ? ` -> ${goalTitle}` : ''}`,
       payload: { proposal_id: proposal.id, args },
     })
   })
 
-  return { success: true, result: `Committed: ${text}` }
+  return {
+    success: true,
+    result: `Committed: ${text}${goalTitle ? ` -> ${goalTitle}` : ''}`,
+  }
 }
 
 async function applyCompleteCommitment(
@@ -486,11 +564,32 @@ async function applyCompleteCommitment(
   userId: string,
   proposal: Proposal
 ): Promise<ApplyProposalResult> {
-  const commitmentId: string | undefined = proposal.args.commitment_id
+  const args = proposal.args
+  // The system prompt directs the model to identify a commitment by its
+  // text (`{"action":"complete_commitment","text":"<commitment text>"}`)
+  // — it doesn't have commitment IDs. Look up by id when present, else
+  // resolve by exact text match against the user's open commitments.
+  let commitmentId: string | undefined =
+    typeof args.commitment_id === 'string' ? args.commitment_id : undefined
+
+  const textRaw = typeof args.text === 'string' ? args.text.trim() : ''
+  if (!commitmentId && textRaw) {
+    const rows = await db
+      .select({ id: schema.commitments.id, text: schema.commitments.text })
+      .from(schema.commitments)
+      .where(
+        and(eq(schema.commitments.userId, userId), eq(schema.commitments.status, 'open'))
+      )
+      .limit(500)
+    const needle = textRaw.toLowerCase()
+    const exact = rows.find((r: { text: string }) => r.text.trim().toLowerCase() === needle)
+    if (exact) commitmentId = exact.id
+  }
+
   if (!commitmentId) {
     return {
       success: false,
-      result: `Missing commitment_id for complete_commitment`,
+      result: `No matching commitment for '${args.commitment_id ?? args.text ?? ''}'`,
     }
   }
 
@@ -516,7 +615,7 @@ async function applyCompleteCommitment(
     await tx
       .update(schema.commitments)
       .set({ status: 'done' })
-      .where(eq(schema.commitments.id, commitmentId))
+      .where(eq(schema.commitments.id, commitmentId!))
     await tx.insert(schema.auditLog).values({
       id: newId('audit'),
       userId,

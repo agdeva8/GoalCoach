@@ -39,6 +39,7 @@ import {
   getModel,
   parseProposals,
   splitProseAndTools,
+  proposeGoalFromMessage,
   streamChat,
   TOOL_START,
   TOOL_END,
@@ -392,6 +393,37 @@ export async function POST(req: NextRequest) {
           clarifyingQuestions = extractClarifyingQuestions(prose)
           if (clarifyingQuestions.length > 0) {
             needsClarification = 'Before I propose anything, a couple of details would change the plan meaningfully:'
+          }
+        }
+
+        // Final-tier safety net — when auto-answer is on AND the model
+        // and its follow-up both came back prose-only AND the user's
+        // message looks like a plain-text goal introduction, build a
+        // `create_goal` proposal server-side from the message text.
+        // The user ALWAYS gets a confirmable proposal when they
+        // express a goal in chat, even if the model goes off-script.
+        // In every other case (clarify mode, off-script prose, edit-
+        // state queries) this is a no-op and the chat route behaves
+        // exactly like before.
+        if (
+          autoAnswer &&
+          !clarify &&
+          proposals.length === 0 &&
+          message.length > 0
+        ) {
+          const synthesized = proposeGoalFromMessage(message)
+          if (synthesized) {
+            proposals.push(synthesized)
+          } else if (!needsClarification) {
+            // Last-ditch: surface a clarifying question so the user
+            // gets an interactive chip rather than a silent prose
+            // dump. Only fires when no proposals came out and the
+            // planner didn't already emit one.
+            clarifyingQuestions = extractClarifyingQuestions(prose)
+            if (clarifyingQuestions.length > 0) {
+              needsClarification =
+                'Tell me a little more so I can shape a real proposal:'
+            }
           }
         }
 

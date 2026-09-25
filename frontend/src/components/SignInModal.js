@@ -1,14 +1,60 @@
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Terminal } from "lucide-react";
+import { API } from "../lib/api";
 import Logo from "./Logo";
 
 export default function SignInModal({ open, onClose, reason }) {
-  if (!open) return null;
+  const [devLoginAvailable, setDevLoginAvailable] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+
+  // Probe the dev-login endpoint once when the modal opens; if the
+  // server returns 200 the bypass is enabled for this environment
+  // (gated on ALLOW_DEV_LOGIN=true), and we surface the button. If
+  // 404, the button stays hidden — invisible to anyone who isn't
+  // actively developing.
+  useEffect(() => {
+    if (!open) {
+      setDevLoginAvailable(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(`${API}/auth/dev-login`, { method: "GET" })
+      .then((res) => {
+        if (!cancelled) setDevLoginAvailable(res.status === 200);
+      })
+      .catch(() => {
+        if (!cancelled) setDevLoginAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const signIn = () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     const redirectUrl = window.location.origin + "/";
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
+
+  const devSignIn = async () => {
+    setSigningIn(true);
+    try {
+      const res = await fetch(`${API}/auth/dev-login?user_id=user_founder01&name=Dev%20User`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setSigningIn(false);
+        return;
+      }
+      // Cookie is set; full reload so the auth context re-resolves cleanly.
+      window.location.reload();
+    } catch {
+      setSigningIn(false);
+    }
+  };
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" data-testid="signin-modal">
@@ -40,6 +86,22 @@ export default function SignInModal({ open, onClose, reason }) {
           <p className="mt-3 font-mono text-[11px] text-[var(--text-muted)] leading-relaxed">
             Your data is yours alone — encrypted, never sold or shared, and not even read by the team.
           </p>
+          {devLoginAvailable && (
+            <div className="mt-5 border-t border-[var(--border)] pt-5">
+              <button
+                data-testid="signin-dev-button"
+                onClick={devSignIn}
+                disabled={signingIn}
+                className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-accent)] bg-[var(--bg-primary)] text-[var(--text-secondary)] px-5 py-2.5 font-mono text-[11px] uppercase tracking-widest hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50"
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                {signingIn ? "Signing in…" : "Continue as Dev User (founders01)"}
+              </button>
+              <p className="mt-2 font-mono text-[10px] text-[var(--text-muted)] leading-relaxed">
+                Local-only shortcut for building. Disabled in production — when ALLOW_DEV_LOGIN isn't set the button is hidden.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
