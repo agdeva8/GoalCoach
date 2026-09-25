@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
+import ChatModeSelect from "./ChatModeSelect";
 
 /**
  * SpeechWave — animated audio feedback rendered above the chat input
@@ -280,44 +281,12 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           </button>
         </div>
         <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              data-testid="auto-answer-toggle"
-              role="switch"
-              aria-checked={autoAnswer}
-              onClick={() => setAutoAnswer((v) => !v)}
-              disabled={grillMe}
-              title="When ON: coach makes reasonable assumptions and just proposes. Default mode is OFF — coach may ask 1-2 light clarifying questions before proposing."
-              className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
-                autoAnswer
-                  ? "border-[var(--accent)] text-[var(--accent)]"
-                  : grillMe
-                  ? "border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed"
-                  : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              {autoAnswer ? "answering for you" : "coach may ask (light)"}
-            </button>
-            <button
-              type="button"
-              data-testid="grill-me-toggle"
-              role="switch"
-              aria-checked={grillMe}
-              onClick={() => setGrillMe((v) => !v)}
-              disabled={autoAnswer}
-              title="When ON: coach pushes back hard — asks 5+ sharp questions, demands constraints, won't propose until you answer them. Use when you want to be challenged, not coddled."
-              className={`flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
-                grillMe
-                  ? "border-[var(--danger)] text-[var(--danger)]"
-                  : autoAnswer
-                  ? "border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed"
-                  : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              <HelpCircle className="w-3 h-3" /> grill me (intense)
-            </button>
-          </div>
+          <ChatModeSelect
+            autoAnswer={autoAnswer}
+            grillMe={grillMe}
+            setAutoAnswer={setAutoAnswer}
+            setGrillMe={setGrillMe}
+          />
           <span className="font-mono text-[10px] text-[var(--text-muted)]">
             {voiceError ? (
               <span data-testid="voice-error" className="text-[var(--danger)]">{voiceError}</span>

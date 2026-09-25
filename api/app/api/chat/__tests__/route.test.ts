@@ -46,6 +46,33 @@ vi.mock('@/lib/auth', () => ({
     }),
 }))
 
+// Spy on streamChat to capture the system prompt per test.
+// vi.hoisted() creates a stable reference that all hoisted vi.mock factories
+// can safely share regardless of evaluation order.
+const { capturedSystemPrompt, mockStreamChatFn } = vi.hoisted(() => {
+  let capturedSystemPrompt = ''
+  const mockStreamChatFn = vi.fn(async function* (opts: any) {
+    capturedSystemPrompt = opts.system ?? ''
+    yield { type: 'text_delta', content: 'Sure, here is a proposal.' }
+    yield { type: 'stream_done', content: 'Sure, here is a proposal.' }
+  })
+  return { capturedSystemPrompt, mockStreamChatFn }
+})
+
+vi.mock('@/lib/emergent/llm', () => ({
+  MODEL_REGISTRY: {},
+  getModel: vi.fn(),
+  parseProposals: vi.fn(),
+  splitProseAndTools: vi.fn(() => ({ prose: '', proposals: [] })),
+  streamChat: mockStreamChatFn,
+  TOOL_START: '[[TOOLS]]',
+  TOOL_END: '[[/TOOLS]]',
+}))
+
+vi.mock('@/lib/emergent/stream-chat', () => ({
+  streamChat: mockStreamChatFn,
+}))
+
 vi.mock('@/lib/db', () => {
   const auditRow = {
     id: 'audit_1',
@@ -245,5 +272,46 @@ describe('TestChatFlow', () => {
     expect(d).toHaveProperty('state')
     expect(d).toHaveProperty('conversation')
     expect(d).toHaveProperty('audit_log')
+  })
+})
+
+describe('proactive_propose flag', () => {
+  // Scoped env stub: forces the production path (streamChat) without
+  // affecting other tests that depend on chatInTestMode.
+  const restoreEnv = () => {
+    const prev = process.env.DATABASE_URL
+    return () => { process.env.DATABASE_URL = prev }
+  }
+
+  it('test_proactive_propose_injects_add_goal_mode_hint', async () => {
+    const restore = restoreEnv()
+    process.env.DATABASE_URL = 'postgresql://localhost:5432/test'
+    mockStreamChatFn.mockClear()
+    try {
+      const res = await chatPost(chatReq({ message: 'I want to learn swimming', proactive_propose: true }))
+      expect(res.status).toBe(200)
+      expect(mockStreamChatFn.mock.calls.length).toBeGreaterThan(0)
+      const call = mockStreamChatFn.mock.calls[0][0] as any
+      expect(call.system).toContain('=== ADD GOAL MODE ===')
+      expect(call.system).toContain('emit a [[TOOLS]] block')
+    } finally {
+      restore()
+    }
+  })
+
+  it('test_no_proactive_propose_omits_add_goal_mode_hint', async () => {
+    const restore = restoreEnv()
+    process.env.DATABASE_URL = 'postgresql://localhost:5432/test'
+    mockStreamChatFn.mockClear()
+    try {
+      const res = await chatPost(chatReq({ message: 'I want to learn swimming' }))
+      expect(res.status).toBe(200)
+      // Both initial and fallback calls must omit ADD GOAL MODE.
+      for (const [call] of mockStreamChatFn.mock.calls as any[]) {
+        expect(call.system).not.toContain('=== ADD GOAL MODE ===')
+      }
+    } finally {
+      restore()
+    }
   })
 })

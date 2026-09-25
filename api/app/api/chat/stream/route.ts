@@ -125,6 +125,7 @@ interface ChatRequestBody {
   clarify?: unknown
   grillMe?: unknown
   grill_me?: unknown
+  proactive_propose?: unknown
   provider?: unknown
 }
 
@@ -154,12 +155,38 @@ export async function POST(req: NextRequest) {
       ? (body.provider as ProviderId)
       : auth.provider
 
-  const autoAnswer = body.autoAnswer === true || body.auto_answer === true
+  // Default to autoAnswer=true so the coach proposes by default; user
+  // must opt INTO clarification by explicitly setting autoAnswer=false.
+  // The previous comment promised this behavior but the code still
+  // required an explicit `true` from the client — that was the bug
+  // behind "coach never proposes" reports.
+  //
+  // Resolution order:
+  //   1. If client sends autoAnswer/auto_answer=false explicitly → false
+  //   2. If client sends autoAnswer/auto_answer=true explicitly → true
+  //   3. Otherwise default true (propose)
+  //   4. `proactive_propose` and `clarify` force their respective paths
+  //      regardless of the explicit autoAnswer value.
+  const explicitAuto =
+    body.autoAnswer === false || body.auto_answer === false
+      ? false
+      : body.autoAnswer === true || body.auto_answer === true
+      ? true
+      : true;
+  const autoAnswer =
+    explicitAuto ||
+    body.proactive_propose === true;
+
   // `clarify` (alias: grill_me) — explicit "grill me" mode: the model
   // MUST respond with 1-2 sharp clarifying questions and MUST NOT emit
   // a [[TOOLS]] block. Wins over autoAnswer so a user pressing "grill
   // me" gets asked even when the auto-answer toggle is on.
   const clarify = body.clarify === true || body.grillMe === true || body.grill_me === true
+
+  // `proactive_propose` — set by the Add Goal dialog to signal "user wants
+  // a goal created NOW". Treated as a strong autoAnswer nudge that also
+  // appends ADD GOAL MODE instructions to the system prompt.
+  const proactive_propose = body.proactive_propose === true
 
   // Persist the user's message first so it's in history by the time
   // `buildContext` runs. The assistant message + proposals are
@@ -217,9 +244,13 @@ export async function POST(req: NextRequest) {
         let proseEmitted = 0
         let inTools = false
 
+        const addGoalHint = proactive_propose
+          ? '\n\n=== ADD GOAL MODE ===\nThe user has opened the Add Goal dialog and wants a goal created now. State your single biggest assumption in one short line, then emit a [[TOOLS]] block with a create_goal + 2-3 add_milestone actions. Use TODAY + ~90 days as the default target_date if no deadline was given.'
+          : ''
+
         for await (const ev of streamChat({
           provider: requestedProvider,
-          system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString,
+          system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString + addGoalHint,
           messages: coreMessages,
           sessionId: auth.userId,
         })) {
@@ -297,6 +328,8 @@ export async function POST(req: NextRequest) {
             !fullText.includes(TOOL_START)
           ) {
             try {
+              const todayDate = new Date().toISOString().split('T')[0]
+              const ninetyDaysOut = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
               const followUpMessages = [
                 ...coreMessages,
                 { role: 'assistant' as const, content: prose },
@@ -304,18 +337,19 @@ export async function POST(req: NextRequest) {
                   role: 'user' as const,
                   content:
                     'SYSTEM CORRECTION — your previous turn only stated assumptions in prose. ' +
-                    'You MUST now emit a [[TOOLS]] block (with a short prose intro if useful) so ' +
-                    'the user has something concrete to confirm. ' +
-                    'Reply with EXACTLY this shape — one create_goal plus 2-4 add_milestone ' +
-                    'actions based on the assumptions you just stated:\n\n' +
+                    'You MUST now emit a [[TOOLS]] block so the user has something concrete to confirm. ' +
+                    'If the user\'s message implies a single concrete goal, just propose it — do NOT ask for more detail.\n\n' +
+                    'Reply with EXACTLY this shape — one create_goal plus 2-4 add_milestone actions:\n\n' +
                     '[[TOOLS]]\n' +
                     '[\n' +
-                    '  {"action":"create_goal","title":"<concise title>","horizon":"weekly|short|medium|long","why":"<one sentence>","first_action":"<smallest next step>","target_date":"YYYY-MM-DD"},\n' +
-                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 1>","target_date":"YYYY-MM-DD"},\n' +
-                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 2>","target_date":"YYYY-MM-DD"}\n' +
+                    '  {"action":"create_goal","title":"<concise title>","horizon":"short","why":"<one sentence>","first_action":"<smallest next step>","target_date":"' + todayDate + '},\n' +
+                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 1>","target_date":"' + todayDate + '"},\n' +
+                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 2>","target_date":"' + ninetyDaysOut + '"}\n' +
                     ']\n' +
                     '[[/TOOLS]]\n\n' +
-                    'Anchor the target_date to today (see LIVE STATE) and include buffer for slippage.',
+                    'Use TODAY\'s date from LIVE STATE as the target_date anchor. ' +
+                    'If the user gave no explicit deadline, set target_date ~90 days from today. ' +
+                    'State your single biggest assumption in one short prose line, then emit the [[TOOLS]] block.',
                 },
               ]
 

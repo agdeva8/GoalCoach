@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, CalendarClock, AlertOctagon, Circle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarClock, AlertOctagon, Circle, CheckCircle2 } from "lucide-react";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -107,6 +107,16 @@ export default function Timeline({ state, onPrefill }) {
     else if (view.level === "week") setView({ level: "month", anchor: new Date(a.getFullYear(), a.getMonth(), 1) });
   };
 
+  // Year navigation — works at any level. Preserves the level + quarter/
+  // month/week offset so jumping years feels natural.
+  const shiftYear = (delta) => {
+    const a = view.anchor;
+    setView({
+      level: view.level,
+      anchor: new Date(a.getFullYear() + delta, a.getMonth(), 1),
+    });
+  };
+
   const crumbs = [];
   const ay = view.anchor.getFullYear();
   crumbs.push({ label: `${ay}`, onClick: () => setView({ level: "year", anchor: new Date(ay, 0, 1) }) });
@@ -165,6 +175,27 @@ export default function Timeline({ state, onPrefill }) {
               )}
             </span>
           ))}
+        </div>
+        {/* Year navigation — works at every level. Lets the user step
+            through years in the year view (the user couldn't change year
+            before, only quarter/month within the current year). */}
+        <div className="flex items-center gap-0.5 ml-1">
+          <button
+            data-testid="timeline-prev-year"
+            onClick={() => shiftYear(-1)}
+            className="h-6 w-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            title="Previous year"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <button
+            data-testid="timeline-next-year"
+            onClick={() => shiftYear(1)}
+            className="h-6 w-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            title="Next year"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{view.level} view</span>
       </div>

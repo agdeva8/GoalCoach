@@ -60,7 +60,7 @@ function isApiPath(pathname: string): boolean {
 // Allowed origins for CORS. In dev the CRA frontend lives on :3000.
 // In prod, set `CORS_ALLOWED_ORIGIN` to the deployed frontend URL
 // (e.g., https://v2.goalcoach.com).
-const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:4004', 'http://127.0.0.1:3000', 'http://127.0.0.1:4004']
+const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:4001', 'http://localhost:4004', 'http://127.0.0.1:3000', 'http://127.0.0.1:4001', 'http://127.0.0.1:4004']
 
 function getAllowedOrigin(req: NextRequest): string {
   const configured = process.env.CORS_ALLOWED_ORIGIN?.trim()

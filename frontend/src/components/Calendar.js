@@ -304,18 +304,31 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 </div>
               )}
 
-              {/* Commitment dot */}
+              {/* Commitment bars — Google Calendar style. Each commitment
+                  renders as a small colored bar with the task text inline
+                  so the user can read it without clicking. Stacked when
+                  multiple commitments fall on the same day. */}
               {dayCommitments.length > 0 && (
-                <div
-                  className="absolute right-1 top-6 flex flex-col items-center gap-0.5"
-                >
+                <div className="absolute left-0.5 right-0.5 top-7 flex flex-col gap-0.5">
                   {dayCommitments.slice(0, 3).map((c) => (
                     <div
                       key={c.id}
+                      data-testid={`calendar-commitment-${c.id}`}
                       title={c.text}
-                      className={`w-1.5 h-1.5 rounded-full ${c.status === "done" ? "bg-[var(--success)]" : "bg-[var(--accent)]"}`}
-                    />
+                      className={`h-3.5 px-1.5 flex items-center text-[8px] truncate cursor-pointer transition-colors ${
+                        c.status === "done"
+                          ? "bg-[var(--success)]/70 hover:bg-[var(--success)] text-[var(--bg-primary)] line-through"
+                          : "bg-[var(--accent)]/85 hover:bg-[var(--accent)] text-[var(--bg-primary)]"
+                      }`}
+                    >
+                      <span className="truncate leading-none">{c.text}</span>
+                    </div>
                   ))}
+                  {dayCommitments.length > 3 && (
+                    <div className="text-[8px] text-[var(--text-muted)] text-right pr-1">
+                      +{dayCommitments.length - 3}
+                    </div>
+                  )}
                 </div>
               )}
 

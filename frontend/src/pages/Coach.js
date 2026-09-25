@@ -32,7 +32,7 @@ export default function Coach() {
   const [theme, setTheme] = useState(() => localStorage.getItem("gc_theme") || "dark");
   const [mobileView, setMobileView] = useState("chat");
   const [panelView, setPanelView] = useState("state");
-  const [autoAnswer, setAutoAnswerRaw] = useState(false);
+  const [autoAnswer, setAutoAnswerRaw] = useState(true);
   const [grillMe, setGrillMeRaw] = useState(false);
   // Mutually-exclusive wrappers: turning on one turns the other off.
   // "Coach may ask questions" (autoAnswer=off, grillMe=off) is the
@@ -424,26 +424,7 @@ export default function Coach() {
                 onDeleteSource={deleteSource}
                 onCreated={(newState) => setState(newState)}
                 autoAnswer={autoAnswer}
-                chatState={{
-                  messages,
-                  sending,
-                  input,
-                  setInput,
-                  busyProposal,
-                  grillMe,
-                  setGrillMe,
-                  pendingClarifications,
-                  onAnswerClarification: (text) => { setPendingClarifications(null); send(text); },
-                  onDismissClarifications: () => setPendingClarifications(null),
-                  sources: generalSources,
-                  onSend: send,
-                  onConfirm: confirmProposal,
-                  onReject: rejectProposal,
-                  onRefine: refineProposal,
-                  onUploadFile: (f) => uploadFile(f, ""),
-                  onAddLink: openSourceLinkDialog,
-                  onClearChat: clearChat,
-                }}
+                grillMe={grillMe}
               />
             ) : panelView === "calendar" ? (
               <Calendar state={state} onPrefill={prefill} onBlockerChange={refreshState} />

@@ -3,9 +3,9 @@ import Logo from "./Logo";
 
 // TODO(founder): replace these with your real links.
 const FOUNDER = {
-  name: "The Founder",
+  name: "Devansh U. Agarwal",
   blurb: "Building GoalCoach as its own first user — a self-directed IC juggling a career pivot, a fitness rebuild, side projects, and a life.",
-  linkedin: "https://www.linkedin.com/",
+  linkedin: "https://www.linkedin.com/in/devansh-u-agarwal/",
 };
 
 const UPCOMING = [

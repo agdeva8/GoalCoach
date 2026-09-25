@@ -204,10 +204,7 @@ export default function TrackingDashboard({
   onDeleteSource = () => {},
   onCreated = () => {},
   autoAnswer = false,
-  // Chat state forwarded to AddGoalDialog so it can host the full
-  // ChatConsole (upload, mic, grill-me, MCQ chips, sources) instead of
-  // a stripped-down inner chat.
-  chatState = {},
+  grillMe = false,
 }) {
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   if (!state) return <div className="p-6 font-mono text-xs text-[var(--text-muted)]">loading…</div>;
@@ -262,8 +259,7 @@ export default function TrackingDashboard({
         open={addGoalOpen}
         onClose={closeAddGoalDialog}
         autoAnswer={autoAnswer}
-        onCreated={onCreated}
-        {...chatState}
+        grillMe={grillMe}
       />
     </div>
   );
