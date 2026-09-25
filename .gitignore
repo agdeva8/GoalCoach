@@ -40,6 +40,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+# Dev server logs (api-dev.log, frontend-3000.log, etc.)
+*-dev.log
+*-\d*.log
 dump.rdb
 
 # System files
