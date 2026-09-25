@@ -18,6 +18,23 @@ const mileColor = (m) => {
   return "var(--warning)";
 };
 
+/**
+ * Goal markers — a thin underline on the day a goal's target_date
+ * lands. Different shade based on status (active=accent, paused=
+ * muted, dropped=strikethrough). Renders an outline on the day cell
+ * even when the goal has no milestones yet, so the user always sees
+ * their target dates at a glance.
+ */
+const goalTargetMarkerColor = (g) => {
+  if (g.status === "dropped") return "var(--text-muted)"
+  if (g.status === "paused") return "var(--text-muted)"
+  if (g.target_date) {
+    const d = new Date(g.target_date + "T00:00:00")
+    if (!isNaN(d.getTime()) && d < TODAY) return "var(--danger)"
+  }
+  return "var(--accent)"
+}
+
 const horizonColor = (horizon) => {
   switch (horizon) {
     case "weekly": return "var(--accent)";
@@ -190,7 +207,8 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
     const dayMilestones = milestones.filter((m) => m.target_date === dateStr);
     const dayCommitments = commitments.filter((c) => c.due === dateStr);
     const dayBlockers = blockers.filter((b) => blockerCoversDay(b, dayStart));
-    return { dayMilestones, dayCommitments, dayBlockers };
+    const dayGoals = goals.filter((g) => g.target_date === dateStr && g.status !== "dropped");
+    return { dayMilestones, dayCommitments, dayBlockers, dayGoals };
   };
 
   const label = `${MONTHS[current.getMonth()]} ${current.getFullYear()}`;
@@ -238,10 +256,10 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
       {/* Day grid */}
       <div className="flex-1 grid grid-cols-7 grid-rows-6 overflow-hidden">
         {calendarDays.map(({ date, currentMonth }, i) => {
-          const { dayMilestones, dayCommitments, dayBlockers } = dayItems(date);
+          const { dayMilestones, dayCommitments, dayBlockers, dayGoals } = dayItems(date);
           const todayDay = isToday(date);
           const selectedDay2 = isSelected(date);
-          const hasItems = dayMilestones.length > 0 || dayCommitments.length > 0 || dayBlockers.length > 0;
+          const hasItems = dayMilestones.length > 0 || dayCommitments.length > 0 || dayBlockers.length > 0 || dayGoals.length > 0;
 
           return (
             <div
@@ -252,7 +270,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 relative border-b border-r border-[var(--border)] overflow-hidden
                 cursor-pointer transition-colors select-none
                 ${currentMonth ? "" : "opacity-30"}
-                ${todayDay ? "bg-[var(--accent)]/5" : ""}
+                ${todayDay ? "bg-[var(--accent)]/10 ring-1 ring-inset ring-[var(--accent)]/40" : ""}
                 ${selectedDay2 ? "bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/40" : ""}
                 hover:bg-[var(--bg-tertiary)]/50
               `}
@@ -260,6 +278,29 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
               <div className={`absolute top-1 left-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-mono ${todayDay ? "bg-[var(--accent)] text-[var(--bg-primary)] font-semibold" : "text-[var(--text-secondary)]"}`}>
                 {date.getDate()}
               </div>
+
+              {/* Goal target markers — top-right corner of the day cell. */}
+              {dayGoals.length > 0 && currentMonth && (
+                <div
+                  data-testid={`calendar-goal-${fmtDate(date)}`}
+                  className="absolute top-1 right-1 flex flex-col items-end gap-0.5 max-w-[70%]"
+                  title={`Goal target: ${dayGoals.map((g) => g.title).join(", ")}`}
+                >
+                  {dayGoals.slice(0, 2).map((g) => (
+                    <span
+                      key={g.id}
+                      className="font-mono text-[9px] uppercase tracking-wider truncate px-1 rounded max-w-full"
+                      style={{
+                        background: `${goalTargetMarkerColor(g)}33`,
+                        color: goalTargetMarkerColor(g),
+                        textDecoration: g.status === "paused" ? "line-through" : "none",
+                      }}
+                    >
+                      {g.horizon}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Add blocker button on empty day hover area */}
               {!hasItems && currentMonth && (
