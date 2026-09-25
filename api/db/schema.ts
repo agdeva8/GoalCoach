@@ -201,6 +201,38 @@ export const sources = pgTable('sources', {
 })
 
 /* -------------------------------------------------------------------------- */
+/* Memories — user-pinned photos and Instagram-style embeds. Distinct from   */
+/* `sources` (which are reference material the coach reasons over) — these  */
+/* are the user's own 'why does this matter' artefacts that anchor goals.    */
+/*                                                                             */
+/* Photo kind:        source_id pointer to the underlying `sources` row.     */
+/* Instagram kind:    external_url + parsed shortcode. The embed displays   */
+/*                    via the canonical instagram.com/p/{shortcode}/embed   */
+/*                    URL; we don't scrape Instagram (no auth, fragile).     */
+/* ------------------------------------------------------------------------- */
+export const memories = pgTable('memories', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind', { enum: ['photo', 'instagram'] }).notNull(),
+  caption: text('caption').notNull().default(''),
+  goalId: text('goal_id').references(() => goals.id, { onDelete: 'set null' }),
+  goalTitle: text('goal_title').notNull().default(''),
+  sourceId: text('source_id'),
+  externalUrl: text('external_url'),
+  instagramShortcode: text('instagram_shortcode'),
+  width: integer('width'),
+  height: integer('height'),
+  mimeType: text('mime_type'),
+  sizeBytes: integer('size_bytes'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+/* -------------------------------------------------------------------------- */
 /* Auth.js v5 tables (per @auth/drizzle-adapter spec)                         */
 /*                                                                             */
 /* Even though we use JWT session strategy (see architecture plan Section 3),  */

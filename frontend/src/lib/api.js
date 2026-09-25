@@ -37,6 +37,7 @@ export const api = {
   // Sources
   sources: () => req("/sources"),
   addLink: (body) => req("/sources/link", { method: "POST", body: JSON.stringify(body) }),
+  previewLink: (url) => req("/sources/link/preview", { method: "POST", body: JSON.stringify({ url }) }),
   deleteSource: (id) => req(`/sources/${id}`, { method: "DELETE" }),
   uploadSource: async (file, goalId = "") => {
     const fd = new FormData();
@@ -49,6 +50,12 @@ export const api = {
     }
     return res.json();
   },
+  // Memories
+  memories: () => req("/memories"),
+  createMemory: (body) => req("/memories", { method: "POST", body: JSON.stringify(body) }),
+  deleteMemory: (id) => req(`/memories/${id}`, { method: "DELETE" }),
+  // Motivation
+  motivation: () => req("/motivation/recommend"),
 };
 
 export function exportUrl() {

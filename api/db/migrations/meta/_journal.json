@@ -29,6 +29,13 @@
       "when": 1790271000000,
       "tag": "0004_fancy_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790374386733,
+      "tag": "0005_powerful_mastermind",
+      "breakpoints": true
     }
   ]
 }

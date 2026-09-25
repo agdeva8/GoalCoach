@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Plus, CalendarClock, LayoutDashboard } from "lucide-react";
+import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import Header from "../components/Header";
 import TrackingDashboard from "../components/TrackingDashboard";
 import Timeline from "../components/Timeline";
+import Memories from "../components/Memories";
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
@@ -315,6 +316,17 @@ export default function Coach() {
           >
             <CalendarClock className="w-3.5 h-3.5" /> Timeline
           </button>
+          <button
+            data-testid="panel-tab-memories"
+            onClick={() => setPanelView("memories")}
+            className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
+              panelView === "memories"
+                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" /> Memories
+          </button>
         </div>
 
         <div className="px-4 sm:px-6 py-6">
@@ -331,8 +343,10 @@ export default function Coach() {
               grillMe={grillMe}
               isGuest={isGuest}
             />
-          ) : (
+          ) : panelView === "timeline" ? (
             <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChat={() => setChatOpen(true)} />
+          ) : (
+            <Memories state={state} onChange={refreshState} />
           )}
         </div>
       </div>
