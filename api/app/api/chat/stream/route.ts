@@ -147,12 +147,29 @@ export async function POST(req: NextRequest) {
   // Anything env-dependent is lazy-imported inside this branch so this
   // file can still be loaded by vitest without a configured .env.
   const { db } = await import('@/lib/db')
-  const { messages, proposals: proposalsTable } = await import('@/db/schema')
+  const { messages, proposals: proposalsTable, conversations } = await import('@/db/schema')
   const { buildContext, loadHistory, loadState } = await import('@/lib/llm/state-builder')
+
+  // Phase 3 — every message must belong to a conversation. The migration
+  // seeds `conv_general_<user_id>` for any existing user, but a brand-new
+  // guest posting their first message has no row yet. Idempotent INSERT
+  // ON CONFLICT DO NOTHING handles both cases.
+  const conversationId = `conv_general_${caller.userId}`
+  await db
+    .insert(conversations)
+    .values({
+      id: conversationId,
+      userId: caller.userId,
+      kind: 'general',
+      title: '',
+      status: 'open',
+    })
+    .onConflictDoNothing({ target: conversations.id })
 
   await db.insert(messages).values({
     id: userMessageId,
     userId: caller.userId,
+    conversationId,
     role: 'user',
     content: message,
     provider: requestedProvider,
@@ -392,6 +409,7 @@ export async function POST(req: NextRequest) {
           await tx.insert(messages).values({
             id: assistantMessageId!,
             userId: caller.userId,
+            conversationId,
             role: 'assistant',
             content: prose,
             provider: requestedProvider,
@@ -402,6 +420,7 @@ export async function POST(req: NextRequest) {
               id: p.id,
               messageId: assistantMessageId!,
               userId: caller.userId,
+              conversationId,
               action: p.action,
               args: p.args,
               status: 'pending',

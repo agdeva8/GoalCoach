@@ -141,11 +141,53 @@ export const blockers = pgTable('blockers', {
     .defaultNow(),
 })
 
+/* -------------------------------------------------------------------------- */
+/* Conversations — Phase 3 thread model                                        */
+/*                                                                             */
+/* A conversation is one coach thread: a fresh thread is opened when the user */
+/* hits "Add goal", "Plan my day", or "Review progress" from the dashboard, so */
+/* each starts from a clean transcript. The migration seeds one `general`     */
+/* conversation per existing user (id `conv_general_<user_id>`); newly-created */
+/* guests get their `general` row on first chat insert (idempotent INSERT).   */
+/* -------------------------------------------------------------------------- */
+
+export const conversations = pgTable('conversations', {
+  id: text('id').primaryKey(), // 'conv_general_<user_id>' or 'conv_<kind>_<uuid>'
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind', {
+    enum: ['general', 'add_goal', 'plan_day', 'review_progress', 'edit_goal', 'drop_goal'],
+  })
+    .notNull()
+    .default('general'),
+  goalId: text('goal_id').references(() => goals.id, { onDelete: 'set null' }),
+  title: text('title').notNull().default(''),
+  status: text('status', { enum: ['open', 'closed'] })
+    .notNull()
+    .default('open'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastMessageAt: timestamp('last_message_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
 export const messages = pgTable('messages', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  // Phase 3 — every chat thread belongs to a conversation row. The
+  // default per-user thread is `conv_general_<user_id>`, seeded by
+  // migration 0006_conversations.sql. The schema enforces NOT NULL so
+  // dangling messages are impossible. Pass an explicit conversationId
+  // from the chat route; clients that need a fresh thread mint a
+  // new conversation row first.
+  conversationId: text('conversation_id')
+    .notNull()
+    .references(() => conversations.id, { onDelete: 'cascade' }),
   role: text('role', { enum: ['user', 'assistant'] }).notNull(),
   content: text('content').notNull(),
   provider: text('provider'),
@@ -162,6 +204,10 @@ export const proposals = pgTable('proposals', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  // Phase 3 — see messages.conversationId above.
+  conversationId: text('conversation_id')
+    .notNull()
+    .references(() => conversations.id, { onDelete: 'cascade' }),
   action: text('action').notNull(),
   args: jsonb('args').notNull(),
   status: text('status', { enum: ['pending', 'confirmed', 'rejected'] })
