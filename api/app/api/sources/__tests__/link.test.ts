@@ -139,10 +139,16 @@ describe('POST /api/sources/link', () => {
     expect((await res.json()).original_filename).toBe('https://example.com/page')
   })
 
-  it('accepts goal_id and passes it through', async () => {
+  it('rejects goal_id that does not belong to the caller', async () => {
+    // The mock for `db.select(...).from(goals)` returns [] by default
+    // (see vi.mock above), so the goal lookup fails and the route
+    // returns 404 'Goal not found' — the security fix for goal
+    // ownership: any caller must NOT be able to attach their source
+    // to another user's goal by guessing its id.
     const res = await POST(
-      makePostRequest({ url: 'https://example.com/doc', goal_id: 'goal_xyz789' }, SESSION_TOKEN),
+      makePostRequest({ url: 'https://example.com/doc', goal_id: 'goal_not_mine' }, SESSION_TOKEN),
     )
-    expect((await res.json()).goal_id).toBe('goal_xyz789')
+    expect(res.status).toBe(404)
+    expect((await res.json()).detail).toMatch(/goal not found/i)
   })
 })

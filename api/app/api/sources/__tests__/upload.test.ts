@@ -197,11 +197,16 @@ describe('POST /api/sources/upload', () => {
     )
   })
 
-  it('passes goal_id through when provided', async () => {
+  it('rejects goal_id that does not belong to the caller', async () => {
+    // Goal ownership (P1 security): the caller must not be able to
+    // attach their upload to another user's goal by guessing its id.
+    // The mock for db.select(...).from(goals) returns [], so the
+    // goal lookup fails and the route returns 404.
     const form = new FormData()
     form.set('file', makeFile('doc.txt', 'hello', 'text/plain'))
-    form.set('goal_id', 'goal_abc123')
+    form.set('goal_id', 'goal_not_mine')
     const res = await POST(makeUploadRequest(form, SESSION_TOKEN))
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
+    expect((await res.json()).detail).toMatch(/goal not found/i)
   })
 })
