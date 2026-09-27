@@ -160,6 +160,8 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
             </button>
           </>
         ) : (
+          <>
+            {devLoginAvailable && <PersonaMenu currentName={user?.name} currentUserId={currentUserId} />}
         <div className="relative">
           <button
             data-testid="user-menu-trigger"
@@ -189,6 +191,7 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
             </div>
           )}
         </div>
+          </>
         )}
       </div>
     </header>
