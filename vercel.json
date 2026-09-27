@@ -1,0 +1,9 @@
+{
+  "buildCommand": "pnpm run build",
+  "framework": null,
+  "crons": [
+    { "path": "/api/cron/weekly", "schedule": "0 9 * * 1" },
+    { "path": "/api/cron/monthly", "schedule": "0 9 1 * *" },
+    { "path": "/api/cron/cleanup", "schedule": "0 3 * * *" }
+  ]
+}

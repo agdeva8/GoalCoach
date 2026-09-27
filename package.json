@@ -1,0 +1,35 @@
+{
+  "name": "goalcoach",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "@sentry/cli"],
+    "overrides": {
+      "@supabase/supabase-js": "^2.116.0"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm -C api exec next dev -p 4000",
+    "dev:web": "pnpm -C frontend start",
+    "dev:all": "pnpm dev & pnpm dev:web & wait",
+    "build": "pnpm -C frontend build && pnpm -C api build",
+    "build:web": "pnpm -C frontend build",
+    "build:api": "pnpm -C api build",
+    "start:api": "pnpm -C api exec next start -p 4000",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "verify": "node scripts/verify.js",
+    "verify:baseline": "node scripts/verify.js --baseline",
+    "verify:diff": "node scripts/verify.js --diff",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "playwright": "^1.49.1"
+  }
+}
