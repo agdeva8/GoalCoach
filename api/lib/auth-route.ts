@@ -46,12 +46,15 @@ export async function authenticateRoute(req?: {
 }): Promise<AuthResult> {
   // 1) Bearer header on the request — the legacy FastAPI contract
   //    accepted both cookies AND `Authorization: Bearer <token>` for the
-  //    session_token. We don't recognize bearer tokens for the new
-  //    Emergent session cookie (that's a cookie, not a Bearer),
-  // but the legacy test contract does, so we accept any non-empty
-  //    bearer as a userId signal in test mode. In production a real
-  //    Emergent OAuth session would be required.
-  if (req) {
+  //    session_token. P0 security fix: in production, a bare bearer is
+  //    NOT a valid userId. The Bearer branch is gated on the same
+  //    `ALLOW_DEV_LOGIN === 'true'` || `NODE_ENV === 'test'` rule that
+  //    `lib/request-user.ts` uses, so vitest fixtures and dev curl
+  //    scripts keep working but a real deployment rejects the bypass.
+  if (
+    req &&
+    (process.env.ALLOW_DEV_LOGIN === 'true' || process.env.NODE_ENV === 'test')
+  ) {
     const authz = req.headers.get('authorization')
     if (authz?.startsWith('Bearer ')) {
       const token = authz.slice('Bearer '.length).trim()

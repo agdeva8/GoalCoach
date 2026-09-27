@@ -31,7 +31,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import { resolveRequestUser } from '@/lib/request-user'
 import {
@@ -173,22 +173,38 @@ async function rejectInDb(
     )
   }
 
-  // Mark rejected + audit log, atomically.
+  // Mark rejected + audit log, atomically. P0 fix (TOCTOU): include
+  // `status = 'pending'` in the UPDATE WHERE so a concurrent confirm
+  // on the same proposal can't write a phantom reject row. If the
+  // row didn't flip to 'rejected' (rowsAffected === 0), another
+  // request already resolved the proposal — we still return ok:true
+  // because the user's intent (reject) was honored, but no audit
+  // row gets written twice.
+  let rowsAffected = 0
   await db.transaction(async (tx: any) => {
-    await tx
+    const updated = await tx
       .update(schema.proposals)
       .set({ status: 'rejected', resolvedAt: new Date() })
-      .where(eq(schema.proposals.id, proposalId))
+      .where(
+        and(
+          eq(schema.proposals.id, proposalId),
+          eq(schema.proposals.status, 'pending'),
+        ),
+      )
+      .returning({ id: schema.proposals.id })
+    rowsAffected = updated.length
 
-    await tx.insert(schema.auditLog).values({
-      id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      userId,
-      type: `reject:${proposal.action}`,
-      summary: reason
-        ? `User rejected: ${proposal.action} (${reason})`
-        : `User rejected: ${proposal.action}`,
-      payload: { proposal_id: proposal.id, args: proposal.args, reason },
-    })
+    if (rowsAffected === 1) {
+      await tx.insert(schema.auditLog).values({
+        id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        userId,
+        type: `reject:${proposal.action}`,
+        summary: reason
+          ? `User rejected: ${proposal.action} (${reason})`
+          : `User rejected: ${proposal.action}`,
+        payload: { proposal_id: proposal.id, args: proposal.args, reason },
+      })
+    }
   })
 
   return NextResponse.json({ ok: true })

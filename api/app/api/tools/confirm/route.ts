@@ -29,7 +29,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import { applyProposal } from '@/lib/proposal-executor'
 import { loadState } from '@/lib/llm/state-builder'
@@ -232,25 +232,47 @@ async function confirmInDb(
     )
   }
 
-  // Mark the proposal resolved + write an audit entry. Status update and
-  // audit go in one transaction so a failed audit log doesn't leave the
-  // proposal in a half-resolved state.
+  // Mark the proposal resolved + write an audit entry. Status update
+  // and audit go in one transaction so a failed audit log doesn't
+  // leave the proposal in a half-resolved state. P0 fix: the UPDATE
+  // includes `status = 'pending'` in the WHERE so a concurrent
+  // confirm/reject on the same proposal can't double-apply the
+  // executor's side effect. `rowsAffected` tells us who won the race
+  // — if it's 0, another request already resolved the proposal and
+  // we return 409 instead of writing a phantom audit row.
+  let rowsAffected = 0
   await db.transaction(async (tx: any) => {
-    await tx
+    const updated = await tx
       .update(schema.proposals)
       .set({ status: 'confirmed', result, resolvedAt: new Date() })
-      .where(eq(schema.proposals.id, proposalId))
+      .where(
+        and(
+          eq(schema.proposals.id, proposalId),
+          eq(schema.proposals.status, 'pending'),
+        ),
+      )
+      .returning({ id: schema.proposals.id })
+    rowsAffected = updated.length
 
-    // Defensive audit: in case applyProposal's own audit_log write failed,
-    // we still get a "confirm" record here.
-    await tx.insert(schema.auditLog).values({
-      id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      userId,
-      type: `confirm:${proposal.action}`,
-      summary: result,
-      payload: { proposal_id: proposal.id, args: proposal.args },
-    })
+    if (rowsAffected === 1) {
+      // Defensive audit: in case applyProposal's own audit_log write
+      // failed, we still get a "confirm" record here.
+      await tx.insert(schema.auditLog).values({
+        id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        userId,
+        type: `confirm:${proposal.action}`,
+        summary: result,
+        payload: { proposal_id: proposal.id, args: proposal.args },
+      })
+    }
   })
+
+  if (rowsAffected === 0) {
+    return NextResponse.json(
+      { detail: 'Proposal already resolved' },
+      { status: 409 },
+    )
+  }
 
   // Compute fresh state for the response — matches FastAPI which returns
   // load_state() result after apply_proposal.
