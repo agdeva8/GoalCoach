@@ -176,25 +176,23 @@ async function detectBucket(userId: string): Promise<'overdue' | 'dormant' | 'st
   if (overdue.length > 0) return 'overdue'
 
   const activeGoals = await db
-    .select({ id: goals.id })
+    .select({ id: goals.id, updatedAt: goals.updatedAt })
     .from(goals)
     .where(and(eq(goals.userId, userId), eq(goals.status, 'active')))
     .limit(50)
   if (activeGoals.length === 0) return 'stuck'
 
-  const recent = await db
-    .select({ id: commitments.id })
-    .from(commitments)
-    .where(
-      and(
-        eq(commitments.userId, userId),
-        eq(commitments.status, 'done'),
-        lte(commitments.due, today),
-      ),
-    )
-    .limit(50)
-  // No recent done commitments ⇒ dormant.
-  if (recent.length === 0) return 'dormant'
+  // Dormant = has active goals but no goal activity for 21+ days.
+  // The previous heuristic ("no recently completed commitment") was
+  // too broad — it fired for any user who happened not to complete a
+  // commitment recently, even if their goals were fresh. Anchor on
+  // the goal's own updatedAt, which ticks on every commitment or
+  // milestone write that touches the goal.
+  const dormantCutoff = new Date(Date.now() - 21 * 86400000)
+  const hasActiveRecent = activeGoals.some(
+    (g) => g.updatedAt && g.updatedAt >= dormantCutoff,
+  )
+  if (!hasActiveRecent) return 'dormant'
 
   return 'stuck'
 }
