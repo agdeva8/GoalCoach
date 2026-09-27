@@ -20,15 +20,9 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 async function resolveUserId(req: NextRequest): Promise<string | null> {
-  const bearer = req.headers.get('Authorization')?.replace('Bearer ', '')
-  if (bearer && bearer !== 'bogus_xxx') return bearer
-
-  const session = await auth()
-  if (session?.user?.id) return session.user.id
-
-  const guestToken = req.cookies.get('guest_token')?.value
-  if (guestToken) return verifyGuestToken(guestToken)
-  return null
+  const { resolveRequestUser } = await import('@/lib/request-user')
+  const caller = await resolveRequestUser(req)
+  return caller?.userId ?? null
 }
 
 export async function POST(req: NextRequest) {
@@ -58,15 +52,26 @@ export async function POST(req: NextRequest) {
 
   const goalId = body.goal_id?.trim() ?? ''
 
-  // Resolve goal title
+  // P1 security: goal ownership must be enforced. Reject unowned
+  // goalIds with 404 instead of silently dropping the title and
+  // keeping the id (which would let any caller attach a source to
+  // any other user's goal by guessing its id).
+  let resolvedGoalId: string | null = null
   let goalTitle = ''
   if (goalId) {
     const [goalRow] = await db
-      .select({ title: goals.title })
+      .select({ id: goals.id, title: goals.title })
       .from(goals)
       .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
       .limit(1)
-    goalTitle = goalRow?.title ?? ''
+    if (!goalRow) {
+      return NextResponse.json(
+        { detail: 'Goal not found' },
+        { status: 404 },
+      )
+    }
+    resolvedGoalId = goalRow.id
+    goalTitle = goalRow.title
   }
 
   // Fetch and extract link text
@@ -80,7 +85,7 @@ export async function POST(req: NextRequest) {
     .values({
       id,
       userId,
-      goalId: goalId || null,
+      goalId: resolvedGoalId,
       goalTitle,
       kind: 'link',
       storagePath: '',

@@ -26,23 +26,14 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
- * Resolve the authenticated user ID from the request.
- * Order:
- *   1. Authorization Bearer token (test/dev compat)
- *   2. Emergent OAuth OR guest cookie (shared helper)
- *   3. Bare guest cookie (DB-free path)
- * Returns null if no valid credentials are present.
+ * Resolve the authenticated user ID from the request via the unified
+ * lib/request-user.ts helper (Phase 0). Production-safe Bearer gate
+ * (only allowed when ALLOW_DEV_LOGIN=true or NODE_ENV=test).
  */
 async function resolveUserId(req: NextRequest): Promise<string | null> {
-  const bearer = req.headers.get('Authorization')?.replace('Bearer ', '')
-  if (bearer && bearer !== 'bogus_xxx') return bearer
-
-  const session = await auth()
-  if (session?.user?.id) return session.user.id
-
-  const guestToken = req.cookies.get('guest_token')?.value
-  if (guestToken) return verifyGuestToken(guestToken)
-  return null
+  const { resolveRequestUser } = await import('@/lib/request-user')
+  const caller = await resolveRequestUser(req)
+  return caller?.userId ?? null
 }
 
 export async function POST(req: NextRequest) {
@@ -95,15 +86,27 @@ export async function POST(req: NextRequest) {
   // Extract text excerpt
   const textExcerpt = await extractText(filename, buffer)
 
-  // Resolve goal title if goal_id provided
+  // P1 security: goal ownership must be enforced. If goal_id is
+  // supplied, the goal MUST belong to the caller — otherwise an
+  // attacker can attach their source to any other user's goal by
+  // guessing its id. We now reject unowned goalIds with 404 instead
+  // of silently dropping the title and keeping the id.
+  let resolvedGoalId: string | null = null
   let goalTitle = ''
   if (goalId) {
     const [goalRow] = await db
-      .select({ title: goals.title })
+      .select({ id: goals.id, title: goals.title })
       .from(goals)
       .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
       .limit(1)
-    goalTitle = goalRow?.title ?? ''
+    if (!goalRow) {
+      return NextResponse.json(
+        { detail: 'Goal not found' },
+        { status: 404 },
+      )
+    }
+    resolvedGoalId = goalRow.id
+    goalTitle = goalRow.title
   }
 
   const id = `src_${randomUUID().replace(/-/g, '').slice(0, 12)}`
@@ -113,7 +116,7 @@ export async function POST(req: NextRequest) {
     .values({
       id,
       userId,
-      goalId: goalId || null,
+      goalId: resolvedGoalId,
       goalTitle,
       kind: 'file',
       storagePath: pathname,
