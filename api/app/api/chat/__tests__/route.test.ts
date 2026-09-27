@@ -101,7 +101,18 @@ vi.mock('@/lib/db', () => {
   return {
     db: {
       select: vi.fn(() => buildChain([auditRow])),
-      insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([auditRow])) })) })),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn(() => Promise.resolve([auditRow])),
+          // Phase 3 — chat/stream inserts a conversation row with
+          // `.onConflictDoNothing({ target: conversations.id })`.
+          // Return a thenable that resolves to the inserted id so
+          // the route can continue without exploding under the mock.
+          onConflictDoNothing: vi.fn(() =>
+            Promise.resolve({ id: 'conv_general_user_founder01' }),
+          ),
+        })),
+      })),
       update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve(undefined)) })) })),
       delete: vi.fn(),
       transaction: vi.fn(),
