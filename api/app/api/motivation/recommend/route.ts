@@ -28,6 +28,7 @@ import { and, eq, lt, lte, inArray } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { goals, commitments } from '@/db/schema'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -151,15 +152,6 @@ const CATALOGUE: Seed[] = [
   },
 ]
 
-async function resolveUserId(req: NextRequest): Promise<string | null> {
-  const bearer = req.headers
-    .get('authorization')
-    ?.replace(/^Bearer\s+/i, '')
-    .trim()
-  if (bearer && bearer !== 'bogus_xxx') return bearer
-  return null
-}
-
 /**
  * Detect the user's current bucket — overdue, dormant, or stuck —
  * based on open commitments, goals, and time-since-last-action. We
@@ -230,10 +222,11 @@ async function frameItem(
 }
 
 export async function GET(req: NextRequest) {
-  const userId = await resolveUserId(req)
-  if (!userId) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
+  const userId = caller.userId
 
   const url = new URL(req.url)
   const count = Math.min(3, Math.max(1, Number(url.searchParams.get('n')) || 3))

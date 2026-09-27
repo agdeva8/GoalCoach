@@ -110,8 +110,11 @@ export interface Proposal {
  */
 export function parseProposals(full: string): Proposal[] {
   if (!full.includes(TOOL_START)) return []
-  let tail = full.split(TOOL_START, 1)[1] ?? ''
-  tail = tail.split(TOOL_END, 1)[0].trim()
+  // Split with a high limit so we always get the chunk AFTER the first
+  // TOOL_START at index [1]. `split(sep, 1)` would cap the result array
+  // at one element and break this — pre-existing latent bug.
+  let tail = full.split(TOOL_START, 2)[1] ?? ''
+  tail = tail.split(TOOL_END, 2)[0].trim()
   if (!tail) return []
 
   let data: unknown = null
@@ -141,6 +144,22 @@ export function parseProposals(full: string): Proposal[] {
     if (typeof action !== 'string' || action.length === 0) continue
 
     const { id: _id, action: _a, status: _s, result: _r, ...rest } = obj
+
+    // Phase 1 — drop-verb guard. The structured-proposal parser is the
+    // last gatekeeper before a write reaches the executor. Earlier we
+    // saw the LLM emit `create_goal` with title `Drop "Get healthier"`,
+    // which produced a meta-goal instead of dropping the real one.
+    // Reject at parse time: any `create_goal` whose title begins with a
+    // drop/pause/delete verb is silently dropped. The deterministic
+    // fallback in chat/stream/route.ts already calls `parseDropIntent`
+    // first, so the user still gets the correct drop proposal.
+    if (action === 'create_goal') {
+      const title = (rest as Record<string, unknown> | undefined)?.title
+      if (typeof title === 'string' && looksLikeDropIntent(title)) {
+        continue
+      }
+    }
+
     out.push({
       id: newPropId(),
       action,
@@ -149,6 +168,19 @@ export function parseProposals(full: string): Proposal[] {
     })
   }
   return out
+}
+
+/**
+ * Returns true when `text` begins with a drop/pause/delete verb (case-
+ * insensitive, ignoring leading punctuation/whitespace). Used by the
+ * parser guard to reject meta-goals whose title encodes an intent that
+ * the proposal's `action` field doesn't match. Exported for unit tests
+ * (see `__tests__/parse-proposals.test.ts`).
+ */
+export function looksLikeDropIntent(text: unknown): boolean {
+  if (typeof text !== 'string') return false
+  const t = text.trim().toLowerCase()
+  return /^(drop|delete|remove|pause|stop|trash|archive|abandon|kill)\b/.test(t)
 }
 
 function newPropId(): string {
@@ -170,7 +202,7 @@ export function splitProseAndTools(full: string): {
   const proposals = parseProposals(full)
   let prose: string
   if (full.includes(TOOL_START)) {
-    prose = full.split(TOOL_START, 1)[0].trim()
+    prose = full.split(TOOL_START, 2)[0].trim()
   } else {
     prose = full.trim()
   }

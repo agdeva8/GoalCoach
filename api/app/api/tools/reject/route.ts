@@ -33,6 +33,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 
+import { resolveRequestUser } from '@/lib/request-user'
 import {
   TEST_USER_ID,
   getProposal,
@@ -41,30 +42,19 @@ import {
 } from '../__tests__/shared-state'
 
 /* -------------------------------------------------------------------------- */
-/* Auth stub                                                                  */
-/*                                                                             */
-/* Mirrors the parallel-test pattern in `app/api/confirm/route.ts`.            */
+/* Auth — delegated to lib/request-user.ts (Phase 0 unified resolver).        */
 /* -------------------------------------------------------------------------- */
-
-async function authenticate(req: NextRequest): Promise<string | null> {
-  const token =
-    req.headers.get('authorization')?.replace('Bearer ', '') ||
-    req.cookies.get('session_token')?.value ||
-    req.cookies.get('guest_token')?.value
-  if (!token) return null
-  if (token === 'bogus_xxx') return null
-  return TEST_USER_ID
-}
 
 /* -------------------------------------------------------------------------- */
 /* POST handler                                                                */
 /* -------------------------------------------------------------------------- */
 
 export async function POST(req: NextRequest) {
-  const userId = await authenticate(req)
-  if (!userId) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
+  const userId = caller.userId
 
   let body: Record<string, any>
   try {

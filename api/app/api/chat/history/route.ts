@@ -32,57 +32,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { asc, eq, inArray } from 'drizzle-orm'
 
+import { resolveRequestUser } from '@/lib/request-user'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const TEST_USER_ID = 'user_founder01'
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 
 /* -------------------------------------------------------------------------- */
-/* Auth — Bearer/session_token short-circuit FIRST. When no env is loaded   */
-/* (the vitest path with no DATABASE_URL / AUTH_SECRET), 401 immediately     */
-/* instead of crashing on env validation inside the dynamic imports.         */
+/* Auth — delegated to the unified resolver in lib/request-user.ts (Phase 0). */
+/* Single source of truth so chat/stream, chat/history, tools/confirm|reject,*/
+/* preferences, memories, motivation all see the same caller.                 */
 /* -------------------------------------------------------------------------- */
-
-async function authenticate(
-  req: NextRequest
-): Promise<{ userId: string } | null> {
-  const bearer = req.headers.get('authorization')?.replace('Bearer ', '')
-  const sessionCookie =
-    req.cookies.get('session_token')?.value ||
-    req.cookies.get('__Secure-authjs.session-token')?.value
-  const cheapToken = bearer || sessionCookie
-  if (cheapToken && cheapToken !== 'bogus_xxx') {
-    return { userId: TEST_USER_ID }
-  }
-
-  // No cheap token — fall through to the env-dependent paths. But those
-  // imports crash without DATABASE_URL / AUTH_SECRET, so we 401 cleanly
-  // in dev/test (where the operator presumably has neither a valid
-  // session nor a guest cookie).
-  if (!process.env.DATABASE_URL && !process.env.AUTH_SECRET) {
-    return null
-  }
-
-  const { verifyGuestToken } = await import('@/lib/guest-token')
-  const guestUserId = verifyGuestToken(req.cookies.get('guest_token')?.value)
-  if (guestUserId) return { userId: guestUserId }
-
-  const { auth } = await import('@/lib/auth')
-  const session = await auth()
-  if (session?.user?.id) return { userId: session.user.id }
-
-  return null
-}
 
 /* -------------------------------------------------------------------------- */
 /* GET handler                                                                */
 /* -------------------------------------------------------------------------- */
 
 export async function GET(req: NextRequest) {
-  const auth = await authenticate(req)
-  if (!auth) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
 
@@ -121,7 +91,7 @@ export async function GET(req: NextRequest) {
       createdAt: messages.createdAt,
     })
     .from(messages)
-    .where(eq(messages.userId, auth.userId))
+    .where(eq(messages.userId, caller.userId))
     .orderBy(asc(messages.createdAt))
     .limit(2000)
 
@@ -175,8 +145,8 @@ export async function GET(req: NextRequest) {
 /* -------------------------------------------------------------------------- */
 
 export async function DELETE(req: NextRequest) {
-  const auth = await authenticate(req)
-  if (!auth) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
 
@@ -191,13 +161,13 @@ export async function DELETE(req: NextRequest) {
   const messageRows = await db
     .select({ id: messages.id })
     .from(messages)
-    .where(eq(messages.userId, auth.userId))
+    .where(eq(messages.userId, caller.userId))
 
   const messageIds = messageRows.map((r) => r.id)
 
   if (messageIds.length > 0) {
     await db.delete(proposals).where(inArray(proposals.messageId, messageIds))
-    await db.delete(messages).where(eq(messages.userId, auth.userId))
+    await db.delete(messages).where(eq(messages.userId, caller.userId))
   }
 
   return NextResponse.json({ success: true })
@@ -214,7 +184,7 @@ function testHistoryFixture() {
   return [
     {
       id: 'msg_001',
-      user_id: TEST_USER_ID,
+      user_id: 'user_founder01',
       role: 'user' as const,
       content:
         'I want to start three things: get a running habit going this quarter, ship a side-project MVP in 2 months, and read 12 books this year. Where do I start?',
@@ -223,7 +193,7 @@ function testHistoryFixture() {
     },
     {
       id: 'msg_002',
-      user_id: TEST_USER_ID,
+      user_id: 'user_founder01',
       role: 'assistant' as const,
       content:
         'Based on your three goals, here is my analysis: Let me propose some initial commitments.',

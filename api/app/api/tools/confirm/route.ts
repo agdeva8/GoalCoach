@@ -33,6 +33,7 @@ import { eq } from 'drizzle-orm'
 
 import { applyProposal } from '@/lib/proposal-executor'
 import { loadState } from '@/lib/llm/state-builder'
+import { resolveRequestUser } from '@/lib/request-user'
 import {
   TEST_USER_ID,
   getProposal,
@@ -41,22 +42,8 @@ import {
 } from '../__tests__/shared-state'
 
 /* -------------------------------------------------------------------------- */
-/* Auth stub                                                                  */
-/*                                                                             */
-/* Mirrors the parallel-test pattern in `app/api/auth/me/route.ts`: any        */
-/* non-empty token resolves to `TEST_USER_ID`, except `bogus_xxx`. The real   */
-/* Auth.js v5 dependency lands in Task 6 (per architecture plan §3).          */
+/* Auth — delegated to lib/request-user.ts (Phase 0 unified resolver).        */
 /* -------------------------------------------------------------------------- */
-
-async function authenticate(req: NextRequest): Promise<string | null> {
-  const token =
-    req.headers.get('authorization')?.replace('Bearer ', '') ||
-    req.cookies.get('session_token')?.value ||
-    req.cookies.get('guest_token')?.value
-  if (!token) return null
-  if (token === 'bogus_xxx') return null
-  return TEST_USER_ID
-}
 
 /* -------------------------------------------------------------------------- */
 /* Stub state (test mode only)                                                */
@@ -99,10 +86,11 @@ function stubState(proposalTitle: string) {
 /* -------------------------------------------------------------------------- */
 
 export async function POST(req: NextRequest) {
-  const userId = await authenticate(req)
-  if (!userId) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
+  const userId = caller.userId
 
   let body: Record<string, any>
   try {
@@ -225,11 +213,24 @@ async function confirmInDb(
 
   // Execute the action. applyProposal never throws on business-logic
   // failures (missing goal, etc.); it returns `{ success: false, result }`.
-  const { result } = await applyProposal(userId, {
+  // Phase 1: propagate `success` — do NOT mark confirmed, do NOT return ok,
+  // when the executor reports failure. Returning 200 on a no-op is the bug
+  // behind "I dropped it, it confirmed, but it didn't drop".
+  const { success, result } = await applyProposal(userId, {
     id: proposal.id,
     action: proposal.action,
     args: proposal.args as Record<string, any>,
   })
+
+  if (!success) {
+    // Leave the proposal in 'pending' so the user can retry with a
+    // disambiguating title (or fix the missing goal). Surface the
+    // executor's message verbatim.
+    return NextResponse.json(
+      { ok: false, result },
+      { status: 422 },
+    )
+  }
 
   // Mark the proposal resolved + write an audit entry. Status update and
   // audit go in one transaction so a failed audit log doesn't leave the

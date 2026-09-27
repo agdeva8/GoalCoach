@@ -23,25 +23,16 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 import { db } from '@/lib/db'
 import { memories, goals } from '@/db/schema'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-interface AuthedUser {
-  userId: string
-  isGuest: boolean
-}
-
-// Same resolveUserId pattern the rest of the API uses so curl,
-// scripts, and dev-login all authenticate the same way.
-async function resolveUserId(req: NextRequest): Promise<string | null> {
-  const bearer = req.headers
-    .get('authorization')
-    ?.replace(/^Bearer\s+/i, '')
-    .trim()
-  if (bearer && bearer !== 'bogus_xxx') return bearer
-  return null
-}
+/* -------------------------------------------------------------------------- */
+/* Auth — delegated to lib/request-user.ts (Phase 0 unified resolver).        */
+/* The previous implementation only read the Authorization Bearer header,    */
+/* which the browser never sent — every Memories call 401'd from the UI.     */
+/* -------------------------------------------------------------------------- */
 
 /** Parse an instagram.com URL into its canonical shortcode. */
 function extractInstagramShortcode(url: string): string | null {
@@ -59,10 +50,11 @@ function extractInstagramShortcode(url: string): string | null {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = await resolveUserId(req)
-  if (!userId) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
+  const userId = caller.userId
   const rows = await db
     .select()
     .from(memories)
@@ -92,10 +84,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = await resolveUserId(req)
-  if (!userId) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
+  const userId = caller.userId
 
   const body = await req.json().catch(() => ({}))
   const kind: 'photo' | 'instagram' =

@@ -57,6 +57,13 @@ export const users = pgTable('users', {
   emailVerified: timestamp('email_verified', { withTimezone: true, mode: 'date' }),
   modelProvider: text('model_provider').notNull().default('gemini'),
   isGuest: boolean('is_guest').notNull().default(false),
+  // Phase 2 — curated dev personas. `personaKey` is a stable display
+  // handle (`founder`, `starter`, `overdue`, `dormant`, `dense`,
+  // `memory_heavy`); it does NOT replace `users.id` (the row id remains
+  // the auth identity). `personaWeight` orders the persona menu so the
+  // founder is always first.
+  personaKey: text('persona_key'),
+  personaWeight: integer('persona_weight').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

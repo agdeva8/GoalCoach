@@ -25,11 +25,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 
 import { MODEL_REGISTRY, type ProviderId } from '@/lib/emergent/llm'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-const TEST_USER_ID = 'user_founder01'
 
 /**
  * Look up the registered provider id for the incoming string.
@@ -47,46 +46,16 @@ function resolveProviderId(raw: unknown): ProviderId | null {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Auth — same layered pattern as chat/route.ts. Bearer/session_token       */
-/* short-circuit FIRST so we never import next-auth in the vitest path.       */
+/* Auth — delegated to lib/request-user.ts (Phase 0 unified resolver).        */
 /* -------------------------------------------------------------------------- */
-
-async function authenticate(
-  req: NextRequest
-): Promise<{ userId: string } | null> {
-  const bearer = req.headers.get('authorization')?.replace('Bearer ', '')
-  const sessionCookie =
-    req.cookies.get('session_token')?.value ||
-    req.cookies.get('__Secure-authjs.session-token')?.value
-  const cheapToken = bearer || sessionCookie
-  if (cheapToken && cheapToken !== 'bogus_xxx') {
-    return { userId: TEST_USER_ID }
-  }
-
-  // No cheap token — bail before lazy-importing the env-validated
-  // modules. Without env, the dynamic imports throw.
-  if (!process.env.DATABASE_URL && !process.env.AUTH_SECRET) {
-    return null
-  }
-
-  const { verifyGuestToken } = await import('@/lib/guest-token')
-  const guestUserId = verifyGuestToken(req.cookies.get('guest_token')?.value)
-  if (guestUserId) return { userId: guestUserId }
-
-  const { auth } = await import('@/lib/auth')
-  const session = await auth()
-  if (session?.user?.id) return { userId: session.user.id }
-
-  return null
-}
 
 /* -------------------------------------------------------------------------- */
 /* PUT handler                                                                */
 /* -------------------------------------------------------------------------- */
 
 export async function PUT(req: NextRequest) {
-  const auth = await authenticate(req)
-  if (!auth) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
 
@@ -123,7 +92,7 @@ export async function PUT(req: NextRequest) {
   await db
     .update(users)
     .set({ modelProvider: resolved })
-    .where(eq(users.id, auth.userId))
+    .where(eq(users.id, caller.userId))
 
   // The `update` returns 0 rows if the user doesn't exist yet
   // (e.g. a guest created out-of-band). In that case insert a minimal
@@ -132,11 +101,11 @@ export async function PUT(req: NextRequest) {
   const row = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.id, auth.userId))
+    .where(eq(users.id, caller.userId))
     .limit(1)
   if (row.length === 0) {
     await db.insert(users).values({
-      id: auth.userId,
+      id: caller.userId,
       email: null,
       name: 'Guest',
       image: null,

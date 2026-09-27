@@ -11,27 +11,26 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 import { db } from '@/lib/db'
 import { memories } from '@/db/schema'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-async function resolveUserId(req: NextRequest): Promise<string | null> {
-  const bearer = req.headers
-    .get('authorization')
-    ?.replace(/^Bearer\s+/i, '')
-    .trim()
-  if (bearer && bearer !== 'bogus_xxx') return bearer
-  return null
-}
+/* -------------------------------------------------------------------------- */
+/* Auth — delegated to lib/request-user.ts (Phase 0 unified resolver).        */
+/* The previous implementation only read the Authorization Bearer header,    */
+/* which the browser never sent — every Memories DELETE 401'd from the UI.   */
+/* -------------------------------------------------------------------------- */
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const userId = await resolveUserId(req)
-  if (!userId) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
+  const userId = caller.userId
   const { id } = await params
   const deleted = await db
     .delete(memories)

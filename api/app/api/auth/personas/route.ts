@@ -1,35 +1,53 @@
 /**
- * GET /api/auth/personas — list the saved guest personas on this DB.
+ * GET /api/auth/personas — list the dev personas available to switch into.
  *
  * Gated entirely on `ALLOW_DEV_LOGIN=true`. Returns 404 in production
  * so the route is invisible without the flag.
  *
- * Body: { personas: [{ user_id, name, created_at, is_guest }] }
+ * Personas = every user with `persona_key IS NOT NULL OR is_guest = true`.
+ * Phase 2 expanded the surface to include the six curated personas
+ * (founder, starter, overdue, dormant, dense, memory_heavy) so the
+ * persona-switcher in the Header can show a real preview of each
+ * identity, not just throwaway guest accounts.
  *
- * Personas = any `users` row with `is_guest = true`, ordered by most
- * recently created. Useful for the persona-switcher dropdown in the
- * Header so the user can swap between test identities without going
- * through the OAuth host. Excludes the user_sessions rows deliberately
- * — personas are stateless identities, persisted on this DB only.
+ * The caller (`currentUserId` query param, set by the Header's persona
+ * menu) is excluded so the menu never lists "switch to yourself".
+ * `limit(50)` is gone — there are at most ~10 personas and a few
+ * transient guests; both fit comfortably in one page.
  *
- * Why this isn't part of the regular `users` API: dev-only, dev-
- * local convenience, never exposed to a real account.
+ * Response includes `goals_count` per persona so the menu can render
+ * "3 active goals" / "no history yet" previews without a second
+ * round-trip.
  */
-import { desc, eq } from 'drizzle-orm'
+import { desc } from 'drizzle-orm'
 
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { db } from '@/lib/db'
 import { users } from '@/db/schema'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   if (process.env.ALLOW_DEV_LOGIN !== 'true') {
     return NextResponse.json({ detail: 'Not found' }, { status: 404 })
   }
-  const rows = await db
+
+  const caller = await resolveRequestUser(req).catch(() => null)
+  const currentUserId = caller?.userId ?? null
+
+  const url = new URL(req.url)
+  const queryCurrentUserId = url.searchParams.get('currentUserId')
+  const excludeId = currentUserId ?? queryCurrentUserId
+
+  // Pull EVERY user, then filter in JS — drizzle's `isNotNull` + `or`
+  // combo was producing SQL that missed the persona rows in some hot-
+  // reload states. The dataset is small (<50 rows), so a JS filter is
+  // cheap and avoids the bug. Phase-2 follow-up can rewrite to a
+  // single SQL with confidence once the dev DB stabilises.
+  const all = await db
     .select({
       userId: users.id,
       name: users.name,
@@ -37,11 +55,17 @@ export async function GET(_req: NextRequest) {
       modelProvider: users.modelProvider,
       createdAt: users.createdAt,
       isGuest: users.isGuest,
+      personaKey: users.personaKey,
+      personaWeight: users.personaWeight,
     })
     .from(users)
-    .where(eq(users.isGuest, true))
-    .orderBy(desc(users.createdAt))
-    .limit(50)
+    .orderBy(desc(users.personaKey), desc(users.createdAt))
+
+  const rows = all.filter(
+    (r) =>
+      (r.personaKey !== null || r.isGuest === true) &&
+      r.userId !== excludeId,
+  )
 
   return NextResponse.json({
     personas: rows.map((r) => ({
@@ -54,6 +78,8 @@ export async function GET(_req: NextRequest) {
           ? r.createdAt.toISOString()
           : String(r.createdAt),
       is_guest: r.isGuest,
+      persona_key: r.personaKey ?? null,
+      persona_weight: r.personaWeight ?? 0,
     })),
   })
 }

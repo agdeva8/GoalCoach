@@ -48,6 +48,7 @@ import {
   type Proposal,
 } from '@/lib/emergent/llm'
 import { SYSTEM_PROMPT } from '@/lib/llm/prompts'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -56,65 +57,6 @@ export const dynamic = 'force-dynamic'
 const DEFAULT_PROVIDER: ProviderId = 'gemini'
 /** History window fed to the LLM. Matches Python: `history[-24:]`. */
 const HISTORY_LIMIT = 24
-/** Used by the test/auth fallback so the existing fixtures keep working. */
-const TEST_USER_ID = 'user_founder01'
-
-/* -------------------------------------------------------------------------- */
-/* Auth helper — Bearer OR session_token OR guest_token OR Emergent session.  */
-/*                                                                             */
-//* Mirrors the layered auth in lib/auth-actions.ts and middleware.ts.         */
-/*   1. Bearer / session_token — short-circuit to the test user (the legacy  */
-/*      vitest fixture pattern).                                               */
-/*   2. guest_token cookie — verifies the HMAC + 10-min expiry.               */
-/*   3. Emergent OAuth session — production path.                             */
-/* -------------------------------------------------------------------------- */
-
-interface AuthResult {
-  userId: string
-  provider: ProviderId
-  isGuest: boolean
-}
-
-async function authenticate(req: NextRequest): Promise<AuthResult | null> {
-  // 1) Test/dev: Bearer or session_token cookie. We ONLY resolve here if
-  //    neither DATABASE_URL nor a real Emergent cookie is present — see
-  //    the comment in resolveAuthContext() below.
-  const bearer = req.headers.get('authorization')?.replace('Bearer ', '')
-  const sessionCookie =
-    req.cookies.get('session_token')?.value ||
-    req.cookies.get('__Secure-authjs.session-token')?.value
-  const cheapToken = bearer || sessionCookie
-  if (cheapToken && cheapToken !== 'bogus_xxx') {
-    return { userId: TEST_USER_ID, isGuest: false, provider: DEFAULT_PROVIDER }
-  }
-
-  // No cheap token — fall through to the env-dependent paths. Those
-  // imports crash without DATABASE_URL / EMERGENT_LLM_KEY, so 401 cleanly
-  // in dev/test where there's nothing else to validate against.
-  if (!process.env.DATABASE_URL && !process.env.EMERGENT_LLM_KEY) {
-    return null
-  }
-
-  // 2) Legacy guest_token cookie (10-min TTL, see lib/guest-token.ts).
-  const { verifyGuestToken } = await import('@/lib/guest-token')
-  const guestUserId = verifyGuestToken(req.cookies.get('guest_token')?.value)
-  if (guestUserId) {
-    return { userId: guestUserId, isGuest: true, provider: DEFAULT_PROVIDER }
-  }
-
-  // 3) Emergent OAuth session — the real production path.
-  const { getAuthenticatedUser } = await import('@/lib/auth')
-  const ctx = await getAuthenticatedUser()
-  if (ctx?.user?.id) {
-    return {
-      userId: ctx.user.id,
-      isGuest: ctx.source === 'guest',
-      provider: (ctx.user.modelProvider as ProviderId) ?? DEFAULT_PROVIDER,
-    }
-  }
-
-  return null
-}
 
 /* -------------------------------------------------------------------------- */
 /* POST handler                                                                */
@@ -132,8 +74,8 @@ interface ChatRequestBody {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authenticate(req)
-  if (!auth) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
     return new Response('Unauthorized', { status: 401 })
   }
 
@@ -155,7 +97,7 @@ export async function POST(req: NextRequest) {
   const requestedProvider =
     typeof body.provider === 'string' && body.provider in MODEL_REGISTRY
       ? (body.provider as ProviderId)
-      : auth.provider
+      : ((caller.modelProvider as ProviderId | undefined) ?? DEFAULT_PROVIDER)
 
   // Default to autoAnswer=true so the coach proposes by default; user
   // must opt INTO clarification by explicitly setting autoAnswer=false.
@@ -210,16 +152,16 @@ export async function POST(req: NextRequest) {
 
   await db.insert(messages).values({
     id: userMessageId,
-    userId: auth.userId,
+    userId: caller.userId,
     role: 'user',
     content: message,
     provider: requestedProvider,
   })
 
   const [contextString, historyRows, userState] = await Promise.all([
-    buildContext(auth.userId, message, autoAnswer),
-    loadHistory(auth.userId, HISTORY_LIMIT),
-    loadState(auth.userId),
+    buildContext(caller.userId, message, autoAnswer),
+    loadHistory(caller.userId, HISTORY_LIMIT),
+    loadState(caller.userId),
   ])
 
   // Map our internal `messages`-table row shape to the wire shape
@@ -255,7 +197,7 @@ export async function POST(req: NextRequest) {
           provider: requestedProvider,
           system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString + addGoalHint,
           messages: coreMessages,
-          sessionId: auth.userId,
+          sessionId: caller.userId,
         })) {
           if (ev.type === 'text_delta') {
             fullText += ev.content
@@ -361,7 +303,7 @@ export async function POST(req: NextRequest) {
                 provider: requestedProvider,
                 system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString,
                 messages: followUpMessages,
-                sessionId: auth.userId,
+                sessionId: caller.userId,
               })) {
                 if (ev.type === 'text_delta') {
                   followUpFull += ev.content
@@ -449,7 +391,7 @@ export async function POST(req: NextRequest) {
         await db.transaction(async (tx: any) => {
           await tx.insert(messages).values({
             id: assistantMessageId!,
-            userId: auth.userId,
+            userId: caller.userId,
             role: 'assistant',
             content: prose,
             provider: requestedProvider,
@@ -459,7 +401,7 @@ export async function POST(req: NextRequest) {
             await tx.insert(proposalsTable).values({
               id: p.id,
               messageId: assistantMessageId!,
-              userId: auth.userId,
+              userId: caller.userId,
               action: p.action,
               args: p.args,
               status: 'pending',
