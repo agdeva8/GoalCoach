@@ -8,21 +8,25 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const checkAuth = useCallback(async () => {
-    try {
-      const u = await api.me();
+    // `me` is called with quiet: true (see api.js) so cold-start 401s
+    // return null instead of throwing — keeps the DevTools console
+    // quiet for unauthenticated users. A 200 with `user: null` would
+    // also work but we don't have an /api/auth/status endpoint; the
+    // route returns 401 when no cookie is set, so we use the throw.
+    const u = await api.me();
+    if (u) {
       setUser(u);
-    } catch {
-      // No session yet — start an anonymous guest session so work persists
-      // and auto-migrates to their Google account on sign-in.
+    } else {
+      // No session yet — start an anonymous guest session so work
+      // persists and auto-migrates to the Google account on sign-in.
       try {
         const { user: guest } = await api.guest();
         setUser(guest);
       } catch {
         setUser(null);
       }
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {

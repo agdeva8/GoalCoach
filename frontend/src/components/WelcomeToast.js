@@ -73,7 +73,10 @@ export default function WelcomeToast({ user, state, signedIn }) {
         id: "gc-welcome",
         duration: 8000,
         closeButton: true,
-        position: "top-right",
+        // Note: Sonner's Toaster (App.js:28) is configured with
+        // `position="bottom-right"` and that wins over any per-toast
+        // position prop. The previous `position: "top-right"` here
+        // was silently ignored — dropped it to remove the lie.
       },
     );
   }, [user, state, signedIn]);

@@ -2,12 +2,20 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
 
 async function req(path, opts = {}) {
+  const { quiet, ...fetchOpts } = opts;
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-    ...opts,
+    headers: { "Content-Type": "application/json", ...(fetchOpts.headers || {}) },
+    ...fetchOpts,
   });
+  // `quiet: true` swallows the error so callers can branch on a
+  // null/defined return instead of catching. Used by the auth probe
+  // so cold-start 401s don't show up as console noise on every page
+  // load when the user isn't signed in.
   if (!res.ok) {
+    if (quiet && res.status >= 400 && res.status < 500) {
+      return null;
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Request failed");
   }
@@ -15,7 +23,7 @@ async function req(path, opts = {}) {
 }
 
 export const api = {
-  me: () => req("/auth/me"),
+  me: () => req("/auth/me", { quiet: true }),
   guest: () => req("/auth/guest", { method: "POST" }),
   session: (session_id) => req("/auth/session", { method: "POST", body: JSON.stringify({ session_id }) }),
   logout: () => req("/auth/logout", { method: "POST" }),
