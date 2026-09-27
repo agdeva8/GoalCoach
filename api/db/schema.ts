@@ -33,6 +33,7 @@ import {
   date,
   integer,
   jsonb,
+  time,
   pgTable,
   primaryKey,
   text,
@@ -279,8 +280,52 @@ export const memories = pgTable('memories', {
   height: integer('height'),
   mimeType: text('mime_type'),
   sizeBytes: integer('size_bytes'),
+  // Phase 7 — memories attach to a calendar cell rather than a goal.
+  // `occurred_on` is the primary anchor; start/end_time are optional for
+  // an in-day placement. Migration 0006_memories_dates.sql made
+  // occurred_on NOT NULL after backfilling legacy rows.
+  occurredOn: date('occurred_on').notNull(),
+  startTime: time('start_time'),
+  endTime: time('end_time'),
   metadata: jsonb('metadata').notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+/* -------------------------------------------------------------------------- */
+/* Timetable blocks — Phase 6 planner                                          */
+/*                                                                             */
+/* Direct CRUD, not LLM-mediated (Hard constraint #2 — only blockers and       */
+/* timetable blocks skip the propose->confirm path). A block can be a          */
+/* commitment, routine, blocker, or focus slot; source=plan means the coach   */
+/* proposed it during a `plan_day` conversation, manual means the user typed   */
+/* it directly, etc.                                                          */
+/* -------------------------------------------------------------------------- */
+
+export const timetableBlocks = pgTable('timetable_blocks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  blockDate: date('block_date').notNull(),
+  startTime: time('start_time').notNull(),
+  endTime: time('end_time').notNull(),
+  label: text('label').notNull(),
+  kind: text('kind', { enum: ['commitment', 'routine', 'blocker', 'focus'] })
+    .notNull()
+    .default('commitment'),
+  source: text('source', { enum: ['manual', 'plan', 'commitment', 'blocker'] })
+    .notNull()
+    .default('manual'),
+  sourceId: text('source_id'),
+  goalId: text('goal_id').references(() => goals.id, { onDelete: 'set null' }),
+  goalTitle: text('goal_title').notNull().default(''),
+  note: text('note').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
 })

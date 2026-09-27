@@ -116,6 +116,17 @@ export async function POST(req: NextRequest) {
   }
 
   const id = `mem_${randomSuffix()}`
+  // Phase 7 — memories now anchor to a calendar cell. Accept
+  // occurred_on + optional start_time/end_time in the body; fall
+  // back to today's date when the caller omits them (legacy
+  // photo-upload flow). The migration makes occurred_on NOT NULL.
+  const today = new Date().toISOString().slice(0, 10)
+  const occurredOn = typeof body?.occurred_on === 'string'
+    ? body.occurred_on
+    : today
+  const startTime = typeof body?.start_time === 'string' ? body.start_time : null
+  const endTime = typeof body?.end_time === 'string' ? body.end_time : null
+
   if (kind === 'instagram') {
     const url = String(body?.external_url ?? '').trim()
     if (!url) {
@@ -145,6 +156,9 @@ export async function POST(req: NextRequest) {
       height: null,
       mimeType: null,
       sizeBytes: null,
+      occurredOn,
+      startTime,
+      endTime,
       metadata: {},
     })
     return NextResponse.json({
@@ -177,6 +191,9 @@ export async function POST(req: NextRequest) {
     height: null,
     mimeType: null,
     sizeBytes: null,
+    occurredOn,
+    startTime,
+    endTime,
     metadata: {},
   })
   return NextResponse.json({

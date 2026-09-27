@@ -23,10 +23,17 @@
  * the front-end dialog can render a card before the user commits.
  * Returns 200 even on fetch failure so the UI can render the
  * "couldn't reach this URL — save as raw link" affordance.
+ *
+ * Security (P1 SSRF fix): requires an authenticated caller, and rejects
+ * URLs whose host resolves to a private / loopback / link-local IP.
+ * Without this guard, an attacker can probe internal services (AWS
+ * IMDS at 169.254.169.254, the dev DB on localhost, etc.) via redirect
+ * chains. Re-validation happens after every redirect.
  */
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { fetchLinkText } from '@/lib/sources'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -56,6 +63,59 @@ function hostOf(u: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * SSRF guard — rejects hosts that resolve to private / loopback /
+ * link-local IP space. Uses Node's built-in `dns.lookup` so a CNAME
+ * that ultimately resolves to an internal IP (e.g. an attacker DNS
+ * pointing to 169.254.169.254) is caught, not just literal IPs in
+ * the URL string.
+ */
+async function isBlockedHost(host: string): Promise<boolean> {
+  if (!host) return true
+  // Literal loopback / link-local short-circuit.
+  if (
+    host === 'localhost' ||
+    host === '0.0.0.0' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local')
+  ) {
+    return true
+  }
+  // Numeric IPv4 — block obvious RFC1918, link-local, loopback.
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host)
+  if (ipv4) {
+    const [, a, b] = ipv4.map(Number)
+    if (a === 10) return true
+    if (a === 127) return true
+    if (a === 0) return true
+    if (a === 169 && b === 254) return true
+    if (a === 172 && b >= 16 && b <= 31) return true
+    if (a === 192 && b === 168) return true
+  }
+  // DNS resolve and check the actual IP.
+  try {
+    const dns = await import('node:dns/promises')
+    const records = await dns.lookup(host, { all: true })
+    for (const r of records) {
+      const ip = r.address
+      const parts = ip.split('.').map(Number)
+      if (parts.length === 4) {
+        const [a, b] = parts
+        if (a === 10 || a === 127 || a === 0) return true
+        if (a === 169 && b === 254) return true
+        if (a === 172 && b >= 16 && b <= 31) return true
+        if (a === 192 && b === 168) return true
+      }
+      // IPv6 — block loopback (::1) and link-local (fe80::/10).
+      if (ip === '::1' || ip.startsWith('fe80:')) return true
+    }
+  } catch {
+    // DNS failure — refuse rather than fall through.
+    return true
+  }
+  return false
 }
 
 function decodeEntities(s: string): string {
@@ -151,6 +211,10 @@ function extractFavicon(html: string, baseUrl: string | null): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const caller = await resolveRequestUser(req)
+  if (!caller) {
+    return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
+  }
   const body = await req.json().catch(() => ({}))
   const url = String(body?.url ?? '').trim()
   if (!url) {
@@ -188,30 +252,14 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Fetch the URL ourselves so we can extract <meta> tags the existing
-  // \`fetchLinkText\` strips away. Bounded timeout + body size so a
-  // hostile / large URL can't wedge the server.
-  const controller = new AbortController()
-  const tid = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS)
-  let response: Response
-  try {
-    response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'GoalCoach/1.0 (+preview)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-      redirect: 'follow',
-    })
-  } catch (e) {
-    clearTimeout(tid)
-    const isAbort = (e as Error)?.name === 'AbortError'
+  // SSRF guard — reject hosts pointing at private / loopback /
+  // link-local space before we issue a single byte of outbound
+  // traffic. Re-checked after every redirect below.
+  if (await isBlockedHost(parsed.host)) {
     return NextResponse.json(
       {
         ok: false,
-        error: isAbort
-          ? 'Took too long to respond (12s timeout).'
-          : 'Could not reach this URL.',
+        error: 'That URL points at a private or local network address.',
         url,
         host: parsed.host,
         final_url: null,
@@ -226,7 +274,105 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     )
   }
+
+  // Fetch the URL ourselves so we can extract <meta> tags the existing
+  // \`fetchLinkText\` strips away. Bounded timeout + body size so a
+  // hostile / large URL can't wedge the server. We follow redirects
+  // manually so each hop can re-check the SSRF blocklist — letting
+  // fetch() follow itself would bypass the guard.
+  const controller = new AbortController()
+  const tid = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS)
+  const MAX_REDIRECTS = 5
+  let currentUrl = url
+  let response: Response | null = null
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    try {
+      response = await fetch(currentUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'GoalCoach/1.0 (+preview)',
+          Accept: 'text/html,application/xhtml+xml',
+        },
+        redirect: 'manual',
+      })
+    } catch (e) {
+      clearTimeout(tid)
+      const isAbort = (e as Error)?.name === 'AbortError'
+      return NextResponse.json(
+        {
+          ok: false,
+          error: isAbort
+            ? 'Took too long to respond (12s timeout).'
+            : 'Could not reach this URL.',
+          url,
+          host: parsed.host,
+          final_url: null,
+          title: null,
+          description: null,
+          image: null,
+          favicon: null,
+          snippet: '',
+          content_type: null,
+          status: null,
+        },
+        { status: 200 },
+      )
+    }
+    if (
+      response.status >= 300 &&
+      response.status < 400 &&
+      response.headers.get('location')
+    ) {
+      const next = new URL(
+        response.headers.get('location')!,
+        currentUrl,
+      ).toString()
+      if (await isBlockedHost(new URL(next).host)) {
+        clearTimeout(tid)
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'A redirect pointed at a private or local network address.',
+            url,
+            host: parsed.host,
+            final_url: next,
+            title: null,
+            description: null,
+            image: null,
+            favicon: null,
+            snippet: '',
+            content_type: null,
+            status: response.status,
+          },
+          { status: 200 },
+        )
+      }
+      currentUrl = next
+      continue
+    }
+    break
+  }
   clearTimeout(tid)
+
+  if (!response) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Could not reach this URL.',
+        url,
+        host: parsed.host,
+        final_url: null,
+        title: null,
+        description: null,
+        image: null,
+        favicon: null,
+        snippet: '',
+        content_type: null,
+        status: null,
+      },
+      { status: 200 },
+    )
+  }
 
   const status = response.status
   const contentType = response.headers.get('content-type') ?? ''
