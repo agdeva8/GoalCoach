@@ -1,6 +1,6 @@
-# FastAPI Route Surface — GoalCoach Backend
+# FastAPI Route Surface — Sutra Backend
 
-**File:** `/Users/deva/Documents/Projects/GoalCoach/backend/server.py`
+**File:** `/Users/deva/Documents/Projects/Sutra/backend/server.py`
 **Source:** Direct code analysis + graph query confirmation
 **Graph:** `graphify-out/graph.json` (968 nodes, pre-#1504 schema)
 
@@ -120,7 +120,7 @@ Tool calls are proposed via `[[TOOLS]]...[[/TOOLS]]` blocks parsed from the stre
 
 | Method | Path | Auth | Request Shape | Response Shape |
 |--------|------|------|---------------|---------------|
-| GET | `/` | None | — | `{ message: "GoalCoach API" }` |
+| GET | `/` | None | — | `{ message: "Sutra API" }` |
 
 ---
 

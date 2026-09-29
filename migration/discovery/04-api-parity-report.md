@@ -1,4 +1,4 @@
-# GoalCoach — API Parity Report
+# Sutra — API Parity Report
 
 Date: 2026-09-24
 Source of truth: `backend/server.py` (Python + FastAPI + Mongo)
@@ -29,7 +29,7 @@ The new Next.js backend implements **19 of 21 FastAPI routes 1:1**, with **9 NEW
 | 5 | `PUT /api/preferences` | `app/api/preferences/route.ts` | 🔄 MIGRATED | Same field → `users.modelProvider`. Drift: legacy `'anthropic'` alias accepted (registered as `'claude'`). |
 | 6 | `GET /api/state` | `app/api/state/route.ts` | 🔄 MIGRATED | Same `loadState()` shape ported to Drizzle. **Adds** `audit_summary.recent` + `generated_at` keys (dashboard feature; not harmful — extra fields). |
 | 7 | `GET /api/audit` | `app/api/audit/route.ts` | 🔄 MIGRATED | Same top-level array of `{id,user_id,type,summary,payload,created_at}`. Adds optional `?type=`, `?limit=`, `?before=` pagination (backward compatible). |
-| 8 | `GET /api/audit/export` | `app/api/audit/export/route.ts` | 🔄 MIGRATED | Same JSON-dump response with `Content-Disposition: attachment`. Filename format `goalcoach-export-${userId}-${date}.json` (was `goalcoach-export.json`). |
+| 8 | `GET /api/audit/export` | `app/api/audit/export/route.ts` | 🔄 MIGRATED | Same JSON-dump response with `Content-Disposition: attachment`. Filename format `sutra-export-${userId}-${date}.json` (was `sutra-export.json`). |
 | 9 | `GET /api/chat/history` | `app/api/chat/history/route.ts` | 🔄 MIGRATED | Same response array. Adds `?limit=` query param. `proposals` split from embedded array → separate `proposals` table (relational). |
 | 10 | `POST /api/chat/stream` | `app/api/chat/stream/route.ts` | ⚠️ DRIFT | Same SSE wire format (`type:'delta'|'tools'|'done'|'error'`). **`auto_answer` field renamed to `autoAnswer`**. Adds optional `provider` override. |
 | 11 | `POST /api/chat/guest_stream` | **none** | ❌ MISSING | No replacement in `y/app/api/chat/*`. Frontend preview-mode LLM streaming is broken. |
@@ -174,7 +174,7 @@ The new Next.js backend implements **19 of 21 FastAPI routes 1:1**, with **9 NEW
 - **Request:** — (none)
 - **Response:** 🔄 same shape, filename differs:
   - `{exported_at, user:{email,name}, state:{goals,commitments}, conversation[], audit_log[]}` ✅ (`route.ts:107-133`)
-  - `Content-Disposition: attachment; filename="goalcoach-export-${userId}-${date}.json"` 🔄 — Python used bare `goalcoach-export.json`
+  - `Content-Disposition: attachment; filename="sutra-export-${userId}-${date}.json"` 🔄 — Python used bare `sutra-export.json`
 - **Logic:** Same 4 collections fetched in parallel via `Promise.all` instead of sequential `await`. Maps each row to snake_case shape. Goal/Commitment serialization loses some fields vs FastAPI's `load_state` (only includes `id, title, horizon, status, created_at` for goals) — **minor drift**: this is intentional or an oversight depending on the consumer's expectations.
 - **Status:** 🔄 MIGRATED (intentional: filename change; possibly unintentional: goal/commitment field subset)
 - **Notes:** The goal/commitment serialization in the export was less complete than the Python's full `load_state` shape. If the Honesty Audit UI relies on full goal fields, this is a subtle functional drift.
@@ -339,7 +339,7 @@ The new Next.js backend implements **19 of 21 FastAPI routes 1:1**, with **9 NEW
   - **Storage key init:** `lib/storage.ts:initStorage()` mirrors `server.py:init_storage()` (POST `{storage_url}/init` with `{emergent_key}`, returns storage_key).
   - **20MB cap:** ✅ same (`route.ts:66-71`, `MAX_SIZE_BYTES = 20 * 1024 * 1024`)
   - **Allowed extensions:** ✅ same set (`pdf, md, txt, csv, json, png, jpg, jpeg, docx` — `route.ts:21-23`)
-  - **Path format:** 🔄 **DRIFT**: FastAPI used `{APP_NAME}/uploads/{user_id}/{uuid_hex}.{ext}` (`server.py:900`); Next.js uses `goalcoach/uploads/{user_id}/{...}.{ext}` via `lib/storage.ts:pathForUpload`. Modern storage layout may be incompatible with old `storage_path` values stored in Mongo unless rewritten in ETL.
+  - **Path format:** 🔄 **DRIFT**: FastAPI used `{APP_NAME}/uploads/{user_id}/{uuid_hex}.{ext}` (`server.py:900`); Next.js uses `sutra/uploads/{user_id}/{...}.{ext}` via `lib/storage.ts:pathForUpload`. Modern storage layout may be incompatible with old `storage_path` values stored in Mongo unless rewritten in ETL.
   - **Text extraction:** ✅ `lib/sources.ts:extractText` mirrors `server.py:extract_text` (PDF uses `pypdf` → likely `pdf-parse` or `pdfjs-dist` in TS; non-PDF falls back to UTF-8 decode).
 - **Status:** 🔄 MIGRATED (intentional: kept Emergent; storage path format may require ETL rewrite)
 - **Notes:** The path-format change is a known migration risk per architecture plan §7 Risk 1 — ETL (`db/migrate-from-mongo.ts`) must rewrite `sources.storage_path`.
@@ -409,9 +409,9 @@ The new Next.js backend implements **19 of 21 FastAPI routes 1:1**, with **9 NEW
 - **Path:** ❌ MISSING — no `app/route.ts` health endpoint
 - **Method:** GET
 - **Auth:** — (none)
-- **Response:** FastAPI returned `{message: "GoalCoach API"}`. Not implemented.
+- **Response:** FastAPI returned `{message: "Sutra API"}`. Not implemented.
 - **Status:** ❌ MISSING (cosmetic)
-- **Notes:** Add `app/api/route.ts` returning `Response.json({message: "GoalCoach API"})` if health checks need it. Low priority — Vercel doesn't require a root endpoint.
+- **Notes:** Add `app/api/route.ts` returning `Response.json({message: "Sutra API"})` if health checks need it. Low priority — Vercel doesn't require a root endpoint.
 
 ---
 
@@ -447,7 +447,7 @@ The new Next.js backend implements **19 of 21 FastAPI routes 1:1**, with **9 NEW
 
 5. **`guest_token` cookie** — now HMAC-signed with `AUTH_SECRET` (10-minute TTL) instead of opaque random (7-day TTL). Locked architecture decision #3. Stored `user_sessions` table is queried for session_token linkage; guest_token is purely HMAC.
 
-6. **Emergent Object Storage is retained** (per locked decision #2) — not Vercel Blob. The path format `goalcoach/uploads/{user_id}/{uuid}.{ext}` may differ from `goalcoach/uploads/{user_id}/{uuid_hex}.{ext}` in the Python version. ETL must rewrite `sources.storage_path` (architecture §7 Risk 1).
+6. **Emergent Object Storage is retained** (per locked decision #2) — not Vercel Blob. The path format `sutra/uploads/{user_id}/{uuid}.{ext}` may differ from `sutra/uploads/{user_id}/{uuid_hex}.{ext}` in the Python version. ETL must rewrite `sources.storage_path` (architecture §7 Risk 1).
 
 7. **`/api/state` adds `audit_summary.recent` and `generated_at`** to the response — additive keys, dashboard feature. The new dashboard's "Honesty Audit" panel renders `recent`.
 

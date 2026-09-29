@@ -20,11 +20,11 @@
 
 **Spec:** `docs/office-hours/2026-09-22-product-design-v1.md` (Layer 0) — see the "Onboarding & Personalization" section added 2026-09-23. The plan argues from this revision.
 
-**Existing plan this re-scopes:** `docs/superpowers/plans/2026-09-22-goalcoach-phase1.md` — Tasks 11 (AreaChips) and 12 (inline mount) ship already; Task 12 was reverted in commit `e7711ab`. This plan supersedes the home-page/Primer work described in that plan; it does NOT re-litigate Tasks 1–10 or 13–23, which remain intact.
+**Existing plan this re-scopes:** `docs/superpowers/plans/2026-09-22-sutra-phase1.md` — Tasks 11 (AreaChips) and 12 (inline mount) ship already; Task 12 was reverted in commit `e7711ab`. This plan supersedes the home-page/Primer work described in that plan; it does NOT re-litigate Tasks 1–10 or 13–23, which remain intact.
 
 ## Global Constraints
 
-(All Global Constraints from `2026-09-22-goalcoach-phase1.md` continue to bind. The ones most likely to bite are repeated here verbatim.)
+(All Global Constraints from `2026-09-22-sutra-phase1.md` continue to bind. The ones most likely to bite are repeated here verbatim.)
 
 - **TDD:** Every behavior-changing line preceded by a failing test. Iron law per `CLAUDE.md` hard rule #1. No `skipIf`, no `it.todo`, no `xit`. The test must be observed red before the implementation goes in.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `refactor:`). One task = one commit. End every commit message with `Co-Authored-By: Claude Code <noreply@anthropic.com>`.
@@ -123,7 +123,7 @@ export interface UserAreaPreference {
 Create `supabase/migrations/0010_user_area_preferences.sql`. Mirror the header style of `0009_auth_users_sync.sql` (what / why / how-to-verify in a leading comment block).
 
 ```sql
--- GoalCoach migration 0010: persist user area preferences.
+-- Sutra migration 0010: persist user area preferences.
 --
 -- Why this exists
 -- ---------------
@@ -187,7 +187,7 @@ Out-of-band: founder applies `0010_user_area_preferences.sql` to the live Supaba
 
 - [ ] **Step 4: Typecheck**
 
-Run: `pnpm --filter @goalcoach/db typecheck`
+Run: `pnpm --filter @sutra/db typecheck`
 Expected: PASS (the new type compiles; no consumer yet uses it).
 
 - [ ] **Step 5: Commit**
@@ -304,7 +304,7 @@ describe('setUserAreaPreferences', () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm --filter @goalcoach/db test __tests__/userAreaPreferences.test.ts`
+Run: `pnpm --filter @sutra/db test __tests__/userAreaPreferences.test.ts`
 Expected: FAIL — `getUserAreaPreferences` and `setUserAreaPreferences` are not exported.
 
 - [ ] **Step 3: Implement the helpers**
@@ -368,7 +368,7 @@ Note: `UserAreaPreference` is imported from `./types` at the top of the file (al
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `pnpm --filter @goalcoach/db test`
+Run: `pnpm --filter @sutra/db test`
 Expected: PASS. The existing `bucketedGoals.test.ts` and other tests must still pass.
 
 - [ ] **Step 5: Commit**
@@ -444,7 +444,7 @@ function carrier_getDataSelected(el: HTMLElement): string {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/components/AreaCarousel.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/components/AreaCarousel.test.tsx`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the component**
@@ -454,7 +454,7 @@ Create `apps/web/components/AreaCarousel.tsx`:
 ```tsx
 'use client';
 import { useState } from 'react';
-import { getAreas, type AreaKey } from '@goalcoach/db';
+import { getAreas, type AreaKey } from '@sutra/db';
 
 export function AreaCarousel({ onConfirm }: { onConfirm: (keys: AreaKey[]) => void }) {
   const [selected, setSelected] = useState<Set<AreaKey>>(new Set());
@@ -522,12 +522,12 @@ export function AreaCarousel({ onConfirm }: { onConfirm: (keys: AreaKey[]) => vo
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/components/AreaCarousel.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/components/AreaCarousel.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 5: Run copy-voice test to confirm no forbidden patterns**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/copy-voice.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/copy-voice.test.ts`
 Expected: PASS. The component copy ("Pick the areas you care about.", "Continue", "Skip for now") avoids em dashes and the AI-vocab list.
 
 - [ ] **Step 6: Commit**
@@ -541,7 +541,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 **End of Slice 1.** Stop here. Run `/qa` against `pnpm dev` to verify:
 - Migration applies cleanly (founder has applied 0010 to the live DB).
-- The DB helpers work against the live DB (a quick unit probe via the existing `pnpm --filter @goalcoach/db test`).
+- The DB helpers work against the live DB (a quick unit probe via the existing `pnpm --filter @sutra/db test`).
 - `AreaCarousel` renders, the chip click toggles state, the Continue / Skip CTAs fire `onConfirm`.
 
 If `/qa` surfaces a finding, dispatch a fix subagent before Slice 2 begins.
@@ -660,7 +660,7 @@ describe('/ (home page)', () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/page.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/app/page.test.tsx`
 Expected: FAIL — module not found (the test file imports the page that still renders `<Primer />`).
 
 - [ ] **Step 3: Implement the home page**
@@ -672,7 +672,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AreaCarousel } from '@/components/AreaCarousel';
 import { getServerSupabase } from '@/lib/supabase/server';
-import { getUserAreaPreferences } from '@goalcoach/db';
+import { getUserAreaPreferences } from '@sutra/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -716,7 +716,7 @@ export default async function HomePage() {
     const { data: { user: u2 } } = await supabase2.auth.getUser();
     if (!u2) redirect('/');
 
-    const { setUserAreaPreferences } = await import('@goalcoach/db');
+    const { setUserAreaPreferences } = await import('@sutra/db');
     await setUserAreaPreferences(supabase2, u2.id, areaKeys);
     redirect('/chat');
   }
@@ -745,7 +745,7 @@ Create `apps/web/components/AreaCarouselClient.tsx` (a thin client boundary beca
 'use client';
 import { useState } from 'react';
 import { AreaCarousel } from './AreaCarousel';
-import type { AreaKey } from '@goalcoach/db';
+import type { AreaKey } from '@sutra/db';
 
 export function AreaCarouselClient({
   onChange,
@@ -763,14 +763,14 @@ export function AreaCarouselClient({
 
 - [ ] **Step 4: Re-run the home page tests**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/page.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/app/page.test.tsx`
 Expected: PASS. (Note: the test asserts `data-testid="area-carousel"` is present when no areas exist; the client wrapper renders the carousel under that testid. The `data-has-onconfirm` check confirms the form-action wiring exists.)
 
 If the test framework complains about importing the form action, refactor Step 3 to extract `persistAndGoToChat` to a `lib/home/server-actions.ts` file — but try the inline form first.
 
 - [ ] **Step 5: Typecheck + copy-voice**
 
-Run: `pnpm --filter @goalcoach/web typecheck && pnpm --filter @goalcoach/web test __tests__/copy-voice.test.ts`
+Run: `pnpm --filter @sutra/web typecheck && pnpm --filter @sutra/web test __tests__/copy-voice.test.ts`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -789,7 +789,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Test: `apps/web/__tests__/app/api/onboarding.test.ts` (new)
 
 **Interfaces:**
-- Consumes: `getServerSupabase` (auth), `setUserAreaPreferences` from `@goalcoach/db`
+- Consumes: `getServerSupabase` (auth), `setUserAreaPreferences` from `@sutra/db`
 - Produces: `POST` handler that reads `{ areas: AreaKey[] }`, validates against the enum, persists, returns 200 (or 401 / 400 on auth or validation failure)
 
 - [ ] **Step 1: Write the failing tests**
@@ -804,14 +804,14 @@ vi.mock('next/headers', () => ({
 }));
 
 vi.mock('@/lib/supabase/server', () => ({ getServerSupabase: vi.fn() }));
-vi.mock('@goalcoach/db', async () => {
-  const actual = await vi.importActual<any>('@goalcoach/db');
+vi.mock('@sutra/db', async () => {
+  const actual = await vi.importActual<any>('@sutra/db');
   return { ...actual, setUserAreaPreferences: vi.fn() };
 });
 
 import { POST } from '@/app/api/onboarding/route';
 import { getServerSupabase } from '@/lib/supabase/server';
-import { setUserAreaPreferences } from '@goalcoach/db';
+import { setUserAreaPreferences } from '@sutra/db';
 
 describe('POST /api/onboarding', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -883,7 +883,7 @@ describe('POST /api/onboarding', () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/onboarding.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/onboarding.test.ts`
 Expected: FAIL — route module not found.
 
 - [ ] **Step 3: Implement the route**
@@ -892,7 +892,7 @@ Create `apps/web/app/api/onboarding/route.ts`:
 
 ```ts
 import { getServerSupabase } from '@/lib/supabase/server';
-import { setUserAreaPreferences, type AreaKey } from '@goalcoach/db';
+import { setUserAreaPreferences, type AreaKey } from '@sutra/db';
 
 export const runtime = 'edge';
 
@@ -941,7 +941,7 @@ export async function POST(req: Request) {
 
 - [ ] **Step 4: Re-run the tests to verify they pass**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/onboarding.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/onboarding.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -961,7 +961,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Test (extend): `apps/web/__tests__/app/api/chat.test.ts`
 
 **Interfaces:**
-- Consumes: `getUserAreaPreferences` from `@goalcoach/db`, `systemPrompt(goals, threads)` from `@goalcoach/ai`
+- Consumes: `getUserAreaPreferences` from `@sutra/db`, `systemPrompt(goals, threads)` from `@sutra/ai`
 - Produces: `systemPrompt(goals, threads, areas: string[])` — third positional arg; empty array renders no "Areas the user cares about:" line
 
 - [ ] **Step 1: Write the failing test for the chat route**
@@ -993,11 +993,11 @@ it('passes the user\'s selected areas to systemPrompt (Review Focus 2)', async (
 });
 ```
 
-Mock `getUserAreaPreferences` directly via `vi.mock('@goalcoach/db', ...)` at the top of the file (or expose `getUserAreaPreferences` through the existing import path and mock it via the supabase `from()` chain). The route imports `getUserAreaPreferences` from `@goalcoach/db` — the test should mock it via `vi.mock('@goalcoach/db', ...)`:
+Mock `getUserAreaPreferences` directly via `vi.mock('@sutra/db', ...)` at the top of the file (or expose `getUserAreaPreferences` through the existing import path and mock it via the supabase `from()` chain). The route imports `getUserAreaPreferences` from `@sutra/db` — the test should mock it via `vi.mock('@sutra/db', ...)`:
 
 ```ts
-vi.mock('@goalcoach/db', async () => {
-  const actual = await vi.importActual<any>('@goalcoach/db');
+vi.mock('@sutra/db', async () => {
+  const actual = await vi.importActual<any>('@sutra/db');
   return { ...actual, getUserAreaPreferences: vi.fn() };
 });
 ```
@@ -1005,7 +1005,7 @@ vi.mock('@goalcoach/db', async () => {
 And inside the test:
 
 ```ts
-const { getUserAreaPreferences } = await import('@goalcoach/db');
+const { getUserAreaPreferences } = await import('@sutra/db');
 (getUserAreaPreferences as any).mockResolvedValue([
   { user_id: 'u1', area_key: 'career', selected_at: '2026-09-23T09:00:00Z' },
   { user_id: 'u1', area_key: 'health', selected_at: '2026-09-23T10:00:00Z' },
@@ -1018,7 +1018,7 @@ Also add a second assertion that when `getUserAreaPreferences` returns `[]`, the
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/chat.test.ts -t "passes the user"`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/chat.test.ts -t "passes the user"`
 Expected: FAIL — `systemPrompt` doesn't yet accept areas; the route doesn't read `getUserAreaPreferences`.
 
 - [ ] **Step 3: Extend `systemPrompt()`**
@@ -1047,7 +1047,7 @@ Append `areasBlock` at the end (after the defensive lines) so the LLM sees the u
 
 In `apps/web/app/api/chat/route.ts`:
 
-1. Import `getUserAreaPreferences` from `@goalcoach/db` (alongside the existing `getGoalsForUser`, `getRecentThreads`).
+1. Import `getUserAreaPreferences` from `@sutra/db` (alongside the existing `getGoalsForUser`, `getRecentThreads`).
 2. After the `const threads = await getRecentThreads(...)` line (~line 143), add:
 
 ```ts
@@ -1060,12 +1060,12 @@ const areas = areaPrefs.map((p) => p.area_key);
 
 - [ ] **Step 5: Run the chat tests to verify they pass**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/chat.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/chat.test.ts`
 Expected: PASS — both the new area-context test and all 13 existing tests.
 
 - [ ] **Step 6: Run the ai package tests**
 
-Run: `pnpm --filter @goalcoach/ai test`
+Run: `pnpm --filter @sutra/ai test`
 Expected: PASS — `systemPrompt`'s positional argument has a default, so existing callers (tests in `tools.test.ts` and `router.test.ts`) still compile and pass.
 
 - [ ] **Step 7: Commit**
@@ -1137,7 +1137,7 @@ it('renders sign-in CTA when valid horizon but no user', async () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/chat/page.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/app/chat/page.test.tsx`
 Expected: FAIL — the new test expects no redirect for missing horizon, but the current page redirects.
 
 - [ ] **Step 3: Update the chat page**
@@ -1149,7 +1149,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ChatThread } from '@/components/ChatThread';
 import { getServerSupabase } from '@/lib/supabase/server';
-import type { Horizon } from '@goalcoach/db';
+import type { Horizon } from '@sutra/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -1171,7 +1171,7 @@ export default async function ChatPage({
       <main className="chat-gate">
         <h1 className="chat-gate__title">Sign in to start</h1>
         <p className="chat-gate__body">
-          GoalCoach uses Google to authenticate you and call Gemini on your behalf.
+          Sutra uses Google to authenticate you and call Gemini on your behalf.
         </p>
         <Link
           href="/api/auth/google?returnTo=%2Fchat"
@@ -1198,7 +1198,7 @@ export default async function ChatPage({
 
 - [ ] **Step 4: Re-run the tests to verify they pass**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/chat/page.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/app/chat/page.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1231,7 +1231,7 @@ git rm apps/web/components/Primer.tsx apps/web/__tests__/components/Primer.test.
 
 - [ ] **Step 3: Run the full web test suite**
 
-Run: `pnpm --filter @goalcoach/web test`
+Run: `pnpm --filter @sutra/web test`
 Expected: PASS. The 3 Primer tests are gone; the rest still pass.
 
 - [ ] **Step 4: Run typecheck across all 5 workspaces**

@@ -1,5 +1,5 @@
 /**
- * Shared Playwright fixtures for GoalCoach e2e tests.
+ * Shared Playwright fixtures for Sutra e2e tests.
  *
  * - `api`    — an APIRequestContext pointed at E2E_API_URL (default 4000),
  *              already logged in as a fresh guest. Specs that need a clean

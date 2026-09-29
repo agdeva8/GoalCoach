@@ -1,4 +1,4 @@
-# GoalCoach — Phase 1 Architecture Plan: Next.js 16 + Postgres + Drizzle
+# Sutra — Phase 1 Architecture Plan: Next.js 16 + Postgres + Drizzle
 
 **Date:** 2026-09-24
 **Status:** Phase 1 in progress — decisions locked 2026-09-24
@@ -29,7 +29,7 @@
 Promote `y/` (or a fresh `app/`) to the canonical Next.js root. Layout below assumes the directory is at the project root (no monorepo); sub-app `frontend/` and `backend/` are retired at cutover.
 
 ```
-goalcoach/
+sutra/
   app/
     layout.tsx                       # root layout, fonts, theme provider, Toaster
     page.tsx                         # marketing/landing (optional)
@@ -572,13 +572,13 @@ export function parseProposals(text: string): z.infer<typeof ProposalSchema>[] {
 
 | Phase | Host | Frontend | Backend |
 |---|---|---|---|
-| 1 | `app.goalcoach.com` (existing) | CRA | FastAPI on `api.goalcoach.com` |
-| 1 | **`v2.goalcoach.com`** (new) | Next.js 15 | Next.js Route Handlers |
-| 2 cutover | `app.goalcoach.com` | Next.js 15 | Next.js Route Handlers |
+| 1 | `app.sutra.com` (existing) | CRA | FastAPI on `api.sutra.com` |
+| 1 | **`v2.sutra.com`** (new) | Next.js 15 | Next.js Route Handlers |
+| 2 cutover | `app.sutra.com` | Next.js 15 | Next.js Route Handlers |
 
 **Why subdomain beats path prefix:**
 - No edge proxy config. Vercel + DNS route by hostname.
-- Cookies stay scoped (`__Secure-.` prefix on `v2.goalcoach.com`).
+- Cookies stay scoped (`__Secure-.` prefix on `v2.sutra.com`).
 - Independent deploys; rollback is a DNS flip.
 - Path prefix forces `<Link href="/v2/coach">` everywhere; OAuth callbacks + tests break.
 
@@ -601,8 +601,8 @@ DATABASE_URL_UNPOOLED=postgres://user:pass@ep-xxx.neon.tech/neondb?sslmode=requi
 
 # For session_token HMAC signing (7-day cookie) and guest_token HMAC signing (10-min expiry)
 AUTH_SECRET=                                # openssl rand -base64 32
-AUTH_URL=https://v2.goalcoach.com
-NEXT_PUBLIC_APP_URL=https://v2.goalcoach.com
+AUTH_URL=https://v2.sutra.com
+NEXT_PUBLIC_APP_URL=https://v2.sutra.com
 ```
 
 Validate at boot via `lib/env.ts` (zod). Required: `EMERGENT_LLM_KEY`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `AUTH_SECRET`. `INTEGRATION_PROXY_URL` defaults to `https://integrations.emergentagent.com`.
@@ -636,7 +636,7 @@ Next.js 16 has async `cookies()` and `headers()`, updated middleware matcher syn
 
 1. **[DONE] Confirm Next.js version.** Next.js 16 adopted — `y/` scaffold at 16.3.4 is the target.
 2. **[DONE] Provision Postgres on Neon.** Capture `DATABASE_URL`, configure Vercel integration.
-3. **[DONE] Create new Vercel project, point `v2.goalcoach.com` at it.** Acceptance: `https://v2.goalcoach.com/` returns the scaffold's "Project ready!" page over HTTPS.
+3. **[DONE] Create new Vercel project, point `v2.sutra.com` at it.** Acceptance: `https://v2.sutra.com/` returns the scaffold's "Project ready!" page over HTTPS.
 4. **Initialize Drizzle.** Add `drizzle-orm`, `drizzle-kit`, `drizzle-zod`, `@neondatabase/serverless`. Write `db/schema.ts` per Section 2. Generate + commit first migration.
 5. **Write `db/migrate-from-mongo.ts`** (one-shot ETL). Streams `users → goals → commitments → milestones → blockers → messages → proposals (split from embedded array) → audit_log → sources`. Preserves all string IDs.
 6. **Emergent OAuth REST client.** Write `lib/emergent/auth.ts`, `lib/guest-token.ts`, `lib/auth.ts`, `app/api/auth/session/route.ts`. Replace `SignInModal.tsx`'s Emergent URL with `signInWithEmergent()` server action. Delete `AuthCallback.js` and `app/api/auth/[...nextauth]/route.ts`.
@@ -650,7 +650,7 @@ Next.js 16 has async `cookies()` and `headers()`, updated middleware matcher syn
 14. **[P] Auth middleware + route protection.** `middleware.ts` protects `/coach/*` using `getAuthenticatedUser()`.
 15. **[P] Guest flow + migration on sign-in.** Server action `signInWithEmergent()` creates a `users` row with `isGuest=true`. Sign-in handler reassigns child rows. Guest token handled by `lib/guest-token.ts` (10-min HMAC).
 16. **Theming + a11y.** Port CSS variables. Confirm `prefers-reduced-motion`, focus rings, ARIA roles.
-17. **E2E + cutover.** Deploy to `v2.goalcoach.com`. Run founder rubric (≥7/10 per PRD). Flip DNS to point `app.goalcoach.com` at the new Vercel project; verify cookies, OAuth, and file downloads.
+17. **E2E + cutover.** Deploy to `v2.sutra.com`. Run founder rubric (≥7/10 per PRD). Flip DNS to point `app.sutra.com` at the new Vercel project; verify cookies, OAuth, and file downloads.
 18. **Fix flaky tests.** ~10 tests in the suite have timing or mock-data dependencies. In progress concurrently with the feature migration above.
 
 **Note on internal agents (Phase 4):** The Model Switcher UI is preserved because Emergent routes provider selection server-side via `with_model(provider, model)`. No per-provider agent dispatch is needed in the Next.js layer — this eliminates a significant portion of the internal-agents Phase 4 scope. That phase is optional and can be deferred.

@@ -1,4 +1,4 @@
-# Deploy: GoalCoach Phase 1
+# Deploy: Sutra Phase 1
 
 Vercel + Supabase. All free tier, no credit card.
 
@@ -52,7 +52,7 @@ npx vercel deploy --prod
 
 ## Domain (deferred)
 
-`goalcoach.app` is held until first non-founder user. Register in Vercel
+`sutra.app` is held until first non-founder user. Register in Vercel
 when `/ship` runs or when second user lands.
 
 ## Gemini OAuth (optional — Anthropic stays default)

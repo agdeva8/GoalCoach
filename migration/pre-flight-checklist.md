@@ -143,18 +143,18 @@ Once the blocker above is resolved and the bundle builds locally, ship to Vercel
   - `AUTH_SECRET` (32-byte base64 from `openssl rand -base64 32`)
   - `EMERGENT_LLM_KEY`
   - `INTEGRATION_PROXY_URL=https://integrations.emergentagent.com`
-  - `AUTH_URL=https://v2.goalcoach.com`
-  - `NEXT_PUBLIC_APP_URL=https://v2.goalcoach.com`
-- [ ] Attach the `v2.goalcoach.com` custom domain inside the Vercel project.
+  - `AUTH_URL=https://v2.sutra.com`
+  - `NEXT_PUBLIC_APP_URL=https://v2.sutra.com`
+- [ ] Attach the `v2.sutra.com` custom domain inside the Vercel project.
 - [ ] Execute the deploy command shown above.
 
 ## 📋 Manual steps after deploy
 
-- [ ] Sign in to `https://v2.goalcoach.com` and complete the Emergent OAuth round-trip; verify cookie + JWT shape match the staging build.
+- [ ] Sign in to `https://v2.sutra.com` and complete the Emergent OAuth round-trip; verify cookie + JWT shape match the staging build.
 - [ ] Send a chat message; confirm SSE deltas stream and the `[DONE]` sentinel fires.
 - [ ] Confirm at least one tool-call proposal (`[[TOOLS]]` block) round-trips through `app/api/tools/confirm`.
 - [ ] Upload a source file (PDF / DOCX / URL); verify Emergent Object Storage round-trip via `/api/sources/[id]/download`.
 - [ ] Switch the model in the Header dropdown; refresh and confirm the chosen provider persists via `users.modelProvider`.
-- [ ] Run the founder rubric — ≥ 7 / 10 per the PRD against the live `v2.goalcoach.com` URL.
-- [ ] Flip DNS from `app.goalcoach.com` to the new Vercel project once green.
+- [ ] Run the founder rubric — ≥ 7 / 10 per the PRD against the live `v2.sutra.com` URL.
+- [ ] Flip DNS from `app.sutra.com` to the new Vercel project once green.
 - [ ] Keep the legacy FastAPI + MongoDB stack on warm standby for 7 days behind a feature flag, then decommission.

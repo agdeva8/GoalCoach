@@ -1,4 +1,4 @@
-# GoalCoach MongoDB Schema Discovery
+# Sutra MongoDB Schema Discovery
 
 **Date:** 2026-09-24  
 **Source:** `backend/server.py` (FastAPI + Motor 3.3.1) + `backend/tests/test_migration_db.py`  
@@ -306,4 +306,4 @@ This is an in-app migration, not a DB-level migration. It confirms all collectio
 
 ## 6. Summary
 
-GoalCoach uses a flat, denormalized schema with 9 MongoDB collections. There are no document references (`$lookup`) — all relationships are joined in Python by `user_id`. The schema is simple and迁移-friendly: every collection is a straight copy except `messages` (high volume) and `sources` (large text field). No collection-level transformations required. Index coverage is minimal — several composite indexes should be added post-migration for query performance, particularly on `(user_id, created_at)` for messages and audit_log, and `(user_id, status)` for goals and commitments.
+Sutra uses a flat, denormalized schema with 9 MongoDB collections. There are no document references (`$lookup`) — all relationships are joined in Python by `user_id`. The schema is simple and迁移-friendly: every collection is a straight copy except `messages` (high volume) and `sources` (large text field). No collection-level transformations required. Index coverage is minimal — several composite indexes should be added post-migration for query performance, particularly on `(user_id, created_at)` for messages and audit_log, and `(user_id, status)` for goals and commitments.

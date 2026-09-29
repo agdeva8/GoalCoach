@@ -1,4 +1,4 @@
-# GoalCoach — GitHub Copilot instructions
+# Sutra — GitHub Copilot instructions
 
 Read [`AGENTS.md`](../AGENTS.md) and [`memory/AGENT_BUILDER.md`](../memory/AGENT_BUILDER.md) on session start. The short version:
 

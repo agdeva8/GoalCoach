@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 
 /**
- * Guest-auth smoke test. GoalCoach supports a dev-login flow that mints a guest
+ * Guest-auth smoke test. Sutra supports a dev-login flow that mints a guest
  * cookie via API; this spec exercises that path end-to-end through Playwright's
  * HTTP+Browser contexts so the same guest id flows into the page.
  *

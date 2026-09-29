@@ -1,4 +1,4 @@
-# GoalCoach — build the full app from scratch
+# Sutra — build the full app from scratch
 
 This folder is the spec. **Read every file in it before writing any code.**
 The three numbered docs (`00-`, `01-`, `02-`) are the source of truth,
@@ -13,7 +13,7 @@ cleanest approach that satisfies all of the above.
 
 ## What you're building
 
-GoalCoach is a chat-first AI life coach for self-directed adults
+Sutra is a chat-first AI life coach for self-directed adults
 juggling more than one active goal across different time horizons. The
 wedge is one URL, one chat, with memory across sessions.
 
@@ -62,7 +62,7 @@ do not invent alternative taglines.
 ## Repo structure (monorepo, pnpm workspaces)
 
 ```
-goalcoach/
+sutra/
 ├── apps/
 │   ├── web/                ← React (Vite) frontend
 │   └── api/                ← the Go backend

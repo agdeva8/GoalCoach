@@ -1,11 +1,11 @@
 > 🔒 **LAYER 3 LOCKED** — Any change to this file or anything in `docs/plan-eng-reviews/` requires explicit founder review and approval. Do not edit without confirming with the founder first. See `CLAUDE.md` "Layer 0 + Layer 1 LOCK" section for the lock policy (extended to layer 3 by founder direction 2026-09-22).
 
-# Layer 3 — Engineering Review: GoalCoach Phase 1
+# Layer 3 — Engineering Review: Sutra Phase 1
 
 > **Status:** LOCKED — layer 3 source of truth
 > **Generated:** 2026-09-22 by `/plan-eng-review`
 > **Branch:** `main` | **Mode:** SELECTIVE EXPANSION (held from L1)
-> **Provenance:** synthesizes `docs/ceo-plans/2026-09-22-goalcoach-phase1.md` §§13 + Deep Review (1A–4B revised for OAuth, 6A, 8A, 9A, 10A, D9–D13 revised), architectural inputs from `docs/office-hours/2026-09-22-product-design-v1.md` §Approaches Considered, the now-removed `2026-09-22-eng-input-extracted-from-ceo.md` (content merged into this file), the locked `docs/product-design/2026-09-22-design-review.md` (layer 2 — visual surface, copy, tokens, storyboards, accessibility, trust), and founder decisions Q1–Q8 (2026-09-22).
+> **Provenance:** synthesizes `docs/ceo-plans/2026-09-22-sutra-phase1.md` §§13 + Deep Review (1A–4B revised for OAuth, 6A, 8A, 9A, 10A, D9–D13 revised), architectural inputs from `docs/office-hours/2026-09-22-product-design-v1.md` §Approaches Considered, the now-removed `2026-09-22-eng-input-extracted-from-ceo.md` (content merged into this file), the locked `docs/product-design/2026-09-22-design-review.md` (layer 2 — visual surface, copy, tokens, storyboards, accessibility, trust), and founder decisions Q1–Q8 (2026-09-22).
 
 ---
 
@@ -34,7 +34,7 @@ This layer **defers to other layers** for:
 
 ## Founder decisions inherited (locked 2026-09-22)
 
-These are baked in from `docs/ceo-plans/2026-09-22-goalcoach-phase1.md` §Founder Decisions and are **not re-decided here**. Layer-3 reviewers cite the Q/D ID when raising conflicts.
+These are baked in from `docs/ceo-plans/2026-09-22-sutra-phase1.md` §Founder Decisions and are **not re-decided here**. Layer-3 reviewers cite the Q/D ID when raising conflicts.
 
 | ID | Decision | Effect on L3 |
 |----|----------|--------------|
@@ -591,7 +591,7 @@ The motivating draft at `docs/plan-eng-reviews/2026-09-22-eng-input-extracted-fr
 
 - Layer 0 source of truth: `docs/office-hours/2026-09-22-product-design-v1.md`
 - Layer 0 acceptance test (founder fills): `docs/office-hours/2026-09-22-acceptance-test.md`
-- Layer 1 strategy + gates: `docs/ceo-plans/2026-09-22-goalcoach-phase1.md`
+- Layer 1 strategy + gates: `docs/ceo-plans/2026-09-22-sutra-phase1.md`
 - Layer 2 design (visual surface, copy, tokens, storyboards, a11y, trust): `docs/product-design/2026-09-22-design-review.md` *(locked 2026-09-22)*
 - Layer 2 implementation tasks owned by L3: T11, T20–T28 (per the layer-2 file §Implementation tasks)
 - Layer 4 (DX, when locked): `docs/plan-devex-reviews/2026-09-22-dx-*.md`

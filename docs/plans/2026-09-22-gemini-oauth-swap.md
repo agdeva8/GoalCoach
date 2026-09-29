@@ -25,14 +25,14 @@ ONLY the chat LLM provider. Do not touch:
 - Next.js 15 App Router, TS strict, edge runtime
 - `@supabase/ssr` for session
 - Supabase `users` table for token storage
-- New package `@goalcoach/llm` — single new package only
+- New package `@sutra/llm` — single new package only
 - Anthropic path stays in place behind a feature flag; default `LLM_PROVIDER=anthropic`
 - Gemini path uses `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent`
 - All env reads via `assertEnv()`; new vars `GOOGLE_GEMINI_CLIENT_ID`, `GOOGLE_GEMINI_CLIENT_SECRET`
 
 ## Architecture
 
-### New package `@goalcoach/llm`
+### New package `@sutra/llm`
 
 Single export surface:
 ```
@@ -142,10 +142,10 @@ async function getValidGeminiToken(supabase, userId): Promise<string> {
 
 ### Chat route refactor
 
-`apps/web/app/api/chat/route.ts` switches from direct Anthropic SDK to `@goalcoach/llm`:
+`apps/web/app/api/chat/route.ts` switches from direct Anthropic SDK to `@sutra/llm`:
 
 ```ts
-import { createLLMClient } from '@goalcoach/llm';
+import { createLLMClient } from '@sutra/llm';
 
 const provider = process.env.LLM_PROVIDER === 'gemini' ? 'gemini' : 'anthropic';
 const client = createLLMClient({
@@ -202,14 +202,14 @@ When `LLM_PROVIDER=gemini`, if a user lacks a valid Gemini token (because they s
 ### Modified
 - `apps/web/app/api/auth/google/route.ts` — add Gemini scopes
 - `apps/web/app/api/auth/callback/route.ts` — capture + persist Gemini tokens
-- `apps/web/app/api/chat/route.ts` — use `@goalcoach/llm`
+- `apps/web/app/api/chat/route.ts` — use `@sutra/llm`
 - `apps/web/lib/env.ts` — add `LLM_PROVIDER`, `GOOGLE_GEMINI_CLIENT_ID`, `GOOGLE_GEMINI_CLIENT_SECRET`
-- `apps/web/package.json` — add `@goalcoach/llm` dep
+- `apps/web/package.json` — add `@sutra/llm` dep
 - `pnpm-workspace.yaml` — already covers packages/*, no change needed
 - `docs/DEPLOY.md` — document new env vars + Google Cloud scope
 
 ### NOT touched (deliberately)
-- `@goalcoach/ai` — still exports TOOLS, systemPrompt, runTool, getAnthropic. Stays for tool routing, prompts, router.
+- `@sutra/ai` — still exports TOOLS, systemPrompt, runTool, getAnthropic. Stays for tool routing, prompts, router.
 - `packages/db` — adds types for new columns but no new queries; rows stay read directly via supabase.from('users') in the new package
 - Cron routes
 - Existing tests
@@ -231,16 +231,16 @@ When `LLM_PROVIDER=gemini`, if a user lacks a valid Gemini token (because they s
 
 ## Test plan
 
-- `@goalcoach/llm`:
+- `@sutra/llm`:
   - factory routes by provider
   - anthropic client emits StreamEvent from mocked Anthropic stream
   - gemini client emits StreamEvent from mocked Gemini response
   - token-store refreshes when expiry < now+60s
   - token-store returns cached token when valid
   - token-store throws TokenError when no token present
-- `@goalcoach/ai`: no new tests
-- `@goalcoach/web`:
-  - chat route uses `@goalcoach/llm` factory
+- `@sutra/ai`: no new tests
+- `@sutra/web`:
+  - chat route uses `@sutra/llm` factory
   - auth callback persists Gemini tokens (mock session)
   - settings toggle writes to `users.llm_provider`
 - Migration: applied via `supabase db reset` in local dev; tested by hand on staging
@@ -257,7 +257,7 @@ When `LLM_PROVIDER=gemini`, if a user lacks a valid Gemini token (because they s
 8. **Green:** implement token-store
 9. **Red:** test migration applies without error (we'll use `pg_dump`-style smoke check on a real DB, or skip if no local DB)
 10. **Green:** write `0002_gemini_tokens.sql`
-11. **Red:** test chat route uses `@goalcoach/llm` → fails (not wired yet)
+11. **Red:** test chat route uses `@sutra/llm` → fails (not wired yet)
 12. **Green:** refactor chat route
 13. **Red:** test auth callback persists tokens → fails
 14. **Green:** update callback handler
@@ -272,7 +272,7 @@ When `LLM_PROVIDER=gemini`, if a user lacks a valid Gemini token (because they s
 2. **Tool schema mismatch.** Anthropic uses `input_schema` (JSON Schema); Gemini uses `functionDeclarations`. For Phase 1, keep anthropic-shape tools and translate Gemini-side. If conversion is wrong, tool calls silently fail. Mitigation: cover conversion in unit tests with golden fixtures.
 3. **Token refresh rate limits.** Google may rate-limit refresh calls if many users have expiring tokens simultaneously. Mitigation: cache + jitter refresh within ±30s window.
 4. **OAuth scope approval friction.** Users who signed in before this feature won't have the Gemini scope. Mitigation: re-prompt on first chat attempt using Gemini (or fall back gracefully and log a warning).
-5. **Service-role key exposure.** If `@goalcoach/llm` accidentally reads tokens via service-role and exposes them in a client bundle, we have a leak. Mitigation: `@goalcoach/llm` is server-only — its `package.json` should not export a `browser` entry, and the chat route uses it server-side only.
+5. **Service-role key exposure.** If `@sutra/llm` accidentally reads tokens via service-role and exposes them in a client bundle, we have a leak. Mitigation: `@sutra/llm` is server-only — its `package.json` should not export a `browser` entry, and the chat route uses it server-side only.
 
 ## Deferred (not in this pass)
 
@@ -325,11 +325,11 @@ What already exists that we should reuse:
 
 | Already exists | Reuse as |
 |---|---|
-| `@goalcoach/ai/client.ts` `getAnthropic()` | Keep as Anthropic client factory inside `@goalcoach/llm/client-anthropic.ts`. Move the file, don't fork it. |
-| `@goalcoach/ai/src/router.ts` `runTool()` | Keep in `@goalcoach/ai` — Phase 1 keeps Anthropic tool shape. Re-export from `@goalcoach/llm` for convenience. |
-| `@goalcoach/ai/src/prompts.ts` `systemPrompt()` | Keep in `@goalcoach/ai` — used by both providers. |
-| `@goalcoach/ai/src/tools.ts` `TOOLS` array | Keep in `@goalcoach/ai` — Anthropic-shaped schema; Gemini client translates to `functionDeclarations`. |
-| `@goalcoach/ai/__tests__/*` | Keep. New tests live in `@goalcoach/llm/__tests__/`. |
+| `@sutra/ai/client.ts` `getAnthropic()` | Keep as Anthropic client factory inside `@sutra/llm/client-anthropic.ts`. Move the file, don't fork it. |
+| `@sutra/ai/src/router.ts` `runTool()` | Keep in `@sutra/ai` — Phase 1 keeps Anthropic tool shape. Re-export from `@sutra/llm` for convenience. |
+| `@sutra/ai/src/prompts.ts` `systemPrompt()` | Keep in `@sutra/ai` — used by both providers. |
+| `@sutra/ai/src/tools.ts` `TOOLS` array | Keep in `@sutra/ai` — Anthropic-shaped schema; Gemini client translates to `functionDeclarations`. |
+| `@sutra/ai/__tests__/*` | Keep. New tests live in `@sutra/llm/__tests__/`. |
 | `apps/web/lib/env.ts` `assertEnv()` | Extend with `LLM_PROVIDER`, `GOOGLE_GEMINI_CLIENT_ID`, `GOOGLE_GEMINI_CLIENT_SECRET`. |
 | `apps/web/lib/supabase/server.ts` `getServerSupabase()` | Reuse in token-store for reading user tokens server-side. |
 | `apps/web/app/api/auth/google/route.ts` | Extend to add Gemini scope to existing `signInWithOAuth` call. |
@@ -344,7 +344,7 @@ CURRENT STATE                            THIS PLAN                              
 Anthropic API key (single user, $5       User signs in with Google, optional       Multi-provider LLM abstraction;
 free credit)                             Gemini OAuth grants per-user LLM          users choose provider (Anthropic,
                                          access; Anthropic stays as default;       Gemini, OpenAI when available);
-                                         @goalcoach/llm abstracts provider.        per-tenant model picks (Flash for
+                                         @sutra/llm abstracts provider.        per-tenant model picks (Flash for
                                                                                     fast chat, Sonnet for complex
                                                                                     reasoning); usage-based cost
                                                                                     caps; foundation model market
@@ -352,7 +352,7 @@ free credit)                             Gemini OAuth grants per-user LLM       
                                                                                     lock-in.
 ```
 
-**This plan moves toward the dream state** by abstracting the LLM behind a clean interface. The 12-month state adds OpenAI and per-tenant model picks — but neither requires a rewrite if `@goalcoach/llm` has the right shape now.
+**This plan moves toward the dream state** by abstracting the LLM behind a clean interface. The 12-month state adds OpenAI and per-tenant model picks — but neither requires a rewrite if `@sutra/llm` has the right shape now.
 
 ## Premise-adjacent risks
 
@@ -368,12 +368,12 @@ free credit)                             Gemini OAuth grants per-user LLM       
 
 | # | Proposal | Decision | Reasoning |
 |---|----------|----------|-----------|
-| 1 | Add new `@goalcoach/llm` package | ACCEPTED | Specified by task; reuses existing `@goalcoach/ai` for tools/prompts/router |
+| 1 | Add new `@sutra/llm` package | ACCEPTED | Specified by task; reuses existing `@sutra/ai` for tools/prompts/router |
 | 2 | Default `LLM_PROVIDER=anthropic` | ACCEPTED | Anthropic is the proven path; Gemini is opt-in |
 | 3 | Per-user `users.llm_provider` override | ACCEPTED | Specified by task; enables future users to pick |
 | 4 | Settings toggle UI | ACCEPTED | Specified by task; one component, three lines |
 | 5 | Gemini tool_use in Phase 1 | DEFERRED | Explicitly out of scope per task spec |
-| 6 | OpenAI provider in `@goalcoach/llm` | DEFERRED | Out of scope; future dream-state item |
+| 6 | OpenAI provider in `@sutra/llm` | DEFERRED | Out of scope; future dream-state item |
 | 7 | Per-user model override (flash vs pro) | DEFERRED | Out of scope; Phase 1.5+ |
 | 8 | Token encryption at rest | DEFERRED | Single-founder, no PII; revisit when n>10 |
 
@@ -402,10 +402,10 @@ free credit)                             Gemini OAuth grants per-user LLM       
 
 ## What already exists (reused, not rebuilt)
 
-- `@goalcoach/ai/client.ts` (moved into `@goalcoach/llm/client-anthropic.ts`)
-- `@goalcoach/ai/src/tools.ts` (TOOLS schema, reused by both providers)
-- `@goalcoach/ai/src/prompts.ts` (system prompt builder)
-- `@goalcoach/ai/src/router.ts` (tool dispatch)
+- `@sutra/ai/client.ts` (moved into `@sutra/llm/client-anthropic.ts`)
+- `@sutra/ai/src/tools.ts` (TOOLS schema, reused by both providers)
+- `@sutra/ai/src/prompts.ts` (system prompt builder)
+- `@sutra/ai/src/router.ts` (tool dispatch)
 - `apps/web/lib/env.ts` `assertEnv()`
 - `apps/web/lib/supabase/server.ts`
 - `apps/web/app/api/auth/google/route.ts` (extended, not rebuilt)
@@ -414,7 +414,7 @@ free credit)                             Gemini OAuth grants per-user LLM       
 
 ## Dream-state delta
 
-This plan is the right move. It moves the codebase from "Anthropic hardcoded" to "provider abstracted with a working second provider." The 12-month ideal adds OpenAI + per-tenant model picks + cost caps; all of those fit cleanly on top of `@goalcoach/llm` without rework.
+This plan is the right move. It moves the codebase from "Anthropic hardcoded" to "provider abstracted with a working second provider." The 12-month ideal adds OpenAI + per-tenant model picks + cost caps; all of those fit cleanly on top of `@sutra/llm` without rework.
 
 ## Reviewer verdict
 
@@ -483,7 +483,7 @@ The plan says "settings toggle" but does not specify where. Options:
 The founder is the only Phase 1 user. They granted Google OAuth with `openid email profile` initially. Adding `https://www.googleapis.com/auth/generative-language` requires a fresh consent screen.
 
 **Recommended UX:**
-- When user toggles to Gemini (Phase 1.5), show a modal: "GoalCoach needs permission to call Google Gemini on your behalf. [Sign in again]"
+- When user toggles to Gemini (Phase 1.5), show a modal: "Sutra needs permission to call Google Gemini on your behalf. [Sign in again]"
 - Sign-in again with the new scope
 - After callback, tokens are persisted, toggle becomes "active"
 
@@ -539,7 +539,7 @@ The chat route falls back to Anthropic silently when Gemini token is missing. Th
 
 **Reviewer:** plan-devex-review skill (inline — subagent context)
 **Date:** 2026-09-22
-**Product type:** Library (`@goalcoach/llm`) consumed by `apps/web`. The DX surface is the *developer who sets up and maintains the deployment* — that's the founder for Phase 1, but the doc artifacts in DEPLOY.md need to serve future maintainers.
+**Product type:** Library (`@sutra/llm`) consumed by `apps/web`. The DX surface is the *developer who sets up and maintains the deployment* — that's the founder for Phase 1, but the doc artifacts in DEPLOY.md need to serve future maintainers.
 
 ## Developer persona
 
@@ -557,7 +557,7 @@ The chat route falls back to Anthropic silently when Gemini token is missing. Th
 - **T+5:** Opens DEPLOY.md. Sees a new "Gemini setup" section with three env vars and one Google Cloud console step. Copies the env-add commands into a scratch terminal. Reads the OAuth-scope section once.
 - **T+10:** Opens Google Cloud Console. Adds `https://www.googleapis.com/auth/generative-language` scope. Re-publishes consent screen. Two clicks.
 - **T+15:** Vercel: `vercel env add GOOGLE_GEMINI_CLIENT_ID ...`, three lines. Promotes to production.
-- **T+18:** Visits the app. Signs out, signs back in. Google's consent screen now asks "Allow GoalCoach to call Google Gemini on your behalf?" Clicks Allow.
+- **T+18:** Visits the app. Signs out, signs back in. Google's consent screen now asks "Allow Sutra to call Google Gemini on your behalf?" Clicks Allow.
 - **T+20:** Sends a chat message. The chat works. But the response header says `x-llm-provider: gemini`. The founder sees nothing different in the UI — that's a design gap (see Design review §3).
 - **T+22:** `curl -i /api/chat` shows the header. Logs into Sentry. No warnings. Founder ships the PR.
 - **T+25:** Sets `LLM_PROVIDER=gemini` env var on Vercel. Chat still works.
@@ -597,7 +597,7 @@ Plus a one-line fallback: "If you see `x-llm-provider: anthropic`, your Gemini t
 | 3 | Error messages | 5/10 | Plan does not specify what the chat route emits when token refresh fails. **Must add: a `token_refresh_failed` Sentry event with explicit user-visible error in the SSE stream.** |
 | 4 | CLI/DX surface | N/A | No CLI in this plan |
 | 5 | Documentation | 6/10 | DEPLOY.md is the doc; plan specifies what to add but not how. **Must add: a worked example of the curl invocation that proves Gemini is active.** |
-| 6 | Test ergonomics | 8/10 | `@goalcoach/llm/__tests__/` follows `@goalcoach/ai` pattern. Easy to copy. |
+| 6 | Test ergonomics | 8/10 | `@sutra/llm/__tests__/` follows `@sutra/ai` pattern. Easy to copy. |
 | 7 | Upgrade path | 9/10 | Anthropic stays in place behind a flag. Rolling back is `LLM_PROVIDER=anthropic`. |
 | 8 | Magical moment | 6/10 | The first successful Gemini response is the moment. Plan does not ritualize it. **Add: a one-liner in DEPLOY.md + a Sentry success event.** |
 
@@ -635,11 +635,11 @@ Plus a one-line fallback: "If you see `x-llm-provider: anthropic`, your Gemini t
 ## Step 0: Scope challenge
 
 **Files affected:** 21 total (15 created, 6 modified).
-**New classes/services:** 1 new package (`@goalcoach/llm`) with 5 internal modules.
+**New classes/services:** 1 new package (`@sutra/llm`) with 5 internal modules.
 
 The complexity check triggers on the 2+ new classes rule. However, the user's task spec explicitly mandates both the new package and the internal split (provider-agnostic factory + Anthropic + Gemini + token-store). This is not over-engineering — it's the minimal shape that satisfies "provider-agnostic factory with two working providers." The streaming helpers file is explicitly optional. No scope reduction recommended.
 
-**Existing code reuse check:** Plan reuses `@goalcoach/ai/tools.ts`, `@goalcoach/ai/prompts.ts`, `@goalcoach/ai/router.ts`, `apps/web/lib/env.ts`, `apps/web/lib/supabase/server.ts`. It does NOT rebuild any of these. PASS.
+**Existing code reuse check:** Plan reuses `@sutra/ai/tools.ts`, `@sutra/ai/prompts.ts`, `@sutra/ai/router.ts`, `apps/web/lib/env.ts`, `apps/web/lib/supabase/server.ts`. It does NOT rebuild any of these. PASS.
 
 ## Step 1: Architecture review
 
@@ -701,7 +701,7 @@ chat request
 
 4. **Edge runtime is fine for Gemini.** Vercel Edge supports fetch to external hosts with streaming. The Anthropic path is already on edge and works. Gemini's SSE-over-fetch follows the same pattern. Plan's risk #1 is over-cautious.
 
-5. **`@goalcoach/llm` MUST be server-only.** Add `import 'server-only';` to the top of `packages/llm/src/index.ts`. This is a Next.js convention that throws at BUILD time if the package is imported by client code. Without it, a careless refactor could leak tokens to a client bundle. Cost: 1 line. **Add this.**
+5. **`@sutra/llm` MUST be server-only.** Add `import 'server-only';` to the top of `packages/llm/src/index.ts`. This is a Next.js convention that throws at BUILD time if the package is imported by client code. Without it, a careless refactor could leak tokens to a client bundle. Cost: 1 line. **Add this.**
 
 6. **Gemini tool_use in Phase 1 is dead code, not broken.** The plan documents that Gemini treats tools as prompt instructions. This means the chat route's two-pass tool flow NEVER fires for Gemini in Phase 1. The user can chat text-only; tool calls silently degrade to "model sees the tool list in its prompt and may or may not call them." This is a real Phase 1 limitation. The plan's "Deferred" section captures it, but the chat route comment should too. **Add a comment in `client-gemini.ts` explaining that `tool_use` events will not be emitted in Phase 1.**
 
@@ -725,7 +725,7 @@ Both `client-anthropic.ts` and `client-gemini.ts` emit this exact shape. The cha
 
 ### Singleton vs factory
 
-`@goalcoach/ai/client.ts` uses a module-level singleton (`_client`). The new `client-anthropic.ts` should NOT — the factory creates a fresh client per request. Reasons:
+`@sutra/ai/client.ts` uses a module-level singleton (`_client`). The new `client-anthropic.ts` should NOT — the factory creates a fresh client per request. Reasons:
 1. **Token rotation.** The Anthropic API key can rotate via env reload without server restart. A fresh-each-request model handles this; a singleton doesn't.
 2. **Testability.** A singleton forces test cleanup (`__resetAnthropic()`). Fresh-each-request tests can mock the SDK once.
 3. **The existing chat route already creates fresh per request** (`new Anthropic({apiKey: env.ANTHROPIC_API_KEY})` line 45). The factory just formalizes this.
@@ -757,9 +757,9 @@ Test this in `env.test.ts`. The existing test file already imports `vi.resetModu
 vi.mock('@anthropic-ai/sdk', () => ({ default: vi.fn() }));
 (Anthropic as any).mockImplementation(() => ({ messages: { stream: ... } }));
 ```
-After the refactor, this test should mock `@goalcoach/llm` instead:
+After the refactor, this test should mock `@sutra/llm` instead:
 ```ts
-vi.mock('@goalcoach/llm', () => ({
+vi.mock('@sutra/llm', () => ({
   createLLMClient: vi.fn(() => ({ send: vi.fn() })),
 }));
 ```
@@ -851,15 +851,15 @@ Things I might miss that an independent reviewer would catch:
 
 ## What already exists (reused, not rebuilt)
 
-- `@goalcoach/ai/src/tools.ts` — TOOLS schema, reused by both providers
-- `@goalcoach/ai/src/prompts.ts` — system prompt builder, reused
-- `@goalcoach/ai/src/router.ts` — tool dispatch, reused
+- `@sutra/ai/src/tools.ts` — TOOLS schema, reused by both providers
+- `@sutra/ai/src/prompts.ts` — system prompt builder, reused
+- `@sutra/ai/src/router.ts` — tool dispatch, reused
 - `apps/web/lib/env.ts` `assertEnv()` — extended (not rewritten)
 - `apps/web/lib/supabase/server.ts` `getServerSupabase()` — reused 1:1
 - `apps/web/app/api/auth/google/route.ts` — extended with Gemini scopes
 - `apps/web/app/api/auth/callback/route.ts` — extended with token persistence
 - `apps/web/app/api/chat/route.ts` — refactored, two-pass tool flow stays
-- `apps/web/__tests__/app/api/chat.test.ts` — updated to mock `@goalcoach/llm`
+- `apps/web/__tests__/app/api/chat.test.ts` — updated to mock `@sutra/llm`
 
 ## Reviewer verdict
 
@@ -898,7 +898,7 @@ ENG: APPROVED with concrete amendments. The plan is the right shape, the right s
 7. Worked curl example in DEPLOY.md proving Gemini active (DX)
 8. `token_refresh_failed` and `llm_provider_selected` Sentry events (DX)
 9. `assertEnv()` paired validation for `GOOGLE_GEMINI_CLIENT_ID`/`SECRET` (DX)
-10. `import 'server-only'` in `@goalcoach/llm` (Eng)
+10. `import 'server-only'` in `@sutra/llm` (Eng)
 11. Document Gemini tool_use Phase 1 limitation inline (Eng)
 12. Test for provider precedence (`users.llm_provider` > env > default) (Eng)
 13. Test for "Gemini token absent → fall back" (Eng)
@@ -926,6 +926,6 @@ ENG: APPROVED with concrete amendments. The plan is the right shape, the right s
 
 **UNRESOLVED DECISIONS:** None.
 
-**FINAL VERDICT:** Plan locked. Proceed to TDD implementation per the user's task spec: `@goalcoach/llm` package first, then web integration. Each task: red test → green → commit. Then final code review, then DEPLOY.md update, then push branch.
+**FINAL VERDICT:** Plan locked. Proceed to TDD implementation per the user's task spec: `@sutra/llm` package first, then web integration. Each task: red test → green → commit. Then final code review, then DEPLOY.md update, then push branch.
 
 NO UNRESOLVED DECISIONS

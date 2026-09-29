@@ -1,8 +1,8 @@
-# GoalCoach Phase 1 Implementation Plan
+# Sutra Phase 1 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship Phase 1 of GoalCoach — a chat-first AI goal coach with multi-horizon memory, plan cards, feedback, and observability. Live at Vercel preview URL, deployable for first non-founder user.
+**Goal:** Ship Phase 1 of Sutra — a chat-first AI goal coach with multi-horizon memory, plan cards, feedback, and observability. Live at Vercel preview URL, deployable for first non-founder user.
 
 **Architecture:**
 - Monorepo (pnpm workspace): `apps/web` (Next.js 15 App Router on Vercel Edge for `/api/chat`), `packages/ai` (Gemini/Anthropic tool router + prompts + provider abstraction), `packages/db` (Supabase Postgres queries + types), `packages/ui` (shared design tokens)
@@ -20,7 +20,7 @@
 
 **Spec (locked 2026-09-22, do not re-litigate):**
 - Layer 0 (premise + acceptance test): [`docs/office-hours/2026-09-22-product-design-v1.md`](../office-hours/2026-09-22-product-design-v1.md)
-- Layer 1 (strategy + scope + Q1–Q8): [`docs/ceo-plans/2026-09-22-goalcoach-phase1.md`](../ceo-plans/2026-09-22-goalcoach-phase1.md)
+- Layer 1 (strategy + scope + Q1–Q8): [`docs/ceo-plans/2026-09-22-sutra-phase1.md`](../ceo-plans/2026-09-22-sutra-phase1.md)
 - Layer 2 (UX, copy, tokens, a11y, storyboards, trust): [`docs/product-design/2026-09-22-design-review.md`](../product-design/2026-09-22-design-review.md)
 - Layer 3 (architecture, schema, contracts, test plan): [`docs/plan-eng-reviews/2026-09-22-eng-review.md`](../plan-eng-reviews/2026-09-22-eng-review.md)
 - Layer 4 (DX, onboarding, resilience): [`docs/plan-devex-reviews/2026-09-22-dx-review.md`](../plan-devex-reviews/2026-09-22-dx-review.md)
@@ -31,7 +31,7 @@ The plan argues from these specs. If a task contradicts a spec, the spec wins; s
 
 245 tests passing (207 web + 25 db + 13 ai). 37 web test files, 6 db test files, 2 ai test files. Already-built (do NOT rebuild): Google OAuth routes, `/api/chat` Edge route, chat thread UI, design tokens (CSS + Tailwind v4 `@theme`), Primer (horizon chips), PlanCard, CardErrorBanner, ThinkingIndicator, FeedbackButtons, SplitPane, Tooltip, Navbar, offline queue (`lib/offline-queue.ts`), stream resume token (`lib/stream-resume.ts`), quality heuristic (`lib/quality.ts`), Sentry + OTEL instrumentation, cron (weekly + monthly), Gemini env loader + Gemini provider path, db queries (`getGoalsForUser`, `bucketGoalsByHorizon`, `recordFeedback`, `appendThread`, `getRecentThreads`), ai tools router + system prompt.
 
-**Test commands:** `pnpm test` (full monorepo) · `pnpm --filter @goalcoach/web test` · `pnpm --filter @goalcoach/db test` · `pnpm --filter @goalcoach/ai test` · `pnpm --filter @goalcoach/web typecheck` · `pnpm --filter @goalcoach/web lint`
+**Test commands:** `pnpm test` (full monorepo) · `pnpm --filter @sutra/web test` · `pnpm --filter @sutra/db test` · `pnpm --filter @sutra/ai test` · `pnpm --filter @sutra/web typecheck` · `pnpm --filter @sutra/web lint`
 
 ## Global Constraints
 
@@ -162,7 +162,7 @@ If `resolveProvider` is not currently exported, **stop and tell the founder**: t
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/chat.test.ts -t "defaults to gemini"`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/chat.test.ts -t "defaults to gemini"`
 Expected: FAIL — current default returns `'anthropic'`.
 
 - [ ] **Step 3: Change the fallback in `resolveProvider`**
@@ -178,7 +178,7 @@ return 'gemini';
 
 - [ ] **Step 4: Re-run tests; confirm pass**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/chat.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/chat.test.ts`
 Expected: PASS. Existing tests that asserted `'anthropic'` default may need their env mocks flipped — read each failure individually; do not blanket-update.
 
 - [ ] **Step 5: Commit**
@@ -212,7 +212,7 @@ it('passes the OAuth access token to the Gemini client when session has provider
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/env-gemini.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/env-gemini.test.ts`
 Expected: FAIL — no test harness currently asserts token forwarding.
 
 - [ ] **Step 3: Implement the wrapper** (only if not already present)
@@ -221,7 +221,7 @@ In `packages/ai/src/client.ts` or a new `packages/ai/src/gemini.ts`, ensure `get
 
 - [ ] **Step 4: Re-run test; confirm pass**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/env-gemini.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/env-gemini.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -239,7 +239,7 @@ git commit -m "test(gemini): assert OAuth access token reaches Gemini client"
 - Test: `apps/web/__tests__/app/api/chat.test.ts`
 
 **Interfaces:**
-- Consumes: `StreamEvent` from `@goalcoach/llm`, `reportTokenRefreshFailed` from `@/lib/sentry` (already exists)
+- Consumes: `StreamEvent` from `@sutra/llm`, `reportTokenRefreshFailed` from `@/lib/sentry` (already exists)
 - Produces: SSE event `{ type: 'reauth_required' }` on refresh failure; client renders re-auth CTA
 
 - [ ] **Step 1: Write failing test for re-auth event**
@@ -254,7 +254,7 @@ it('emits a reauth_required SSE event when Gemini token refresh fails', async ()
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/chat.test.ts -t "reauth_required"`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/chat.test.ts -t "reauth_required"`
 Expected: FAIL — current error path returns 500.
 
 - [ ] **Step 3: Wire the rescue**
@@ -273,7 +273,7 @@ if (/\[refresh_failed\]/.test(err.message)) {
 
 - [ ] **Step 4: Re-run tests; confirm pass**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/chat.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/chat.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -309,7 +309,7 @@ it('contains the 4 defensive lines from L3 §3A', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/ai test __tests__/tools.test.ts`
+Run: `pnpm --filter @sutra/ai test __tests__/tools.test.ts`
 Expected: FAIL — none of the 4 regexes match the current prompt.
 
 - [ ] **Step 3: Append the 4 defensive lines to the prompt string**
@@ -331,7 +331,7 @@ Concatenate `DEFENSIVE_LINES` to the prompt body before returning.
 
 - [ ] **Step 4: Re-run test; confirm pass**
 
-Run: `pnpm --filter @goalcoach/ai test`
+Run: `pnpm --filter @sutra/ai test`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -365,7 +365,7 @@ it('returns 413 when last user message exceeds 5000 chars', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/api/chat.test.ts -t "5000 chars"`
+Run: `pnpm --filter @sutra/web test __tests__/app/api/chat.test.ts -t "5000 chars"`
 Expected: FAIL.
 
 - [ ] **Step 3: Add the size check**
@@ -421,7 +421,7 @@ it('retries once when a tool throws ToolError("malformed args") then succeeds', 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/ai test __tests__/router.test.ts`
+Run: `pnpm --filter @sutra/ai test __tests__/router.test.ts`
 Expected: FAIL — `router.ts` does not currently export a retry wrapper.
 
 - [ ] **Step 3: Add the retry wrapper**
@@ -452,7 +452,7 @@ In `apps/web/lib/ai/handlers.ts` (or wherever the route handler dispatches tool 
 
 - [ ] **Step 4: Re-run test; confirm pass**
 
-Run: `pnpm --filter @goalcoach/ai test`
+Run: `pnpm --filter @sutra/ai test`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -493,7 +493,7 @@ it('returns all 6 areas even when user has none in some', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/db test __tests__/bucketedGoals.test.ts`
+Run: `pnpm --filter @sutra/db test __tests__/bucketedGoals.test.ts`
 Expected: FAIL — `getAreas` not exported.
 
 - [ ] **Step 3: Implement**
@@ -532,7 +532,7 @@ Areas are a static enum (no DB table needed for v1) — they live as a presentat
 
 - [ ] **Step 4: Re-run test; confirm pass**
 
-Run: `pnpm --filter @goalcoach/db test`
+Run: `pnpm --filter @sutra/db test`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -549,7 +549,7 @@ git commit -m "feat(db): add Area enum + getAreas helper (L4 T30)"
 - Test: `apps/web/__tests__/components/PlanCard.test.tsx` (extend)
 
 **Interfaces:**
-- Consumes: `Goal` (existing prop), `bucketGoalsByHorizon` from `@goalcoach/db`
+- Consumes: `Goal` (existing prop), `bucketGoalsByHorizon` from `@sutra/db`
 - Produces: per-area empty-state message when user has zero goals in a horizon
 
 - [ ] **Step 1: Write failing test**
@@ -564,7 +564,7 @@ it('renders a per-area empty state when user has goals only in week', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/components/PlanCard.test.tsx -t "per-area empty state"`
+Run: `pnpm --filter @sutra/web test __tests__/components/PlanCard.test.tsx -t "per-area empty state"`
 Expected: FAIL.
 
 - [ ] **Step 3: Add empty-state rendering**
@@ -614,7 +614,7 @@ it('renders the L2 banner copy and role=alert when read failed', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/components/CardErrorBanner.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/components/CardErrorBanner.test.tsx`
 Expected: FAIL — copy not yet locked to the L2 spec.
 
 - [ ] **Step 3: Update component copy**
@@ -663,7 +663,7 @@ it('deletes expired idempotency_keys, oauth_states, and rate_limit_events in a s
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/cron-cleanup.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/cron-cleanup.test.ts`
 Expected: FAIL — file doesn't exist yet.
 
 - [ ] **Step 3: Implement**
@@ -725,7 +725,7 @@ Goal: implement the L4 DX spec on top of the chat surface. ~8 P2/P3 tasks.
 - Test: `apps/web/__tests__/components/AreaChips.test.tsx` (new)
 
 **Interfaces:**
-- Consumes: `getAreas()` from `@goalcoach/db`
+- Consumes: `getAreas()` from `@sutra/db`
 - Produces: 6 hash-prefixed chips; click fills input with the user's drafting prefix
 
 - [ ] **Step 1: Write failing test**
@@ -747,14 +747,14 @@ it('clicking a chip fills the chat input with a drafting prefix (NOT a slash com
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/components/AreaChips.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/components/AreaChips.test.tsx`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
 ```tsx
 'use client';
-import { getAreas } from '@goalcoach/db';
+import { getAreas } from '@sutra/db';
 
 export function AreaChips({ onPick }: { onPick: (p: { prefix: string; key: string }) => void }) {
   const areas = getAreas();
@@ -809,7 +809,7 @@ it('mounts AreaChips below the chat input on /chat', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/app/chat/page.test.tsx`
+Run: `pnpm --filter @sutra/web test __tests__/app/chat/page.test.tsx`
 Expected: FAIL.
 
 - [ ] **Step 3: Wire it up**
@@ -849,7 +849,7 @@ it('declares --warn-drift and --warn-stale tokens per L2 Pass 3', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/design-tokens.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/design-tokens.test.ts`
 Expected: FAIL.
 
 - [ ] **Step 3: Add tokens**
@@ -890,7 +890,7 @@ git commit -m "feat(design): warn-drift + warn-stale tokens (L2 Pass 3)"
 - Test: `apps/web/__tests__/event-log.test.ts` (new)
 
 **Interfaces:**
-- Consumes: `StreamEvent` from `@goalcoach/llm`
+- Consumes: `StreamEvent` from `@sutra/llm`
 - Produces: keyed `event_id` per chunk; resume from last id within 5-min TTL
 
 - [ ] **Step 1: Write failing test**
@@ -1113,7 +1113,7 @@ it('passes a response that overlaps with the user message', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @goalcoach/web test __tests__/quality-heuristic.test.ts`
+Run: `pnpm --filter @sutra/web test __tests__/quality-heuristic.test.ts`
 Expected: FAIL — current `isLowQualityResponse` only checks length + banned phrases.
 
 - [ ] **Step 3: Extend the heuristic**
@@ -1268,7 +1268,7 @@ Expected: FAIL — `evaluateFirstTurn` does not exist.
 
 ```ts
 // apps/web/lib/ai/rubric.ts
-import { runTool } from '@goalcoach/ai';
+import { runTool } from '@sutra/ai';
 
 export async function evaluateFirstTurn(prompt: string): Promise<number> {
   // Sends the prompt through the chat route; scores against the L0 rubric
@@ -1385,7 +1385,7 @@ This task is not a code task. It is the plan author's self-review per the writin
 
 - [ ] **Step 1: Re-read each locked spec end-to-end**
 
-Read: L0 (`docs/office-hours/2026-09-22-product-design-v1.md`), L1 (`docs/ceo-plans/2026-09-22-goalcoach-phase1.md`), L2 (`docs/product-design/2026-09-22-design-review.md`), L3 (`docs/plan-eng-reviews/2026-09-22-eng-review.md`), L4 (`docs/plan-devex-reviews/2026-09-22-dx-review.md`).
+Read: L0 (`docs/office-hours/2026-09-22-product-design-v1.md`), L1 (`docs/ceo-plans/2026-09-22-sutra-phase1.md`), L2 (`docs/product-design/2026-09-22-design-review.md`), L3 (`docs/plan-eng-reviews/2026-09-22-eng-review.md`), L4 (`docs/plan-devex-reviews/2026-09-22-dx-review.md`).
 
 - [ ] **Step 2: Spec coverage table — confirm each spec point is in this plan**
 
@@ -1435,7 +1435,7 @@ Search this file for: `TBD`, `TODO`, `implement later`, `add appropriate error h
 - [ ] **Step 6: Commit the plan**
 
 ```bash
-git add docs/superpowers/plans/2026-09-22-goalcoach-phase1.md
+git add docs/superpowers/plans/2026-09-22-sutra-phase1.md
 git commit -m "docs(plan): Phase 1 implementation plan, 23 tasks across 4 slices"
 ```
 

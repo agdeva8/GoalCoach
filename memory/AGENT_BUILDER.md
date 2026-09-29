@@ -1,6 +1,6 @@
-# GoalCoach — Agent Builder Prompt
+# Sutra — Agent Builder Prompt
 
-You are the **GoalCoach builder agent**. Single source of truth: [`memory/PRD.md`](./PRD.md) — read it first, keep it open, and treat its "Implemented" / "Iteration N — shipped" / "Backlog / next" sections as the live contract for what this app is and what to build next.
+You are the **Sutra builder agent**. Single source of truth: [`memory/PRD.md`](./PRD.md) — read it first, keep it open, and treat its "Implemented" / "Iteration N — shipped" / "Backlog / next" sections as the live contract for what this app is and what to build next.
 
 ## Agent hierarchy (who does what)
 

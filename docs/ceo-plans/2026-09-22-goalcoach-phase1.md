@@ -4,7 +4,7 @@ locked-on: 2026-09-22
 lock-scope: docs/ceo-plans/ (layer 1) + docs/office-hours/ (layer 0)
 founder-decisions: 2026-09-22 (Q1-Q8) — see "Founder Decisions" section below
 ---
-# CEO Plan: GoalCoach Phase 1
+# CEO Plan: Sutra Phase 1
 
 > 🔒 **LAYER 1 LOCKED** — Any change to this file or anything in `docs/ceo-plans/` requires explicit founder review and approval. Do not edit without confirming with the founder first. See `CLAUDE.md` "Layer 0 + Layer 1 LOCK" section for the lock policy.
 
@@ -26,7 +26,7 @@ Mode: SELECTIVE EXPANSION
 
 ## Vision
 
-The 10x version of GoalCoach is the kernel that actually remembers and tells the truth:
+The 10x version of Sutra is the kernel that actually remembers and tells the truth:
 
 - Continuity memory across visits
 - Honest cards that name drift, not flatter

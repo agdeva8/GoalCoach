@@ -1,4 +1,4 @@
-# GoalCoach — Agent Entry Point
+# Sutra — Agent Entry Point
 
 This is the **auto-loaded entry point** for any agent working in this repo (Claude Code, Cursor, Aider, Codex, Continue, Windsurf, Cline, GitHub Copilot, etc.). Read this on session start.
 

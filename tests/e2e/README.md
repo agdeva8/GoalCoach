@@ -1,4 +1,4 @@
-# GoalCoach browser-driven e2e tests
+# Sutra browser-driven e2e tests
 
 Real Chromium, real network, no jsdom. Run these **last** — they are
 the final word on whether a slice actually shipped.
@@ -31,10 +31,10 @@ Dev servers must already be running on the canonical ports:
 
 ```bash
 # API on 4000 (per api/.env AUTH_URL=NEXT_PUBLIC_APP_URL=http://localhost:4000)
-PORT=4000 pnpm --filter @goalcoach/api dev
+PORT=4000 pnpm --filter @sutra/api dev
 
 # Web on 4001 (matches api/middleware.ts CORS DEV_ORIGINS)
-PORT=4001 pnpm --filter @goalcoach/web dev
+PORT=4001 pnpm --filter @sutra/web dev
 ```
 
 Then in another terminal:

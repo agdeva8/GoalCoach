@@ -1,6 +1,6 @@
 > Note: This file lives in `docs/office-hours/` (layer 0) but is **NOT LOCKED**. It is an in-progress founder artifact (10 acceptance-test moments to be filled). Other layer-0 docs ARE locked per CLAUDE.md "Layer 0 + Layer 1 LOCK" policy.
 
-# Acceptance Test — GoalCoach v2
+# Acceptance Test — Sutra v2
 
 **Owner:** founder (User #1)
 **Created:** 2026-09-22 (drafted; founder fills 10 moments)
@@ -11,9 +11,9 @@
 
 ## Purpose
 
-This file is the falsifiable definition of "did we build the right thing?" for GoalCoach v2. It outlasts every architecture decision. If v2 ships and would not have changed the outcome in **7+ of 10** of these moments, v2 is wrong — regardless of how clean the code is.
+This file is the falsifiable definition of "did we build the right thing?" for Sutra v2. It outlasts every architecture decision. If v2 ships and would not have changed the outcome in **7+ of 10** of these moments, v2 is wrong — regardless of how clean the code is.
 
-This complements (does not replace) the CEO plan's verification gates at `docs/ceo-plans/2026-09-22-goalcoach-phase1.md`:
+This complements (does not replace) the CEO plan's verification gates at `docs/ceo-plans/2026-09-22-sutra-phase1.md`:
 - Verification gates ask "did we build it right?" (D30 binary, D14 cohort)
 - Acceptance test asks "did we build the right thing?" (10 moments)
 

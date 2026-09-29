@@ -1,6 +1,6 @@
 # Sign in with Google → user-pays Gemini API
 
-**Reference guide for OAuth-based Gemini API access in GoalCoach.**
+**Reference guide for OAuth-based Gemini API access in Sutra.**
 
 > Complements `docs/plans/2026-09-22-gemini-oauth-swap.md` (the active implementation plan). This doc is the *why* and the *reference* — read it once to understand the flow; refer back to it when wiring new code.
 
@@ -8,7 +8,7 @@
 
 ## TL;DR
 
-Google's OAuth flow lets each end-user grant GoalCoach permission to call the Gemini API **on their behalf**, billed against **their** Google account/quota (typically free tier). When a user has `users.llm_provider = 'gemini-oauth'`, the `@goalcoach/llm` factory uses **their** Google access/refresh tokens instead of the server's API key.
+Google's OAuth flow lets each end-user grant Sutra permission to call the Gemini API **on their behalf**, billed against **their** Google account/quota (typically free tier). When a user has `users.llm_provider = 'gemini-oauth'`, the `@sutra/llm` factory uses **their** Google access/refresh tokens instead of the server's API key.
 
 This is the only major LLM that supports a true "Sign in with X" per-user flow today (Anthropic: API keys only; OpenAI: ChatGPT OAuth doesn't grant API access).
 
@@ -30,7 +30,7 @@ This is the only major LLM that supports a true "Sign in with X" per-user flow t
 - **API key (auth-tier)** → simplest path, server-to-server, no per-user identity. Default for most apps.
 - **OAuth** → when you need per-user quotas/audit, fine-grained access control, or on-behalf-of-end-user flows.
 
-GoalCoach chat uses OAuth so the user pays (free tier) instead of us paying the $5 Anthropic credit.
+Sutra chat uses OAuth so the user pays (free tier) instead of us paying the $5 Anthropic credit.
 
 ---
 
@@ -202,7 +202,7 @@ export async function getValidGoogleTokens(userId: string, db: Db) {
 }
 ```
 
-### ④ — Wire into `@goalcoach/llm` factory
+### ④ — Wire into `@sutra/llm` factory
 
 ```ts
 // packages/llm/src/factory.ts — sketch of the patch
@@ -289,7 +289,7 @@ Write these **before** implementation:
 | OpenAI   | ⚠️ Narrow — ChatGPT OAuth only for ChatGPT-data integrations | Access to user's ChatGPT data, **not** API calls under their key |
 | Anthropic | ❌ No public OAuth for Claude API | N/A — API keys only; per-user auth via Bedrock/Vertex IAM |
 
-So if you wanted to extend GoalCoach's chat-first model with "Sign in with your LLM provider," **Google is the only one that fully supports this pattern** for end-users today. For Claude/OpenAI, you'd proxy through a backend with per-user keys you manage yourself (which is what your `users.llm_provider` admin flip already sets up).
+So if you wanted to extend Sutra's chat-first model with "Sign in with your LLM provider," **Google is the only one that fully supports this pattern** for end-users today. For Claude/OpenAI, you'd proxy through a backend with per-user keys you manage yourself (which is what your `users.llm_provider` admin flip already sets up).
 
 ---
 
