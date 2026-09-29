@@ -18,6 +18,8 @@
   --danger: #D9705A;
   --success: #8FB98A;
   --tool-bg: #241C15;
+  --popover: 27 25% 11%;
+  --popover-foreground: 34 50% 93%;
 }
 
 .light {
@@ -34,6 +36,8 @@
   --danger: #C0563E;
   --success: #5E8B57;
   --tool-bg: #F6EFE4;
+  --popover: 36 43% 91%;
+  --popover-foreground: 27 28% 13%;
 }
 
 * {
@@ -74,8 +78,45 @@ body {
 }
 .gc-fade-up { animation: gc-fade-up 0.28s ease-out both; }
 
+@keyframes gc-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.gc-fade-in { animation: gc-fade-in 0.18s ease-out both; }
+
+@keyframes gc-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.gc-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 100%
+  );
+  background-size: 200% 100%;
+  animation: gc-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
 @keyframes gc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .gc-caret { animation: gc-blink 1s step-end infinite; }
+
+/* Safe-area-aware FAB positioning for iOS Safari (home indicator) */
+.gc-safe-bottom {
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+/* Sonner toaster — keep below the modal stack (z-60) so toasts can't
+   intercept clicks on the chat close X or other modal controls. */
+section[aria-label="Notifications alt+T"] {
+  z-index: 50 !important;
+  pointer-events: none;
+}
+section[aria-label="Notifications alt+T"] > * {
+  pointer-events: auto;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -83,4 +124,14 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Horizon strip (TimelineVariantB) — hide horizontal scrollbar while
+   preserving native touch/wheel scroll and snap behavior. */
+.gc-strip-body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.gc-strip-body::-webkit-scrollbar {
+  display: none;
 }

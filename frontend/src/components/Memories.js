@@ -457,7 +457,7 @@ function InstagramEmbed({ shortcode, caption }) {
       title={caption || `Instagram post ${shortcode}`}
       src={src}
       className="w-full h-full bg-[var(--bg-primary)]"
-      allowTransparency="true"
+      allowtransparency="true"
       scrolling="no"
       loading="lazy"
       referrerPolicy="no-referrer"
