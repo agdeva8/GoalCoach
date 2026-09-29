@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Loader2,
   FolderOpen,
+  RefreshCw,
 } from "lucide-react";
 import { api, API } from "../lib/api";
 
@@ -22,15 +23,20 @@ import { api, API } from "../lib/api";
  */
 export default function Sources({ state, onChange }) {
   const [sources, setSources] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(null); // id of source being deleted
 
   const refresh = () => {
     setLoading(true);
+    setError(null);
     api
       .sources()
-      .then((d) => setSources(d.sources || []))
-      .catch(() => {})
+      .then((d) => setSources(Array.isArray(d) ? d : d?.sources || []))
+      .catch((err) => {
+        console.error("Failed to load sources:", err);
+        setError(err);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -63,10 +69,52 @@ export default function Sources({ state, onChange }) {
       </div>
 
       {loading && sources.length === 0 && (
-        <div className="text-xs text-[var(--text-muted)]">loading…</div>
+        <div
+          data-testid="sources-skeleton"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-lg p-3 space-y-2.5"
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded gc-skeleton shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  <div className="h-3 w-4/5 gc-skeleton" />
+                  <div className="h-2.5 w-1/3 gc-skeleton" />
+                </div>
+              </div>
+              <div className="h-2.5 w-1/2 gc-skeleton pt-1" />
+            </div>
+          ))}
+        </div>
       )}
 
-      {!loading && sources.length === 0 && (
+      {loading && sources.length > 0 && (
+        <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--text-muted)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+          refreshing…
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[var(--bg-secondary)]/40" data-testid="sources-error">
+          <p className="text-xs text-[var(--text-secondary)]">Couldn't load sources</p>
+          <button
+            type="button"
+            onClick={refresh}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Couldn't load — retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && sources.length === 0 && (
         <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
           <FolderOpen className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
@@ -76,17 +124,19 @@ export default function Sources({ state, onChange }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {sources.map((s) => (
-          <SourceCard
-            key={s.id}
-            source={s}
-            goalTitle={goalTitle(s.goal_id)}
-            onDelete={() => deleteSource(s.id)}
-            deleting={deleting === s.id}
-          />
-        ))}
-      </div>
+      {sources.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {sources.map((s) => (
+            <SourceCard
+              key={s.id}
+              source={s}
+              goalTitle={goalTitle(s.goal_id)}
+              onDelete={() => deleteSource(s.id)}
+              deleting={deleting === s.id}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

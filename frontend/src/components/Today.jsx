@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, Circle, Clock, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Trash2, RefreshCw } from "lucide-react";
 import { api } from "../lib/api";
 
 const fmtDate = (d) =>
@@ -27,28 +27,33 @@ const fmtTime = (t) => {
 export default function Today({ state, onChange }) {
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [saving, setSaving] = useState(null); // id of item being saved
 
   const today = fmtDate(new Date());
 
   const fetchBlocks = () => {
     setLoading(true);
+    setError(null);
     Promise.all([
-      api.blockers().catch(() => ({ blockers: [] })),
-      api.commitments().catch(() => []),
+      api.blockers(),
+      api.commitments(),
     ])
-      .then(([{ blockers }, commitments]) => {
+      .then(([{ blockers = [] } = {}, commitments = []]) => {
         // Filter to today
         const todayBlocks = blockers.filter(
           (b) => b.start_date === today || (b.start_date <= today && b.end_date >= today),
         );
-        const todayCommitments = commitments.filter((c) => c.due === today);
+        const todayCommitments = (commitments || []).filter((c) => c.due === today);
         setBlocks([
           ...todayBlocks.map((b) => ({ ...b, _kind: "blocker" })),
           ...todayCommitments.map((c) => ({ ...c, _kind: "commitment" })),
         ]);
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Failed to load today items:", err);
+        setError(err);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -108,12 +113,33 @@ export default function Today({ state, onChange }) {
       </div>
 
       {loading && blocks.length === 0 && (
-        <div className="text-xs text-[var(--text-muted)]">loading…</div>
+        <div className="space-y-2" aria-busy="true" aria-live="polite">
+          {[0, 1].map((i) => (
+            <div key={i} className="border border-[var(--border)] rounded-lg p-3 space-y-2">
+              <div className="h-3 w-40 gc-skeleton" />
+              <div className="h-3 w-full gc-skeleton" />
+            </div>
+          ))}
+        </div>
       )}
 
-      {!loading && !hasItems && (
-        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 text-center bg-[var(--bg-secondary)]/40">
-          <Clock className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
+      {!loading && error && (
+        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[var(--bg-secondary)]/40" data-testid="today-error">
+          <p className="text-xs text-[var(--text-secondary)]">Couldn't load today's schedule</p>
+          <button
+            type="button"
+            onClick={fetchBlocks}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Couldn't load — retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && !hasItems && (
+        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
+          <Clock className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-3" aria-hidden="true" />
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
             Clear day. No blockers or commitments scheduled — go make something happen.
           </p>

@@ -1,13 +1,29 @@
+import { withTimeout, TimeoutError } from "./fetch-with-timeout";
+
+export { TimeoutError };
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
 
+const DEFAULT_TIMEOUT_MS = 10000;
+
 async function req(path, opts = {}) {
-  const { quiet, ...fetchOpts } = opts;
-  const res = await fetch(`${API}${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(fetchOpts.headers || {}) },
-    ...fetchOpts,
-  });
+  const { quiet, timeout = DEFAULT_TIMEOUT_MS, ...fetchOpts } = opts;
+  const controller = new AbortController();
+  const signal = fetchOpts.signal || controller.signal;
+
+  const res = await withTimeout(
+    fetch(`${API}${path}`, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...(fetchOpts.headers || {}) },
+      ...fetchOpts,
+      signal,
+    }),
+    timeout,
+    `API ${path}`,
+    { controller, signal },
+  );
+
   // `quiet: true` swallows the error so callers can branch on a
   // null/defined return instead of catching. Used by the auth probe
   // so cold-start 401s don't show up as console noise on every page
@@ -55,7 +71,18 @@ export const api = {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("goal_id", goalId);
-    const res = await fetch(`${API}/sources/upload`, { method: "POST", credentials: "include", body: fd });
+    const controller = new AbortController();
+    const res = await withTimeout(
+      fetch(`${API}/sources/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+        signal: controller.signal,
+      }),
+      DEFAULT_TIMEOUT_MS,
+      "API /sources/upload",
+      { controller },
+    );
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Upload failed");

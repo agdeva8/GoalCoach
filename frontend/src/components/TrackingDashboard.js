@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, CircleDot, PauseCircle, CheckCircle2, Circle, Plus, Pencil, Trash2, Pause, Milestone, Paperclip, FileText, Link2, ExternalLink, X, MessageSquare, ArrowRight } from "lucide-react";
+import { Sparkles, CircleDot, PauseCircle, CheckCircle2, Circle, Plus, Pencil, Trash2, Pause, Milestone, Paperclip, FileText, Link2, ExternalLink, X, MessageSquare, ArrowRight, BookImage } from "lucide-react";
 import { sourceDownloadUrl } from "../lib/api";
 import AddGoalDialog from "./AddGoalDialog";
 import SourceActionDialog from "./SourceActionDialog";
 import TrackerCard from "./TrackerCard";
 import MotivationCard from "./MotivationCard";
+import GoalMemoryDialog from "./GoalMemoryDialog";
 
 const HORIZON_ORDER = ["weekly", "short", "medium", "long"];
 const HORIZON_LABELS = {
@@ -39,7 +40,7 @@ function OverCommitmentIndicator({ oc }) {
         <Sparkles className="w-4 h-4" style={{ color: style.color }} />
         <span className="text-xs font-semibold" style={{ color: style.color }}>Your week · {style.label}</span>
         <span className="ml-auto font-mono text-[10px] text-[var(--text-muted)]">
-          {oc.active_goals} {oc.active_goals === 1 ? "goal" : "goals"} · {oc.open_commitments} to-do{oc.open_commitments === 1 ? "" : "s"}
+          {oc.active_goals} {oc.active_goals === 1 ? "goal" : "goals"} · {oc.open_commitments} open {oc.open_commitments === 1 ? "commitment" : "commitments"}
         </span>
       </div>
       <p className="text-xs leading-relaxed text-[var(--text-primary)]">{oc.message}</p>
@@ -59,9 +60,15 @@ const STATUS_ICON = {
   paused: <PauseCircle className="w-3.5 h-3.5 text-[var(--warning)]" />,
 };
 
-function IconBtn({ testid, title, onClick, children }) {
+function IconBtn({ testid, title, onClick, children, "aria-label": ariaLabel }) {
   return (
-    <button data-testid={testid} title={title} onClick={onClick} className="h-6 w-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
+    <button
+      data-testid={testid}
+      title={title}
+      aria-label={ariaLabel || title}
+      onClick={onClick}
+      className="h-10 w-10 sm:h-8 sm:w-10 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+    >
       {children}
     </button>
   );
@@ -85,8 +92,14 @@ function MilestonesChip({ milestones }) {
   });
   return (
     <div className="mt-2">
-      <button data-testid="milestones-chip" onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors">
-        <Milestone className="w-3 h-3" /> {milestones.length} milestone{milestones.length === 1 ? "" : "s"}
+      <button
+        data-testid="milestones-chip"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={`milestones-list-${milestones[0]?.id ?? "x"}`}
+        className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      >
+        <Milestone className="w-3 h-3" aria-hidden="true" /> {milestones.length} milestone{milestones.length === 1 ? "" : "s"}
         <span className="flex items-center gap-1 ml-0.5">
           {counts.green > 0 && <span className="flex items-center gap-0.5" style={{ color: "var(--success)" }}>●{counts.green}</span>}
           {counts.amber > 0 && <span className="flex items-center gap-0.5" style={{ color: "var(--warning)" }}>●{counts.amber}</span>}
@@ -119,9 +132,11 @@ function SourcesChip({ goal, sources, onUpload, onAddLink, onDelete }) {
           <button
             data-testid={`sources-chip-${goal.id}`}
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors"
+            aria-expanded={open}
+            aria-controls={`sources-list-${goal.id}`}
+            className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
-            <Paperclip className="w-3 h-3" /> {sources.length} source{sources.length === 1 ? "" : "s"}
+            <Paperclip className="w-3 h-3" aria-hidden="true" /> {sources.length} source{sources.length === 1 ? "" : "s"}
           </button>
         )}
         <IconBtn testid={`goal-upload-${goal.id}`} title="Attach a file to this goal" onClick={() => setDialogMode("upload")}><Plus className="w-3.5 h-3.5" /></IconBtn>
@@ -165,7 +180,7 @@ function SourcesChip({ goal, sources, onUpload, onAddLink, onDelete }) {
   );
 }
 
-function GoalCard({ goal, commitments, milestones, onAction, onUploadSource, onAddLink, onDeleteSource }) {
+function GoalCard({ goal, commitments, milestones, onAction, onUploadSource, onAddLink, onDeleteSource, onAddMemory }) {
   const goalCommits = commitments.filter((c) => c.goal_id === goal.id);
   const goalMiles = milestones.filter((m) => m.goal_id === goal.id || m.goal_title === goal.title);
   const sources = goal.sources || [];
@@ -200,8 +215,18 @@ function GoalCard({ goal, commitments, milestones, onAction, onUploadSource, onA
         <IconBtn testid={`goal-add-step-${goal.id}`} title="Add a step / milestone" onClick={() => onAction(goal, "add_step")}><Milestone className="w-3.5 h-3.5" /></IconBtn>
         <IconBtn testid={`goal-edit-${goal.id}`} title="Refine or rename this goal" onClick={() => onAction(goal, "edit")}><Pencil className="w-3.5 h-3.5" /></IconBtn>
         <IconBtn testid={`goal-pause-${goal.id}`} title="Pause this goal" onClick={() => onAction(goal, "pause")}><Pause className="w-3.5 h-3.5" /></IconBtn>
+        <button
+          data-testid={`goal-add-memory-${goal.id}`}
+          title="Attach a memory (photo or Instagram) to this goal"
+          aria-label="Attach a memory (photo or Instagram) to this goal"
+          onClick={() => onAddMemory(goal)}
+          className="h-8 sm:h-10 px-2.5 inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:border-[var(--accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        >
+          <BookImage className="w-3 h-3" aria-hidden="true" />
+          <span className="font-mono text-[10px] uppercase tracking-wider">memories</span>
+        </button>
         <div className="ml-auto" />
-        <IconBtn testid={`goal-drop-${goal.id}`} title="Drop this goal" onClick={() => onAction(goal, "drop")} className="text-[var(--text-muted)] hover:text-[var(--danger)]"><Trash2 className="w-3.5 h-3.5" /></IconBtn>
+        <IconBtn testid={`goal-drop-${goal.id}`} title="Drop this goal" onClick={() => onAction(goal, "drop")}><Trash2 className="w-3.5 h-3.5" /></IconBtn>
       </div>
     </div>
   );
@@ -216,11 +241,13 @@ export default function TrackingDashboard({
   onDeleteSource = () => {},
   onCreated = () => {},
   onOpenChat = () => {},
+  onOpenChatWith = () => {},
   autoAnswer = false,
   grillMe = false,
   isGuest = false,
 }) {
   const [addGoalOpen, setAddGoalOpen] = useState(false);
+  const [memoryGoal, setMemoryGoal] = useState(null); // { id, title } | null
 
   const visibleGoals = (state?.goals || []).filter((g) => g.status !== "dropped");
   const milestones = state?.milestones || [];
@@ -241,11 +268,35 @@ export default function TrackingDashboard({
     return () => clearTimeout(t);
   }, [state, visibleGoals.length]);
 
-  if (!state) return <div className="p-6 font-mono text-xs text-[var(--text-muted)]">loading…</div>;
+  if (!state) {
+    return (
+      <div data-testid="tracking-dashboard-loading" className="p-4 sm:p-6 space-y-6" aria-busy="true" aria-live="polite">
+        <div>
+          <div className="h-4 w-28 gc-skeleton" />
+          <div className="h-3 w-64 gc-skeleton mt-1.5" />
+        </div>
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="border border-[var(--border)] bg-[var(--bg-secondary)] p-3.5 rounded-md space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <div className="w-4 h-4 rounded-full gc-skeleton mt-0.5 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 w-2/5 gc-skeleton" />
+                  <div className="h-3 w-3/4 gc-skeleton" />
+                </div>
+              </div>
+              <div className="h-2.5 w-28 gc-skeleton ml-6" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const grouped = HORIZON_ORDER.map((h) => ({ horizon: h, goals: visibleGoals.filter((g) => g.horizon === h) })).filter((g) => g.goals.length > 0);
 
   const openAddGoalDialog = () => setAddGoalOpen(true);
+  const openGoalMemory = (goal) => setMemoryGoal({ id: goal.id, title: goal.title });
   const closeAddGoalDialog = () => {
     setAddGoalOpen(false);
     try { localStorage.setItem("gc_first_visit_v1", "done"); } catch { /* ignore */ }
@@ -267,14 +318,12 @@ export default function TrackingDashboard({
 
       <OverCommitmentIndicator oc={state.over_commitment} />
 
-      <TrackerCard state={state} onOpenChat={onOpenChat} />
-
-      <MotivationCard state={state} />
+      <TrackerCard state={state} onChange={onCreated} onOpenChat={onOpenChatWith} />
 
       {visibleGoals.length === 0 ? (
         <div data-testid="empty-state" className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
           <div className="mx-auto h-12 w-12 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/30 flex items-center justify-center mb-4">
-            <Sparkles className="h-6 w-6 text-[var(--accent)]" />
+            <Sparkles className="h-6 w-6 text-[var(--accent)]" aria-hidden="true" />
           </div>
           <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">
             What's the first thing you want to sort out?
@@ -282,21 +331,21 @@ export default function TrackingDashboard({
           <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
             Pick a category and the coach will propose a goal with milestones — you confirm it before anything gets saved.
           </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-6 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3">
             <button
               data-testid="empty-state-add-goal"
               onClick={openAddGoalDialog}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity rounded-md"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
-              <Plus className="h-4 w-4" /> Add your first goal
-              <ArrowRight className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" /> Add your first goal
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
             <button
               data-testid="empty-state-open-chat"
               onClick={onOpenChat}
-              className="inline-flex items-center gap-2 px-5 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] text-sm hover:border-[var(--border-accent)] transition-colors rounded-md"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] text-sm hover:border-[var(--border-accent)] active:scale-[0.98] transition-[border-color,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
-              <MessageSquare className="h-4 w-4" /> Or just chat with the coach
+              <MessageSquare className="h-4 w-4" aria-hidden="true" /> Or just chat with the coach
             </button>
           </div>
         </div>
@@ -306,20 +355,34 @@ export default function TrackingDashboard({
             <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-secondary)] mb-2 pb-1 border-b border-[var(--border)]">{HORIZON_LABELS[group.horizon]}</div>
             <div className="space-y-2">
               {group.goals.map((g) => (
-                <GoalCard key={g.id} goal={g} commitments={state.commitments} milestones={milestones} onAction={onAction} onUploadSource={onUploadSource} onAddLink={onAddLink} onDeleteSource={onDeleteSource} />
+                <GoalCard key={g.id} goal={g} commitments={state.commitments} milestones={milestones} onAction={onAction} onUploadSource={onUploadSource} onAddLink={onAddLink} onDeleteSource={onDeleteSource} onAddMemory={openGoalMemory} />
               ))}
             </div>
           </div>
         ))
       )}
 
-      <div className="border-t border-[var(--border)] pt-4" data-testid="upcoming-features">
-        <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">Upcoming — headed your way</div>
+      <div className="border-t border-[var(--border)] pt-4 mt-2" data-testid="upcoming-features">
+        <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
+          On the roadmap
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {["Calendar view", "Weekly / daily scheduler", "Reminders", "Trackers"].map((u) => (
-            <span key={u} className="font-mono text-[10px] px-2 py-1 border border-dashed border-[var(--border)] rounded text-[var(--text-muted)]">{u}</span>
+            <span
+              key={u}
+              className="font-mono text-[10px] px-2 py-1 border border-dashed border-[var(--border)] rounded text-[var(--text-muted)]"
+              title="Coming soon"
+            >
+              {u}
+            </span>
           ))}
         </div>
+      </div>
+
+      {/* Motivation / curated nudges — moved to the bottom so it doesn't
+          compete with the goals grid for attention on first paint. */}
+      <div className="mt-6">
+        <MotivationCard state={state} />
       </div>
 
       <AddGoalDialog
@@ -330,6 +393,15 @@ export default function TrackingDashboard({
         onUploadSource={onUploadSource}
         onAddLink={onAddLink}
         onDeleteSource={onDeleteSource}
+        onGoalConfirmed={onCreated}
+      />
+
+      <GoalMemoryDialog
+        open={!!memoryGoal}
+        goalId={memoryGoal?.id}
+        goalTitle={memoryGoal?.title}
+        onClose={() => setMemoryGoal(null)}
+        onSaved={() => { setMemoryGoal(null); onCreated?.(); }}
       />
     </div>
   );

@@ -26,6 +26,7 @@ import { api } from "../lib/api";
 export default function MotivationCard({ state }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [dismissed, setDismissed] = useState(false)
 
   const overdueCount = (state?.commitments || []).filter(
@@ -40,10 +41,14 @@ export default function MotivationCard({ state }) {
 
   const fetchRecommendations = () => {
     setLoading(true)
+    setError(null)
     api
       .motivation()
       .then((d) => setItems(d.items || []))
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Failed to load motivation recommendations:", err)
+        setError(err)
+      })
       .finally(() => setLoading(false))
   }
 
@@ -54,23 +59,21 @@ export default function MotivationCard({ state }) {
   }, [shouldShow, dismissed])
 
   if (!shouldShow || dismissed) return null
-  if (items.length === 0 && !loading) return null
+  if (items.length === 0 && !loading && !error) return null
 
   return (
     <div
       data-testid="motivation-card"
-      className="border border-[var(--border)] bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent rounded-xl overflow-hidden"
+      className="border border-[var(--border)] bg-gradient-to-br from-[var(--accent)]/10 via-[var(--accent)]/5 to-transparent rounded-xl overflow-hidden"
     >
       <div className="px-4 sm:px-5 py-3.5 flex items-center gap-2 border-b border-[var(--border)]">
         <Sparkles className="w-4 h-4 text-[var(--accent)]" />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-[var(--text-primary)]">
-            {overdueCount > 0
-              ? `${overdueCount} past-due — here's a re-frame`
-              : "A nudge for today"}
+            Articles & videos curated for you
           </div>
           <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-            Curated · server picked these from your week
+            Picked from what you're working on
           </div>
         </div>
         <button
@@ -102,6 +105,18 @@ export default function MotivationCard({ state }) {
         {loading && items.length === 0 && (
           <li className="flex items-center gap-2 text-xs text-[var(--text-muted)] py-2">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> re-framing…
+          </li>
+        )}
+        {!loading && error && (
+          <li className="flex items-center justify-between text-xs text-[var(--text-muted)] py-2" data-testid="motivation-error">
+            <span>Couldn't load recommendations</span>
+            <button
+              type="button"
+              onClick={fetchRecommendations}
+              className="inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:underline"
+            >
+              <RefreshCw className="w-3 h-3" /> Retry
+            </button>
           </li>
         )}
         {items.map((it) => (

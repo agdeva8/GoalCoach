@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image as ImageIcon, Link2, Plus, Trash2, X, Loader2, Camera, ExternalLink } from "lucide-react";
+import { Image as ImageIcon, Link2, Plus, Trash2, X, Loader2, Camera, ExternalLink, RefreshCw } from "lucide-react";
 import { api, API } from "../lib/api";
 
 /**
@@ -34,7 +34,8 @@ import { api, API } from "../lib/api";
  */
 export default function Memories({ state, onChange }) {
   const [memories, setMemories] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [adding, setAdding] = useState(false)
   const [kind, setKind] = useState("photo")
   const [file, setFile] = useState(null)
@@ -46,10 +47,14 @@ export default function Memories({ state, onChange }) {
 
   const refresh = () => {
     setLoading(true)
+    setError(null)
     api
       .memories()
       .then((d) => setMemories(d.memories || []))
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Failed to load memories:", err)
+        setError(err)
+      })
       .finally(() => setLoading(false))
   }
 
@@ -85,13 +90,20 @@ export default function Memories({ state, onChange }) {
   }
 
   const submitInstagram = async () => {
-    if (!url.trim()) return
+    const trimmed = url.trim()
+    if (!trimmed) return
+    // Light client-side shape check so the user gets feedback before
+    // a round-trip. Server is the source of truth on validity.
+    if (!/^https?:\/\/(www\.)?instagram\.com\/(p|reel|reels|tv)\/[A-Za-z0-9_-]+\/?/.test(trimmed)) {
+      setSubmitError("That doesn't look like an Instagram post URL — paste a link like instagram.com/p/...")
+      return
+    }
     setSubmitting(true)
     setSubmitError("")
     try {
       await api.createMemory({
         kind: "instagram",
-        external_url: url.trim(),
+        external_url: trimmed,
         caption,
         goal_id: goalId || "",
       })
@@ -149,7 +161,7 @@ export default function Memories({ state, onChange }) {
             <div className="inline-flex rounded-md border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-0.5">
               <button
                 data-testid="memories-kind-photo"
-                onClick={() => setKind("photo")}
+                onClick={() => { setKind("photo"); setSubmitError(""); }}
                 className={`px-3 h-7 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1 rounded ${
                   kind === "photo"
                     ? "bg-[var(--accent)] text-[var(--bg-primary)]"
@@ -160,7 +172,7 @@ export default function Memories({ state, onChange }) {
               </button>
               <button
                 data-testid="memories-kind-instagram"
-                onClick={() => setKind("instagram")}
+                onClick={() => { setKind("instagram"); setSubmitError(""); }}
                 className={`px-3 h-7 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1 rounded ${
                   kind === "instagram"
                     ? "bg-[var(--accent)] text-[var(--bg-primary)]"
@@ -174,13 +186,19 @@ export default function Memories({ state, onChange }) {
 
           {kind === "photo" ? (
             <div>
-              <input
-                data-testid="memories-file-input"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-[var(--accent)] file:text-[var(--bg-primary)] file:text-xs file:font-medium hover:file:opacity-90 file:cursor-pointer"
-              />
+              <label className="block">
+                <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                  Photo file
+                </span>
+                <input
+                  data-testid="memories-file-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  aria-label="Photo file"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-[var(--accent)] file:text-[var(--bg-primary)] file:text-xs file:font-medium hover:file:opacity-90 file:cursor-pointer"
+                />
+              </label>
               {file && (
                 <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
                   {file.name} · {Math.round(file.size / 1024)} KB
@@ -188,39 +206,57 @@ export default function Memories({ state, onChange }) {
               )}
             </div>
           ) : (
-            <input
-              data-testid="memories-url-input"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.instagram.com/p/{shortcode}/"
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
-            />
+            <label className="block">
+              <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                Instagram URL
+              </span>
+              <input
+                data-testid="memories-url-input"
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://www.instagram.com/p/{shortcode}/"
+                aria-label="Instagram URL"
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+              />
+            </label>
           )}
 
-          <input
-            data-testid="memories-caption-input"
-            type="text"
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Caption (optional)"
-            maxLength={200}
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
-          />
+          <label className="block">
+            <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
+              Caption <span className="text-[var(--text-muted)]/70 normal-case tracking-normal">(optional)</span>
+            </span>
+            <input
+              data-testid="memories-caption-input"
+              type="text"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Why this memory matters"
+              aria-label="Caption"
+              maxLength={200}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+            />
+          </label>
 
-          <select
-            data-testid="memories-goal-select"
-            value={goalId}
-            onChange={(e) => setGoalId(e.target.value)}
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-accent)]"
-          >
-            <option value="">No goal linkage</option>
-            {goals.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.title}
-              </option>
-            ))}
-          </select>
+          <label className="block">
+            <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
+              Linked goal <span className="text-[var(--text-muted)]/70 normal-case tracking-normal">(optional)</span>
+            </span>
+            <select
+              data-testid="memories-goal-select"
+              value={goalId}
+              onChange={(e) => setGoalId(e.target.value)}
+              aria-label="Linked goal"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-accent)]"
+            >
+              <option value="">No goal linkage</option>
+              {goals.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+          </label>
 
           {submitError && (
             <div className="text-xs text-[var(--danger)]">{submitError}</div>
@@ -261,10 +297,49 @@ export default function Memories({ state, onChange }) {
       )}
 
       {loading && memories.length === 0 && (
-        <div className="text-xs text-[var(--text-muted)]">loading…</div>
+        <div
+          data-testid="memories-skeleton"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-lg overflow-hidden space-y-2 p-2.5"
+            >
+              <div className="aspect-square w-full gc-skeleton rounded" />
+              <div className="space-y-1.5 pt-1">
+                <div className="h-3 w-4/5 gc-skeleton" />
+                <div className="h-2.5 w-1/2 gc-skeleton" />
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      {!loading && memories.length === 0 && !adding && (
+      {loading && memories.length > 0 && (
+        <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--text-muted)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+          refreshing…
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[var(--bg-secondary)]/40" data-testid="memories-error">
+          <p className="text-xs text-[var(--text-secondary)]">Couldn't load memories</p>
+          <button
+            type="button"
+            onClick={refresh}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Couldn't load — retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && memories.length === 0 && !adding && (
         <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
           <ImageIcon className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
@@ -274,14 +349,16 @@ export default function Memories({ state, onChange }) {
         </div>
       )}
 
-      <div
-        data-testid="memories-grid"
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
-      >
-        {memories.map((m) => (
-          <MemoryCard key={m.id} memory={m} onDelete={() => deleteMemory(m.id)} />
-        ))}
-      </div>
+      {memories.length > 0 && (
+        <div
+          data-testid="memories-grid"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+        >
+          {memories.map((m) => (
+            <MemoryCard key={m.id} memory={m} onDelete={() => deleteMemory(m.id)} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -308,16 +385,16 @@ function MemoryCard({ memory, onDelete }) {
             <ImageIcon className="w-8 h-8" />
           </div>
         )}
-        <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           {!confirmDel ? (
             <button
               type="button"
               data-testid={`memory-delete-trigger-${memory.id}`}
               onClick={() => setConfirmDel(true)}
-              className="h-6 w-6 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80"
-              title="Delete"
+              aria-label="Delete memory"
+              className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           ) : (
             <div className="flex items-center gap-1 px-2 py-1 rounded bg-black/80 text-[11px]">
@@ -326,14 +403,14 @@ function MemoryCard({ memory, onDelete }) {
                 type="button"
                 data-testid={`memory-delete-confirm-${memory.id}`}
                 onClick={onDelete}
-                className="h-5 px-1.5 rounded bg-[var(--danger)] text-white hover:opacity-90"
+                className="h-7 px-2 rounded bg-[var(--danger)] text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 Yes
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmDel(false)}
-                className="h-5 px-1.5 rounded border border-white/30 text-white/80 hover:text-white"
+                className="h-7 px-2 rounded border border-white/30 text-white/80 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 No
               </button>

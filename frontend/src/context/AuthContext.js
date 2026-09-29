@@ -1,33 +1,89 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
+import { getCachedUser, setCachedUser, clearCachedUser, isDifferentUser } from "../lib/auth-cache";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const isOAuthCallback =
+    typeof window !== "undefined" && window.location.hash?.includes("session_id=");
+
+  // Synchronous read from cache on mount: unblocks returning users immediately
+  const [user, setUser] = useState(() => {
+    if (isOAuthCallback) return null;
+    return getCachedUser();
+  });
+
+  const [loading, setLoading] = useState(() => {
+    if (isOAuthCallback) return false;
+    return !getCachedUser();
+  });
+
+  const setAndCacheUser = useCallback((nextUser) => {
+    setUser(nextUser);
+    if (nextUser) {
+      setCachedUser(nextUser);
+    } else {
+      clearCachedUser();
+    }
+  }, []);
 
   const checkAuth = useCallback(async () => {
-    // `me` is called with quiet: true (see api.js) so cold-start 401s
-    // return null instead of throwing — keeps the DevTools console
-    // quiet for unauthenticated users. A 200 with `user: null` would
-    // also work but we don't have an /api/auth/status endpoint; the
-    // route returns 401 when no cookie is set, so we use the throw.
-    const u = await api.me();
-    if (u) {
-      setUser(u);
-    } else {
-      // No session yet — start an anonymous guest session so work
-      // persists and auto-migrates to the Google account on sign-in.
+    const cached = getCachedUser();
+
+    if (cached) {
+      // 1. Cached user present:
+      // Fire api.me() in background.
+      let meUser = null;
+      try {
+        meUser = await api.me();
+      } catch {
+        meUser = null;
+      }
+
+      if (meUser) {
+        if (isDifferentUser(cached, meUser)) {
+          setAndCacheUser(meUser);
+        } else {
+          setCachedUser(meUser);
+        }
+        return;
+      }
+
+      // If me returns null/401 -> fall through to step 2 (guest creation in background)
       try {
         const { user: guest } = await api.guest();
-        setUser(guest);
+        setAndCacheUser(guest);
+      } catch (e) {
+        console.error("Guest session creation failed:", e);
+        setAndCacheUser(null);
+      }
+    } else {
+      // 2. No cache: probe me first, then guest
+      let meUser = null;
+      try {
+        meUser = await api.me();
       } catch {
-        setUser(null);
+        meUser = null;
+      }
+
+      if (meUser) {
+        setAndCacheUser(meUser);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { user: guest } = await api.guest();
+        setAndCacheUser(guest);
+      } catch (e) {
+        console.error("Guest session creation failed:", e);
+        setAndCacheUser(null);
+      } finally {
+        setLoading(false);
       }
     }
-    setLoading(false);
-  }, []);
+  }, [setAndCacheUser]);
 
   useEffect(() => {
     // CRITICAL: If returning from OAuth callback, skip the /me check.
@@ -40,12 +96,22 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   const logout = useCallback(async () => {
-    try { await api.logout(); } catch {}
-    setUser(null);
-  }, []);
+    try {
+      await api.logout();
+    } catch {}
+    setAndCacheUser(null);
+  }, [setAndCacheUser]);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, checkAuth, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser: setAndCacheUser,
+        loading,
+        checkAuth,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
