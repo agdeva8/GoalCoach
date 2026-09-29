@@ -42,9 +42,6 @@ export default function Settings() {
   const { user, setUser, logout } = useAuth();
   const isGuest = !user || user.is_guest;
 
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem("gc_theme") || "dark",
-  );
   const [provider, setProvider] = useState(user?.model_provider || "gemini");
   const [auditOpen, setAuditOpen] = useState(false);
 
@@ -53,10 +50,23 @@ export default function Settings() {
   const displayLabel = cur?.label || provider || "…";
   const displayModel = cur?.model || "";
 
+  // Read current theme from the DOM (Coach.js is the single source of truth).
+  const [isLight, setIsLight] = useState(() =>
+    document.documentElement.classList.contains("light"),
+  );
   useEffect(() => {
-    document.documentElement.classList.toggle("light", theme === "light");
-    localStorage.setItem("gc_theme", theme);
-  }, [theme]);
+    const mo = new MutationObserver(() => {
+      setIsLight(document.documentElement.classList.contains("light"));
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => mo.disconnect();
+  }, []);
+
+  const toggleTheme = () => {
+    const next = !document.documentElement.classList.contains("light");
+    document.documentElement.classList.toggle("light", next);
+    localStorage.setItem("gc_theme", next ? "light" : "dark");
+  };
 
   const changeProvider = async (p) => {
     setProvider(p);
@@ -135,11 +145,11 @@ export default function Settings() {
 
           {/* Theme toggle */}
           <button
-            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-            title={theme === "light" ? "Switch to dark" : "Switch to light"}
+            onClick={toggleTheme}
+            title={isLight ? "Switch to dark" : "Switch to light"}
             className="h-9 w-9 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors"
           >
-            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
           </button>
 
           {/* Sign in / out */}
@@ -231,9 +241,9 @@ export default function Settings() {
                 <h3 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Appearance</h3>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setTheme("dark")}
+                    onClick={toggleTheme}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border rounded-lg transition-colors ${
-                      theme === "dark"
+                      !isLight
                         ? "border-[var(--accent)] bg-[var(--accent)]/5"
                         : "border-[var(--border)] hover:border-[var(--border-accent)]"
                     }`}
@@ -242,9 +252,9 @@ export default function Settings() {
                     <span className="text-sm">Dark</span>
                   </button>
                   <button
-                    onClick={() => setTheme("light")}
+                    onClick={toggleTheme}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border rounded-lg transition-colors ${
-                      theme === "light"
+                      isLight
                         ? "border-[var(--accent)] bg-[var(--accent)]/5"
                         : "border-[var(--border)] hover:border-[var(--border-accent)]"
                     }`}

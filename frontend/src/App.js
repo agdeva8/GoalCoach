@@ -1,4 +1,5 @@
 import "./App.css";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./context/AuthContext";
@@ -6,10 +7,20 @@ import AuthCallback from "./components/AuthCallback";
 import Coach from "./pages/Coach";
 import Settings from "./pages/Settings";
 
-function DynamicToaster() {
-  // Respects the .light class on <html> that theme-toggle sets.
-  const isLight = document.documentElement.classList.contains("light");
-  return <Toaster theme={isLight ? "light" : "dark"} position="bottom-right" toastOptions={{ style: { fontFamily: "JetBrains Mono, monospace", fontSize: "12px" } }} />;
+// Keeps the Toaster theme in sync with the .light class on <html>.
+// Triggered whenever Coach.js or Settings.js toggles the class.
+function ToasterBridge() {
+  const [theme, setTheme] = useState(() =>
+    document.documentElement.classList.contains("light") ? "light" : "dark",
+  );
+  useEffect(() => {
+    const mo = new MutationObserver(() => {
+      setTheme(document.documentElement.classList.contains("light") ? "light" : "dark");
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => mo.disconnect();
+  }, []);
+  return <Toaster theme={theme} position="bottom-right" toastOptions={{ style: { fontFamily: "JetBrains Mono, monospace", fontSize: "12px" } }} />;
 }
 
 function AppRouter() {
@@ -33,7 +44,7 @@ function App() {
         <AuthProvider>
           <AppRouter />
         </AuthProvider>
-        <DynamicToaster />
+        <ToasterBridge />
       </BrowserRouter>
     </div>
   );

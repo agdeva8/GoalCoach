@@ -73,16 +73,6 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
       </div>
 
       <div ref={rootRef} className="ml-auto flex items-center gap-2">
-        {/* Settings cog — /settings route ships in Slice 2. */}
-        <button
-          data-testid="open-settings-button"
-          onClick={() => navigate("/settings")}
-          title="Settings"
-          className="h-11 sm:h-9 w-11 sm:w-9 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-
         {/* Model provider switcher */}
         <div className="relative">
           <button
