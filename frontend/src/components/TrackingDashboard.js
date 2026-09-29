@@ -115,11 +115,20 @@ function SourcesChip({ goal, sources, onUpload, onAddLink, onDelete }) {
   return (
     <div className="mt-1.5">
       <div className="flex items-center gap-1.5">
-        <button data-testid={`sources-chip-${goal.id}`} onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors">
-          <Paperclip className="w-3 h-3" /> {sources.length ? `${sources.length} source${sources.length === 1 ? "" : "s"}` : "add source"}
-        </button>
+        {sources.length > 0 && (
+          <button
+            data-testid={`sources-chip-${goal.id}`}
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors"
+          >
+            <Paperclip className="w-3 h-3" /> {sources.length} source{sources.length === 1 ? "" : "s"}
+          </button>
+        )}
         <IconBtn testid={`goal-upload-${goal.id}`} title="Attach a file to this goal" onClick={() => setDialogMode("upload")}><Plus className="w-3.5 h-3.5" /></IconBtn>
         <IconBtn testid={`goal-link-${goal.id}`} title="Add a link as a source" onClick={() => setDialogMode("link")}><Link2 className="w-3 h-3" /></IconBtn>
+        {sources.length === 0 && (
+          <span className="text-[10px] text-[var(--text-muted)] font-mono uppercase tracking-wider ml-1">attach a source</span>
+        )}
       </div>
       {open && sources.length > 0 && (
         <div className="mt-1.5 space-y-1">
@@ -187,11 +196,12 @@ function GoalCard({ goal, commitments, milestones, onAction, onUploadSource, onA
           )}
         </div>
       </div>
-      <div className="mt-2 pt-2 border-t border-[var(--border)] flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+      <div className="mt-2 pt-2 border-t border-[var(--border)] flex items-center gap-1">
         <IconBtn testid={`goal-add-step-${goal.id}`} title="Add a step / milestone" onClick={() => onAction(goal, "add_step")}><Milestone className="w-3.5 h-3.5" /></IconBtn>
         <IconBtn testid={`goal-edit-${goal.id}`} title="Refine or rename this goal" onClick={() => onAction(goal, "edit")}><Pencil className="w-3.5 h-3.5" /></IconBtn>
         <IconBtn testid={`goal-pause-${goal.id}`} title="Pause this goal" onClick={() => onAction(goal, "pause")}><Pause className="w-3.5 h-3.5" /></IconBtn>
-        <IconBtn testid={`goal-drop-${goal.id}`} title="Drop this goal" onClick={() => onAction(goal, "drop")}><Trash2 className="w-3.5 h-3.5" /></IconBtn>
+        <div className="ml-auto" />
+        <IconBtn testid={`goal-drop-${goal.id}`} title="Drop this goal" onClick={() => onAction(goal, "drop")} className="text-[var(--text-muted)] hover:text-[var(--danger)]"><Trash2 className="w-3.5 h-3.5" /></IconBtn>
       </div>
     </div>
   );
@@ -317,6 +327,9 @@ export default function TrackingDashboard({
         onClose={closeAddGoalDialog}
         autoAnswer={autoAnswer}
         grillMe={grillMe}
+        onUploadSource={onUploadSource}
+        onAddLink={onAddLink}
+        onDeleteSource={onDeleteSource}
       />
     </div>
   );

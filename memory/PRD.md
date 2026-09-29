@@ -65,7 +65,14 @@ Founder (User #1): self-directed IC with a primary work goal, a fitness/recovery
 - Blockers now have direct CRUD endpoints (`/api/blockers`) for the upcoming calendar.
 - Verified: testing agent 100% (iteration_3.json) — 21/21 backend + all frontend flows incl. guest write→reload persistence and migration at the data layer.
 
+## Iteration 4 (2026-09) — shipped
+- **Slice 0:** Tool-proposal cards render full body (server wraps fields in `args`); AddGoalDialog mode picker sticks (real setters); default mode `grillMe: false`.
+- **Slice 1:** Header cleanup — removed Chat button (FAB is the entry point), removed Scenarios dropdown (Persona picker covers scenario intent); Settings cog wired to `/settings` route.
+- **Slice 1b:** AddGoalDialog attach/link buttons restored — `onUploadSource`/`onAddLink`/`onDeleteSource` threaded through TrackingDashboard into AddGoalDialog's ChatConsole; source chips shown above textarea.
+- **Slice 2:** Dedicated `/settings` route with shadcn Tabs: Coach (model selector + persona note) / Account (theme toggle + sign-in/out) / Audit (opens HonestyAuditView).
+- **Regression noted:** Proposal card list crowds in tight dialog vertical space — revisit with Slice 4 timeline redesign.
+
 ## Backlog / next
-- P0 (next turn): **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
+- P0: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
 - P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider.
 - P2: split server.py into modules; signed short-lived source download URLs instead of ?auth=.

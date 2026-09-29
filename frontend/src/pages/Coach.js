@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon } from "lucide-react";
+import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import Header from "../components/Header";
@@ -13,6 +13,7 @@ import AboutModal from "../components/AboutModal";
 import ActionPromptModal from "../components/ActionPromptModal";
 import SourceActionDialog from "../components/SourceActionDialog";
 import GoalBoundaryConfirmDialog from "../components/GoalBoundaryConfirmDialog";
+import FocusedTaskChatDialog from "../components/FocusedTaskChatDialog";
 import ChatModal from "../components/ChatModal";
 import WelcomeToast from "../components/WelcomeToast";
 
@@ -41,13 +42,19 @@ export default function Coach() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const [actionModal, setActionModal] = useState(null);
+  // Focused-task dialog (per-action isolated chat). When set, opens
+  // a fresh chat scoped to a single goal-edit / pause / drop /
+  // add_step / source-replan action. The global ChatModal stays for
+  // the generic "Chat with coach" entry points (header, FAB,
+  // storyboard).
+  const [focusedTask, setFocusedTask] = useState(null);
   // Default mode is "coach may ask" — the coach asks the user
   // questions before proposing. The user has to explicitly flip the
   // switch to "auto" before the coach writes to state without a
   // follow-up. This is closer to a coaching relationship than the
   // old "always emit a tool call" default.
   const [autoAnswer, setAutoAnswerRaw] = useState(false);
-  const [grillMe, setGrillMeRaw] = useState(true);
+  const [grillMe, setGrillMeRaw] = useState(false);
   const [sourceDialogMode, setSourceDialogMode] = useState(null);
   const [sourceDialogSource, setSourceDialogSource] = useState(null);
   const [boundaryConfirm, setBoundaryConfirm] = useState(null);
@@ -78,7 +85,7 @@ export default function Coach() {
   useEffect(() => {
     let cancelled = false
     import("../lib/api").then(({ API }) => {
-      fetch(`${API}/auth/dev-login`, {
+      fetch(`${API}/auth/dev-login?probe=1`, {
         method: "GET",
         credentials: "include",
       })
@@ -129,20 +136,34 @@ export default function Coach() {
     }
   };
 
-  const onStoryboard = () => setChatOpen(true);
-
   const openAction = (goal, type) => setActionModal({ goalTitle: goal.title, type });
 
+  // When the user clicks "Ask the coach" inside ActionPromptModal,
+  // open an ISOLATED focused-task chat (instead of the global
+  // ChatModal). Pre-fills the input with the action message so the
+  // user just hits Enter to send.
   const onGoalAction = (msg) => {
     setActionModal(null);
-    setChatOpen(true);
-    // The chat state lives inside ChatModal; we don't surface the
-    // message directly here — the user can paste / rephrase once the
-    // modal opens. Future work: send a bootstrap message into the
-    // modal via a ref.
-    toast.info(
-      "Coach modal opened — paste your context here so the coach can act on it.",
-    );
+    setFocusedTask({
+      title: "Coach · focused task",
+      subtitle: "This chat is scoped to the action you just described. It starts empty and resets when you close it.",
+      prefillMessage: msg,
+      icon: Sparkles,
+    });
+  };
+
+  const handleBoundaryReplan = ({ goalIds }) => {
+    const goalTitles = (state?.goals || [])
+      .filter((g) => goalIds.includes(g.id))
+      .map((g) => g.title);
+    if (goalTitles.length === 0) return;
+    const goalList = goalTitles.map((t) => `"${t}"`).join(", ");
+    setFocusedTask({
+      title: "Coach · replan after source change",
+      subtitle: `A source change affects ${goalList}. Ask the coach to replan.`,
+      prefillMessage: `The source I just changed affects ${goalList}. Please replan.`,
+      icon: Sparkles,
+    });
   };
 
   const uploadFile = async (file, goalId = "") => {
@@ -221,17 +242,6 @@ export default function Coach() {
     setSourceDialogMode(null);
     setSourceDialogSource(null);
   };
-  const handleBoundaryReplan = ({ goalIds }) => {
-    const goalTitles = (state?.goals || [])
-      .filter((g) => goalIds.includes(g.id))
-      .map((g) => g.title);
-    if (goalTitles.length === 0) return;
-    const goalList = goalTitles.map((t) => `"${t}"`).join(", ");
-    setChatOpen(true);
-    toast.info(
-      `Coach modal opened — tell it to replan ${goalList} based on the source change.`,
-    );
-  };
 
   const [panelView, setPanelView] = useState(() => {
     // Default first-time users (no goals) see the Calendar; returning
@@ -266,7 +276,6 @@ export default function Coach() {
           setTheme((t) => (t === "light" ? "dark" : "light"))
         }
         onLogout={doLogout}
-        onStoryboard={onStoryboard}
         devLoginAvailable={devLoginAvailable}
         currentUserId={user?.user_id || user?.id}
       />
@@ -297,7 +306,7 @@ export default function Coach() {
           <button
             data-testid="panel-tab-state"
             onClick={() => setPanelView("state")}
-            className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
+            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
               panelView === "state"
                 ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -308,7 +317,7 @@ export default function Coach() {
           <button
             data-testid="panel-tab-timeline"
             onClick={() => setPanelView("timeline")}
-            className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
+            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
               panelView === "timeline"
                 ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -319,7 +328,7 @@ export default function Coach() {
           <button
             data-testid="panel-tab-memories"
             onClick={() => setPanelView("memories")}
-            className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
+            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
               panelView === "memories"
                 ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -329,7 +338,7 @@ export default function Coach() {
           </button>
         </div>
 
-        <div className="px-4 sm:px-6 py-6">
+        <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
           {panelView === "state" ? (
             <TrackingDashboard
               state={state}
@@ -387,10 +396,7 @@ export default function Coach() {
       <ActionPromptModal
         action={actionModal}
         onClose={() => setActionModal(null)}
-        onSend={(msg) => {
-          setActionModal(null);
-          setChatOpen(true);
-        }}
+        onSend={onGoalAction}
       />
       <SourceActionDialog
         open={!!sourceDialogMode}
@@ -409,6 +415,24 @@ export default function Coach() {
         affectedGoals={boundaryConfirm?.affectedGoals || []}
         onReplan={handleBoundaryReplan}
         onKeep={() => setBoundaryConfirm(null)}
+      />
+      <FocusedTaskChatDialog
+        open={!!focusedTask}
+        onClose={() => setFocusedTask(null)}
+        title={focusedTask?.title}
+        subtitle={focusedTask?.subtitle}
+        prefillMessage={focusedTask?.prefillMessage}
+        icon={focusedTask?.icon}
+        user={user}
+        isGuest={isGuest}
+        autoAnswer={autoAnswer}
+        grillMe={grillMe}
+        setAutoAnswer={setAutoAnswer}
+        setGrillMe={setGrillMe}
+        onStateChange={(next) => setState(next)}
+        onUploadFile={uploadFile}
+        onAddLink={addLink}
+        onOpenSignIn={openSignIn}
       />
     </div>
   );

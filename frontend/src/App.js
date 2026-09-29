@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { AuthProvider } from "./context/AuthContext";
 import AuthCallback from "./components/AuthCallback";
 import Coach from "./pages/Coach";
+import Settings from "./pages/Settings";
 
 function AppRouter() {
   const location = useLocation();
@@ -13,6 +14,7 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<Coach />} />
+      <Route path="/settings" element={<Settings />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

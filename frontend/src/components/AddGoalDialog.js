@@ -104,8 +104,11 @@ const CATEGORIES = [
 export default function AddGoalDialog({
   open,
   onClose,
-  autoAnswer = true,
-  grillMe = false,
+  autoAnswer: initialAutoAnswer = true,
+  grillMe: initialGrillMe = false,
+  onUploadSource,
+  onAddLink,
+  onDeleteSource,
 }) {
   // Dialog-internal chat state — completely isolated from the parent.
   const [messages, setMessages] = useState([]);
@@ -118,6 +121,15 @@ export default function AddGoalDialog({
   // UI state for the 2-step flow.
   const [activeCategory, setActiveCategory] = useState(null);
   const [step, setStep] = useState("tiles"); // "tiles" | "chat"
+  // Mode for the dialog's chat input. Seeded from the parent's mode
+  // so the dialog opens on whatever mode the user is in globally.
+  // Tracked locally after that — the previous `() => {}` no-op setters
+  // made it look like the dropdown reverted after every pick.
+  const [autoAnswer, setAutoAnswer] = useState(initialAutoAnswer);
+  const [grillMe, setGrillMe] = useState(initialGrillMe);
+  // Sources attached within this dialog session (attached to a goal
+  // once it's created — shown as chips above the chat textarea).
+  const [sources, setSources] = useState([]);
 
   useEffect(() => {
     if (open) {
@@ -128,6 +140,7 @@ export default function AddGoalDialog({
       setPendingClarifications(null);
       setActiveCategory(null);
       setStep("tiles");
+      setSources([]);
     }
   }, [open]);
 
@@ -219,6 +232,31 @@ export default function AddGoalDialog({
   const goBackToTiles = () => {
     setStep("tiles");
     setInput("");
+  };
+
+  const handleUploadFile = async (file) => {
+    try {
+      await onUploadSource(file);
+      setSources((prev) => [
+        ...prev,
+        { id: `local_${Date.now()}`, original_filename: file.name, url: file.name, isLocal: true },
+      ]);
+    } catch {}
+  };
+
+  const handleAddLink = async (url) => {
+    try {
+      await onAddLink(url);
+      setSources((prev) => [
+        ...prev,
+        { id: `local_${Date.now()}`, original_filename: url, url, isLocal: true },
+      ]);
+    } catch {}
+  };
+
+  const handleDeleteSource = (id) => {
+    setSources((prev) => prev.filter((s) => s.id !== id));
+    onDeleteSource(id);
   };
 
   const confirm = async (messageId, proposalId) => {
@@ -373,7 +411,10 @@ export default function AddGoalDialog({
 
           {/* Isolated ChatConsole — own messages/sending/input, NOT
               shared with the left-hand console. "Same component,
-              different context" as the user requested. */}
+              different context" as the user requested.
+              showSources={false} hides the attach / link buttons —
+              sources don't apply to a goal-add chat, and the no-op
+              stubs were surfacing as a confusing dead UI. */}
           <div className="h-[55vh] min-h-[420px] -mx-5 -mb-5 border-t border-[var(--border)]">
             <ChatConsole
               messages={messages}
@@ -386,17 +427,18 @@ export default function AddGoalDialog({
               onRefine={refine}
               busyProposal={busyProposal}
               autoAnswer={autoAnswer}
-              setAutoAnswer={() => {}}
+              setAutoAnswer={setAutoAnswer}
               grillMe={grillMe}
-              setGrillMe={() => {}}
-              onUploadFile={() => {}}
-              onAddLink={() => {}}
-              sources={[]}
-              onDeleteSource={() => {}}
+              setGrillMe={setGrillMe}
+              onUploadFile={handleUploadFile}
+              onAddLink={handleAddLink}
+              sources={sources}
+              onDeleteSource={handleDeleteSource}
               onClearChat={clearChat}
               pendingClarifications={pendingClarifications}
               onAnswerClarification={(text) => { setPendingClarifications(null); send(text); }}
               onDismissClarifications={() => setPendingClarifications(null)}
+              showSources={true}
             />
           </div>
         </>
