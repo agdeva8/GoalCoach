@@ -22,7 +22,7 @@
  * (mirrors the legacy backend).
  */
 
-import { and, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -37,6 +37,23 @@ import { commitments, goals } from '@/db/schema'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+/* GET                                                                        */
+/* -------------------------------------------------------------------------- */
+
+export async function GET(req: NextRequest) {
+  const auth = await authenticateRoute(req)
+  if (auth.error) return auth.error
+
+  const rows = await db
+    .select()
+    .from(commitments)
+    .where(eq(commitments.userId, auth.userId!))
+    .orderBy(asc(commitments.due))
+    .limit(500)
+
+  return NextResponse.json({ commitments: rows.map(serialize) })
+}
 
 const CreateCommitmentBody = z.object({
   text: z.string().trim().min(1, 'text is required'),

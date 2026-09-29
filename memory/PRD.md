@@ -70,6 +70,10 @@ Founder (User #1): self-directed IC with a primary work goal, a fitness/recovery
 - **Slice 1:** Header cleanup — removed Chat button (FAB is the entry point), removed Scenarios dropdown (Persona picker covers scenario intent); Settings cog wired to `/settings` route.
 - **Slice 1b:** AddGoalDialog attach/link buttons restored — `onUploadSource`/`onAddLink`/`onDeleteSource` threaded through TrackingDashboard into AddGoalDialog's ChatConsole; source chips shown above textarea.
 - **Slice 2:** Dedicated `/settings` route with shadcn Tabs: Coach (model selector + persona note) / Account (theme toggle + sign-in/out) / Audit (opens HonestyAuditView).
+- **Slice 3:** Sources tab (Sources.jsx) added as 5th panel tab — grid of source cards (file/link kind, date, goal linkage, view/download/delete actions); calls `/api/sources` + `/api/sources/:id` DELETE.
+- **Slice 4 — Timeline chart fixes:** (a) Month-tick / today-label collision — split axis strip into top 28px (month labels) and bottom 28px (today label) so they never overlap; (b) goal title removed from inside the bar (was rendering twice); (c) commitment flags moved below milestone dots (`top: 11px` vs `top: 4px`) to eliminate overlap.
+- **Slice 5 — Today view:** New `Today.jsx` component + "Today" tab — fetches today's blockers/commitments from API, renders done-checkbox + notes per item, blur-saves notes to PUT `/api/blockers/:id`; API additions: GET `/api/blockers`, GET `/api/commitments`, PATCH `/api/commitments/:id`.
+- **Slice 6 — Mobile responsive:** Header controls (About/Audit/Theme) collapsed behind "More options" hamburger dropdown on `< sm`; tab bar gains `overflow-x-auto` for 5-tab scroll; Settings cog + model switcher remain primary-visible on mobile.
 - **Regression noted:** Proposal card list crowds in tight dialog vertical space — revisit with Slice 4 timeline redesign.
 
 ## Backlog / next

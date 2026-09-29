@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut, History, Sun, Moon, Info, LogIn, Settings } from "lucide-react";
+import { ChevronDown, LogOut, History, Sun, Moon, Info, LogIn, Settings, Menu, X } from "lucide-react";
 import Logo from "./Logo";
 import PersonaMenu from "./PersonaMenu";
 import { api } from "../lib/api";
@@ -36,6 +36,7 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
   const navigate = useNavigate();
   const [provOpen, setProvOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const providers = useProviders();
   const cur = providers.find((p) => p.id === provider);
   // Fall back to a stable placeholder when the providers list hasn't
@@ -50,6 +51,7 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
     const onDown = (e) => {
       if (rootRef.current && !rootRef.current.contains(e.target)) {
         setProvOpen(false);
+        setMoreOpen(false);
         setMenuOpen(false);
       }
     };
@@ -115,32 +117,67 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
           )}
         </div>
 
-        <button
-          data-testid="open-about-button"
-          onClick={onOpenAbout}
-          title="About Sutra, privacy & the founder"
-          className="hidden sm:flex h-11 sm:h-9 w-11 sm:w-9 items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-        >
-          <Info className="w-4 h-4" />
-        </button>
+        {/* Secondary controls — visible on desktop, collapsed behind "more" on mobile */}
+        <div className="hidden sm:flex items-center gap-2">
+          <button
+            data-testid="open-about-button"
+            onClick={onOpenAbout}
+            title="About Sutra, privacy & the founder"
+            className="h-9 w-9 items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            <Info className="w-4 h-4" />
+          </button>
+          <button
+            data-testid="open-audit-button"
+            onClick={onOpenAudit}
+            title="Every change the coach made — timestamped and exportable"
+            className="h-9 flex items-center gap-1.5 px-2.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            <History className="w-4 h-4" /> <span className="text-xs">Audit</span>
+          </button>
+          <button
+            data-testid="theme-toggle"
+            onClick={onToggleTheme}
+            title={theme === "light" ? "Switch to dark" : "Switch to light"}
+            className="h-9 w-9 items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          </button>
+        </div>
 
-        <button
-          data-testid="open-audit-button"
-          onClick={onOpenAudit}
-          title="Every change the coach made — timestamped and exportable"
-          className="h-11 sm:h-9 flex items-center gap-1.5 px-2.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-        >
-          <History className="w-4 h-4" /> <span className="hidden sm:inline text-xs">Audit</span>
-        </button>
-
-        <button
-          data-testid="theme-toggle"
-          onClick={onToggleTheme}
-          title={theme === "light" ? "Switch to dark" : "Switch to light"}
-          className="h-11 sm:h-9 w-11 sm:w-9 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-        >
-          {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-        </button>
+        {/* Mobile "more" menu — toggles secondary controls */}
+        <div className="relative sm:hidden">
+          <button
+            data-testid="header-more-button"
+            onClick={() => setMoreOpen((v) => !v)}
+            title="More options"
+            className="h-9 w-9 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            {moreOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
+          {moreOpen && (
+            <div className="absolute right-0 mt-1 w-48 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-2xl z-50 py-1">
+              <button
+                onClick={() => { onOpenAbout(); setMoreOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                <Info className="w-4 h-4" /> About Sutra
+              </button>
+              <button
+                onClick={() => { onOpenAudit(); setMoreOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                <History className="w-4 h-4" /> Audit log
+              </button>
+              <button
+                onClick={() => { onToggleTheme(); setMoreOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />} Toggle theme
+              </button>
+            </div>
+          )}
+        </div>
 
         {authLoading ? (
           <div className="h-9 w-9" aria-hidden="true" />

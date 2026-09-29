@@ -510,9 +510,9 @@ function ChartView({ goals, milestones, blockers, commitments, today, zoom, span
           className="relative"
           style={{ width: leftPad + totalWidth, height: totalHeight }}
         >
-          {/* Top month axis */}
+          {/* Month labels — top 28px of the axis strip, never collides with today label */}
           <div
-            className="absolute top-0 h-14"
+            className="absolute top-0 h-7"
             style={{ left: leftPad, width: totalWidth }}
           >
             {monthMarkers.map((m, i) => (
@@ -527,26 +527,22 @@ function ChartView({ goals, milestones, blockers, commitments, today, zoom, span
                 </span>
               </div>
             ))}
-            {/* Today line spanning the axis — DEDICATED strip with its
-                own space so the date label never collides with the
-                month tick to its left. The strip is a fixed-width
-                band (40px) so the dashed line and the "today" text
-                live together, independently of the surrounding month
-                labels. */}
-            {todayPx >= 0 && todayPx <= totalWidth && (
-              <div
-                className="absolute top-0 h-full border-l-2 border-dashed border-[var(--danger)]/70"
-                style={{ left: todayPx - 14 }}
-                title="Today"
-              >
-                <span
-                  className="absolute top-1 left-1.5 whitespace-nowrap px-1.5 py-0.5 rounded bg-[var(--danger)]/15 text-[var(--danger)] font-mono text-[9px] uppercase tracking-widest leading-none"
-                >
-                  today
-                </span>
-              </div>
-            )}
           </div>
+
+          {/* Today label — bottom 28px of the axis strip, never collides with month ticks */}
+          {todayPx >= 0 && todayPx <= totalWidth && (
+            <div
+              className="absolute top-7 h-7 border-l-2 border-dashed border-[var(--danger)]/70"
+              style={{ left: leftPad, width: totalWidth }}
+              title="Today"
+            >
+              <span
+                className="absolute top-1 left-1.5 whitespace-nowrap px-1.5 py-0.5 rounded bg-[var(--danger)]/15 text-[var(--danger)] font-mono text-[9px] uppercase tracking-widest leading-none"
+              >
+                today
+              </span>
+            </div>
+          )}
 
           {/* Today line spanning the full chart body */}
           {todayPx >= 0 && todayPx <= totalWidth && (
@@ -607,12 +603,7 @@ function ChartView({ goals, milestones, blockers, commitments, today, zoom, span
                   }}
                   title={`${g.title}${e ? ` · target ${fmtIso(e)}` : ""}`}
                 >
-                  <span
-                    className="absolute inset-y-0 left-2 flex items-center truncate text-[11px]"
-                    style={{ color: done ? "var(--text-muted)" : "var(--text-primary)" }}
-                  >
-                    {g.title}
-                  </span>
+                  {/* Title is shown in the left label column — not repeated inside the bar */}
                 </div>
                 {/* Milestone dots */}
                 {ms.map((m) => (
@@ -626,14 +617,14 @@ function ChartView({ goals, milestones, blockers, commitments, today, zoom, span
                     title={`Milestone: ${m.title}${m.goalTitle ? ` · ${m.goalTitle}` : ""}`}
                   />
                 ))}
-                {/* Commitment flags on this row */}
+                {/* Commitment flags on this row — shifted below milestone dots to avoid overlap */}
                 {cs.map((c) => {
                   const d = parse(c.due)
                   if (!d) return null
                   return (
                     <div
                       key={c.id}
-                      className="absolute top-5 h-4 w-px"
+                      className="absolute top-11 h-4 w-px"
                       style={{
                         left: leftPad + dayToPx(d),
                         background: "var(--accent)",

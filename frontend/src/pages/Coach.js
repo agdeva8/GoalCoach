@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon, Sparkles } from "lucide-react";
+import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon, FileText, Sparkles, Sun } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import Header from "../components/Header";
 import TrackingDashboard from "../components/TrackingDashboard";
 import Timeline from "../components/Timeline";
 import Memories from "../components/Memories";
+import Sources from "../components/Sources";
+import Today from "../components/Today";
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
@@ -302,7 +304,7 @@ export default function Coach() {
       )}
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="shrink-0 flex items-center border-b border-[var(--border)] px-4 sm:px-6 pt-3 bg-[var(--bg-primary)] sticky top-0 z-10 backdrop-blur">
+        <div className="shrink-0 flex items-center border-b border-[var(--border)] px-4 sm:px-6 pt-3 bg-[var(--bg-primary)] sticky top-0 z-10 backdrop-blur overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none]">
           <button
             data-testid="panel-tab-state"
             onClick={() => setPanelView("state")}
@@ -313,6 +315,17 @@ export default function Coach() {
             }`}
           >
             <LayoutDashboard className="w-3.5 h-3.5" /> Goals
+          </button>
+          <button
+            data-testid="panel-tab-today"
+            onClick={() => setPanelView("today")}
+            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+              panelView === "today"
+                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Sun className="w-3.5 h-3.5" /> Today
           </button>
           <button
             data-testid="panel-tab-timeline"
@@ -336,10 +349,23 @@ export default function Coach() {
           >
             <ImageIcon className="w-3.5 h-3.5" /> Memories
           </button>
+          <button
+            data-testid="panel-tab-sources"
+            onClick={() => setPanelView("sources")}
+            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+              panelView === "sources"
+                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" /> Sources
+          </button>
         </div>
 
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
-          {panelView === "state" ? (
+          {panelView === "today" ? (
+            <Today state={state} onChange={refreshState} />
+          ) : panelView === "state" ? (
             <TrackingDashboard
               state={state}
               onAction={(goal, type) => openAction(goal, type)}
@@ -354,6 +380,8 @@ export default function Coach() {
             />
           ) : panelView === "timeline" ? (
             <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChat={() => setChatOpen(true)} />
+          ) : panelView === "sources" ? (
+            <Sources state={state} onChange={refreshState} />
           ) : (
             <Memories state={state} onChange={refreshState} />
           )}

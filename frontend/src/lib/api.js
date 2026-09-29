@@ -28,6 +28,7 @@ export const api = {
   session: (session_id) => req("/auth/session", { method: "POST", body: JSON.stringify({ session_id }) }),
   logout: () => req("/auth/logout", { method: "POST" }),
   setProvider: (model_provider) => req("/preferences", { method: "PUT", body: JSON.stringify({ model_provider }) }),
+  models: () => req("/preferences/models"),
   state: () => req("/state"),
   history: () => req("/chat/history"),
   clearHistory: () => req("/chat/history", { method: "DELETE" }),
@@ -37,11 +38,14 @@ export const api = {
   reject: (message_id, proposal_id) =>
     req("/tools/reject", { method: "POST", body: JSON.stringify({ message_id, proposal_id }) }),
   // Blockers (direct edit)
+  blockers: () => req("/blockers"),
   createBlocker: (b) => req("/blockers", { method: "POST", body: JSON.stringify(b) }),
   updateBlocker: (id, b) => req(`/blockers/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteBlocker: (id) => req(`/blockers/${id}`, { method: "DELETE" }),
   // Commitments (direct edit)
+  commitments: () => req("/commitments"),
   createCommitment: (c) => req("/commitments", { method: "POST", body: JSON.stringify(c) }),
+  updateCommitment: (id, c) => req(`/commitments/${id}`, { method: "PATCH", body: JSON.stringify(c) }),
   // Sources
   sources: () => req("/sources"),
   addLink: (body) => req("/sources/link", { method: "POST", body: JSON.stringify(body) }),
