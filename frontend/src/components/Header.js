@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut, History, Sun, Moon, Info, LogIn, Settings, Menu, X } from "lucide-react";
+import { ChevronDown, LogOut, History, Info, LogIn, Settings, Menu, X } from "lucide-react";
 import Logo from "./Logo";
 import PersonaMenu from "./PersonaMenu";
 import { api } from "../lib/api";
@@ -32,7 +32,7 @@ function useProviders() {
   return providers;
 }
 
-export default function Header({ user, authLoading, provider, onProvider, onOpenChat, onOpenAudit, onOpenAbout, onSignIn, theme, onToggleTheme, onLogout, devLoginAvailable = false, currentUserId }) {
+export default function Header({ user, authLoading, provider, onProvider, onOpenChat, onOpenAudit, onOpenAbout, onSignIn, onLogout, devLoginAvailable = false, currentUserId }) {
   const navigate = useNavigate();
   const [provOpen, setProvOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -135,14 +135,6 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
           >
             <History className="w-4 h-4" /> <span className="text-xs">Audit</span>
           </button>
-          <button
-            data-testid="theme-toggle"
-            onClick={onToggleTheme}
-            title={theme === "light" ? "Switch to dark" : "Switch to light"}
-            className="h-9 w-9 items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-          >
-            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
         </div>
 
         {/* Mobile "more" menu — toggles secondary controls */}
@@ -170,10 +162,10 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
                 <History className="w-4 h-4" /> Audit log
               </button>
               <button
-                onClick={() => { onToggleTheme(); setMoreOpen(false); }}
+                onClick={() => { setMoreOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
               >
-                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />} Toggle theme
+                <Settings className="w-4 h-4" /> Settings
               </button>
             </div>
           )}

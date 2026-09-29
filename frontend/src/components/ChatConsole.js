@@ -83,7 +83,7 @@ function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {} }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -93,9 +93,12 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef(null);
 
+  // Scroll to bottom whenever messages change OR when sending starts (user sent a
+  // message but the response hasn't arrived yet — we still want to scroll so the
+  // user sees the input area disappear and knows the coach is working).
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  }, [messages, sending]);
 
   // Voice input via Web Speech API. We feature-detect on mount so we
   // can hide the mic button on browsers that don't support it
@@ -234,13 +237,17 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           <SpeechWave text={input} />
         )}
         <div className="flex items-end gap-1 border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
-          <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
-          <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" className="ml-1 mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
-            <Paperclip className="w-4 h-4" />
-          </button>
-          <button data-testid="chat-attach-link" onClick={onAddLink} title="Add a link as a source" className="mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
-            <Link2 className="w-4 h-4" />
-          </button>
+          {showSources && (
+            <>
+              <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
+              <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" className="ml-1 mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <button data-testid="chat-attach-link" onClick={onAddLink} title="Add a link as a source" className="mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+                <Link2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
           <textarea
             ref={taRef}
             data-testid="chat-input"

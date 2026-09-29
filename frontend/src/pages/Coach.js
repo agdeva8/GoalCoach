@@ -273,10 +273,6 @@ export default function Coach() {
         onOpenAudit={() => setAuditOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
         onSignIn={openSignIn}
-        theme={theme}
-        onToggleTheme={() =>
-          setTheme((t) => (t === "light" ? "dark" : "light"))
-        }
         onLogout={doLogout}
         devLoginAvailable={devLoginAvailable}
         currentUserId={user?.user_id || user?.id}

@@ -6,6 +6,12 @@ import AuthCallback from "./components/AuthCallback";
 import Coach from "./pages/Coach";
 import Settings from "./pages/Settings";
 
+function DynamicToaster() {
+  // Respects the .light class on <html> that theme-toggle sets.
+  const isLight = document.documentElement.classList.contains("light");
+  return <Toaster theme={isLight ? "light" : "dark"} position="bottom-right" toastOptions={{ style: { fontFamily: "JetBrains Mono, monospace", fontSize: "12px" } }} />;
+}
+
 function AppRouter() {
   const location = useLocation();
   if (location.hash?.includes("session_id=")) {
@@ -27,7 +33,7 @@ function App() {
         <AuthProvider>
           <AppRouter />
         </AuthProvider>
-        <Toaster theme="dark" position="bottom-right" toastOptions={{ style: { fontFamily: "JetBrains Mono, monospace", fontSize: "12px" } }} />
+        <DynamicToaster />
       </BrowserRouter>
     </div>
   );
