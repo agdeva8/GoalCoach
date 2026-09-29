@@ -94,7 +94,7 @@ export async function fetchLinkText(url: string): Promise<string> {
   try {
     response = await fetch(url, {
       signal: AbortSignal.timeout(15_000),
-      headers: { 'User-Agent': 'GoalCoach/1.0' },
+      headers: { 'User-Agent': 'Sutra/1.0' },
     })
   } catch {
     return '[fetch failed — link could not be reached]'

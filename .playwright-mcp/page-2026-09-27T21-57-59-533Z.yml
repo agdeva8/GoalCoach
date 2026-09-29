@@ -1,0 +1,256 @@
+- generic [ref=f24e3]:
+  - generic [ref=f24e4]:
+    - banner [ref=f24e5]:
+      - generic [ref=f24e6]:
+        - generic [ref=f24e18]: GoalCoach
+        - generic [ref=f24e19]: let's sort your life — together.
+      - generic [ref=f24e20]:
+        - button "Chat" [ref=f24e21] [cursor=pointer]
+        - button "Scenarios" [ref=f24e26] [cursor=pointer]
+        - button "Claude Sonnet 4.5" [ref=f24e78] [cursor=pointer]:
+          - generic [ref=f24e34]: Claude
+          - generic [ref=f24e35]: Sonnet 4.5
+        - button "About GoalCoach, privacy & the founder" [ref=f24e38] [cursor=pointer]
+        - button "Audit" [ref=f24e41] [cursor=pointer]
+        - button "Switch to light" [ref=f24e47] [cursor=pointer]
+        - generic [ref=f24e79]:
+          - button "Dev" [active] [ref=f24e80] [cursor=pointer]
+          - generic [ref=f24e290]:
+            - generic [ref=f24e291]:
+              - generic [ref=f24e292]:
+                - generic [ref=f24e293]: Personas · dev only
+                - generic [ref=f24e294]: Switch identity to test different starts.
+              - button "Refresh" [ref=f24e295] [cursor=pointer]
+            - list [ref=f24e301]:
+              - listitem [ref=f24e302]:
+                - generic [ref=f24e303]:
+                  - button "Guest user_guest_61fab574e27f·28/09/2026" [ref=f24e304] [cursor=pointer]:
+                    - generic [ref=f24e305]: Guest
+                    - generic [ref=f24e306]: user_guest_61fab574e27f·28/09/2026
+                  - button "Rename persona" [ref=f24e307] [cursor=pointer]
+              - listitem [ref=f24e311]:
+                - generic [ref=f24e312]:
+                  - button "Guest user_guest_94d525cc1699·28/09/2026" [ref=f24e313] [cursor=pointer]:
+                    - generic [ref=f24e314]: Guest
+                    - generic [ref=f24e315]: user_guest_94d525cc1699·28/09/2026
+                  - button "Rename persona" [ref=f24e316] [cursor=pointer]
+              - listitem [ref=f24e320]:
+                - generic [ref=f24e321]:
+                  - button "Guest user_guest_cc081c85bb81·28/09/2026" [ref=f24e322] [cursor=pointer]:
+                    - generic [ref=f24e323]: Guest
+                    - generic [ref=f24e324]: user_guest_cc081c85bb81·28/09/2026
+                  - button "Rename persona" [ref=f24e325] [cursor=pointer]
+              - listitem [ref=f24e329]:
+                - generic [ref=f24e330]:
+                  - button "Guest user_guest_de884d51f20d·28/09/2026" [ref=f24e331] [cursor=pointer]:
+                    - generic [ref=f24e332]: Guest
+                    - generic [ref=f24e333]: user_guest_de884d51f20d·28/09/2026
+                  - button "Rename persona" [ref=f24e334] [cursor=pointer]
+              - listitem [ref=f24e338]:
+                - generic [ref=f24e339]:
+                  - button "Guest user_guest_e70d0d3ee6d0·28/09/2026" [ref=f24e340] [cursor=pointer]:
+                    - generic [ref=f24e341]: Guest
+                    - generic [ref=f24e342]: user_guest_e70d0d3ee6d0·28/09/2026
+                  - button "Rename persona" [ref=f24e343] [cursor=pointer]
+              - listitem [ref=f24e347]:
+                - generic [ref=f24e348]:
+                  - button "Guest user_guest_588a253b720f·28/09/2026" [ref=f24e349] [cursor=pointer]:
+                    - generic [ref=f24e350]: Guest
+                    - generic [ref=f24e351]: user_guest_588a253b720f·28/09/2026
+                  - button "Rename persona" [ref=f24e352] [cursor=pointer]
+              - listitem [ref=f24e356]:
+                - generic [ref=f24e357]:
+                  - button "Guest user_guest_cbb1ea2e0fdc·28/09/2026" [ref=f24e358] [cursor=pointer]:
+                    - generic [ref=f24e359]: Guest
+                    - generic [ref=f24e360]: user_guest_cbb1ea2e0fdc·28/09/2026
+                  - button "Rename persona" [ref=f24e361] [cursor=pointer]
+              - listitem [ref=f24e365]:
+                - generic [ref=f24e366]:
+                  - button "Guest user_guest_21dfc09700ae·28/09/2026" [ref=f24e367] [cursor=pointer]:
+                    - generic [ref=f24e368]: Guest
+                    - generic [ref=f24e369]: user_guest_21dfc09700ae·28/09/2026
+                  - button "Rename persona" [ref=f24e370] [cursor=pointer]
+              - listitem [ref=f24e374]:
+                - generic [ref=f24e375]:
+                  - button "Guest user_guest_7f04a428c986·28/09/2026" [ref=f24e376] [cursor=pointer]:
+                    - generic [ref=f24e377]: Guest
+                    - generic [ref=f24e378]: user_guest_7f04a428c986·28/09/2026
+                  - button "Rename persona" [ref=f24e379] [cursor=pointer]
+              - listitem [ref=f24e383]:
+                - generic [ref=f24e384]:
+                  - button "Guest user_guest_39ab015e9279·28/09/2026" [ref=f24e385] [cursor=pointer]:
+                    - generic [ref=f24e386]: Guest
+                    - generic [ref=f24e387]: user_guest_39ab015e9279·28/09/2026
+                  - button "Rename persona" [ref=f24e388] [cursor=pointer]
+              - listitem [ref=f24e392]:
+                - generic [ref=f24e393]:
+                  - button "Guest user_guest_f2a2ddad084d·28/09/2026" [ref=f24e394] [cursor=pointer]:
+                    - generic [ref=f24e395]: Guest
+                    - generic [ref=f24e396]: user_guest_f2a2ddad084d·28/09/2026
+                  - button "Rename persona" [ref=f24e397] [cursor=pointer]
+              - listitem [ref=f24e401]:
+                - generic [ref=f24e402]:
+                  - button "Guest user_guest_2ed14c122877·28/09/2026" [ref=f24e403] [cursor=pointer]:
+                    - generic [ref=f24e404]: Guest
+                    - generic [ref=f24e405]: user_guest_2ed14c122877·28/09/2026
+                  - button "Rename persona" [ref=f24e406] [cursor=pointer]
+              - listitem [ref=f24e410]:
+                - generic [ref=f24e411]:
+                  - button "Guest user_guest_f0432688d04d·28/09/2026" [ref=f24e412] [cursor=pointer]:
+                    - generic [ref=f24e413]: Guest
+                    - generic [ref=f24e414]: user_guest_f0432688d04d·28/09/2026
+                  - button "Rename persona" [ref=f24e415] [cursor=pointer]
+              - listitem [ref=f24e419]:
+                - generic [ref=f24e420]:
+                  - button "Priya Nair user_persona_starter·27/09/2026" [ref=f24e421] [cursor=pointer]:
+                    - generic [ref=f24e422]: Priya Nair
+                    - generic [ref=f24e423]: user_persona_starter·27/09/2026
+                  - button "Rename persona" [ref=f24e424] [cursor=pointer]
+              - listitem [ref=f24e428]:
+                - generic [ref=f24e429]:
+                  - button "Marcus Bell user_persona_overdue·27/09/2026" [ref=f24e430] [cursor=pointer]:
+                    - generic [ref=f24e431]: Marcus Bell
+                    - generic [ref=f24e432]: user_persona_overdue·27/09/2026
+                  - button "Rename persona" [ref=f24e433] [cursor=pointer]
+              - listitem [ref=f24e437]:
+                - generic [ref=f24e438]:
+                  - button "Ana Duarte user_persona_dormant·27/09/2026" [ref=f24e439] [cursor=pointer]:
+                    - generic [ref=f24e440]: Ana Duarte
+                    - generic [ref=f24e441]: user_persona_dormant·27/09/2026
+                  - button "Rename persona" [ref=f24e442] [cursor=pointer]
+              - listitem [ref=f24e446]:
+                - generic [ref=f24e447]:
+                  - button "Kenji Sato user_persona_dense·27/09/2026" [ref=f24e448] [cursor=pointer]:
+                    - generic [ref=f24e449]: Kenji Sato
+                    - generic [ref=f24e450]: user_persona_dense·27/09/2026
+                  - button "Rename persona" [ref=f24e451] [cursor=pointer]
+              - listitem [ref=f24e455]:
+                - generic [ref=f24e456]:
+                  - button "Sofia Iqbal user_persona_memoryheavy·27/09/2026" [ref=f24e457] [cursor=pointer]:
+                    - generic [ref=f24e458]: Sofia Iqbal
+                    - generic [ref=f24e459]: user_persona_memoryheavy·27/09/2026
+                  - button "Rename persona" [ref=f24e460] [cursor=pointer]
+            - button "Continue as new person (fresh identity)" [ref=f24e465] [cursor=pointer]
+        - button "D" [ref=f24e86] [cursor=pointer]
+    - generic [ref=f24e55]:
+      - generic [ref=f24e56]:
+        - button "Goals" [ref=f24e57] [cursor=pointer]
+        - button "Timeline" [ref=f24e63] [cursor=pointer]
+        - button "Memories" [ref=f24e68] [cursor=pointer]
+      - generic [ref=f24e74]:
+        - generic [ref=f24e88]:
+          - generic [ref=f24e89]:
+            - heading "Your goals" [level=2] [ref=f24e90]
+            - paragraph [ref=f24e91]: Everything the coach is keeping track of for you.
+          - button "Add goal" [ref=f24e92] [cursor=pointer]
+        - status [ref=f24e94]:
+          - generic [ref=f24e95]:
+            - generic [ref=f24e98]: Your week · on track
+            - generic [ref=f24e99]: 1 goal · 4 to-do s
+          - paragraph [ref=f24e100]: A steady, focused load.
+        - generic [ref=f24e102]:
+          - generic [ref=f24e103]:
+            - generic [ref=f24e104]:
+              - generic [ref=f24e105]: Today
+              - heading "You're tracking 1 active goal" [level=2] [ref=f24e106]
+              - paragraph [ref=f24e107]: 2 commitments on the agenda today.
+            - generic [ref=f24e108]:
+              - img [ref=f24e109]:
+                - generic [ref=f24e112]: "%"
+              - generic [ref=f24e113]:
+                - generic [ref=f24e114]: 2 of 2 done
+                - generic [ref=f24e115]: Today's commitments
+            - generic [ref=f24e116]:
+              - generic [ref=f24e117]:
+                - generic [ref=f24e122]: "4"
+                - generic [ref=f24e123]: Open
+              - generic [ref=f24e124]:
+                - generic [ref=f24e128]: "2"
+                - generic [ref=f24e129]: Done today
+              - generic [ref=f24e130]:
+                - generic [ref=f24e134]: "0"
+                - generic [ref=f24e135]: Overdue
+            - button "Ask the coach for today's read" [ref=f24e136] [cursor=pointer]
+            - button "Plan my day with the coach" [ref=f24e139] [cursor=pointer]
+          - generic [ref=f24e142]:
+            - generic [ref=f24e143]: Today timetable
+            - list [ref=f24e146]:
+              - listitem [ref=f24e147]:
+                - generic [ref=f24e151]:
+                  - generic [ref=f24e152]: Read response-user resolver diff
+                  - generic [ref=f24e153]:
+                    - generic [ref=f24e154]: Ship persona-aware planner UI
+                    - generic [ref=f24e155]: · 2026-09-27
+              - listitem [ref=f24e156]:
+                - generic [ref=f24e160]:
+                  - generic [ref=f24e161]: Track meals in the journal
+                  - generic [ref=f24e162]:
+                    - generic [ref=f24e163]: Get healthier
+                    - generic [ref=f24e164]: · 2026-09-27
+          - generic [ref=f24e165]:
+            - generic [ref=f24e166]:
+              - generic [ref=f24e167]: Streak
+              - generic [ref=f24e170]: On a 2-commit day
+              - generic [ref=f24e171]: Use the momentum — pick the next item.
+            - generic [ref=f24e172]:
+              - generic [ref=f24e173]: This week
+              - list [ref=f24e176]:
+                - listitem [ref=f24e177]:
+                  - generic [ref=f24e178]: Header dropdown shows weights
+                  - generic [ref=f24e179]: Ship persona-aware planner UI · 2026-09-30
+                - listitem [ref=f24e180]:
+                  - generic [ref=f24e181]: Tab key cycles personas
+                  - generic [ref=f24e182]: Ship persona-aware planner UI · 2026-10-04
+        - generic [ref=f24e183]:
+          - generic [ref=f24e184]:
+            - generic [ref=f24e187]:
+              - generic [ref=f24e188]: A nudge for today
+              - generic [ref=f24e189]: Curated · server picked these from your week
+            - button "Refresh" [ref=f24e190] [cursor=pointer]
+            - button "Hide for this view" [ref=f24e196] [cursor=pointer]
+          - list [ref=f24e200]:
+            - listitem [ref=f24e201]:
+              - generic [ref=f24e206]:
+                - link "The Habit Loop — cue, routine, reward" [ref=f24e207] [cursor=pointer]:
+                  - /url: https://charlesduhigg.com/the-power-of-habit/
+                - generic [ref=f24e212]: Charles Duhigg · article · 5 min read
+                - paragraph [ref=f24e213]: Right now, you're in the hard middle. Most habit failures are wired loops that reward the wrong thing. Rewrite the cue.
+            - listitem [ref=f24e214]:
+              - generic [ref=f24e219]:
+                - link "The Pomodoro — 25 minutes is a contract with yourself" [ref=f24e220] [cursor=pointer]:
+                  - /url: https://francescocirillo.com/pages/pomodoro-technique
+                - generic [ref=f24e225]: Francesco Cirillo · article · 3 min read
+                - paragraph [ref=f24e226]: Right now, you're in the hard middle. Time-boxed, interruption-free, twenty-five minute sessions. Start one before you finish this sentence.
+            - listitem [ref=f24e227]:
+              - generic [ref=f24e232]:
+                - link "Mountain vs. Marshmallow — reframing the boring middle" [ref=f24e233] [cursor=pointer]:
+                  - /url: https://www.profgalloway.com/
+                - generic [ref=f24e238]: Scott Galloway · article · 8 min read
+                - paragraph [ref=f24e239]: Right now, you're in the hard middle. Why the middle of a goal feels like failure — even when it isn’t.
+        - generic [ref=f24e240]:
+          - generic [ref=f24e241]: Medium-term · 3–12 months
+          - generic [ref=f24e243]:
+            - generic [ref=f24e249]:
+              - generic [ref=f24e250]: Land the Q3 release by Aug 31
+              - generic [ref=f24e251]: next Final review with the QA team this Friday.
+              - button "2 milestone s ● 2" [ref=f24e253] [cursor=pointer]:
+                - text: 2 milestone s
+                - generic [ref=f24e256]: ● 2
+              - generic [ref=f24e259]:
+                - button "Attach a file to this goal" [ref=f24e260] [cursor=pointer]
+                - button "Add a link as a source" [ref=f24e262] [cursor=pointer]
+                - generic [ref=f24e266]: attach a source
+            - generic [ref=f24e267]:
+              - button "Add a step / milestone" [ref=f24e268] [cursor=pointer]
+              - button "Refine or rename this goal" [ref=f24e271] [cursor=pointer]
+              - button "Pause this goal" [ref=f24e275] [cursor=pointer]
+              - button "Drop this goal" [ref=f24e279] [cursor=pointer]
+        - generic [ref=f24e283]:
+          - generic [ref=f24e284]: Upcoming — headed your way
+          - generic [ref=f24e285]:
+            - generic [ref=f24e286]: Calendar view
+            - generic [ref=f24e287]: Weekly / daily scheduler
+            - generic [ref=f24e288]: Reminders
+            - generic [ref=f24e289]: Trackers
+    - button "Chat with your coach" [ref=f24e75] [cursor=pointer]
+  - region "Notifications alt+T"

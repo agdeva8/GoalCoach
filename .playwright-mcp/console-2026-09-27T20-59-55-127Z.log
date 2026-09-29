@@ -1,0 +1,39 @@
+[     814ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[     912ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[     935ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[  684075ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  686083ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  690135ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  698208ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  701857ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[ 1047057ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed:  @ http://localhost:7200/static/js/bundle.js:37623
+[ 1048131ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[ 1050204ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[ 1054304ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[ 1062545ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[ 1062639ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[ 1062654ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[ 2349233ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed:  @ http://localhost:7200/static/js/bundle.js:37620
+[ 2350333ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37620
+[ 2352427ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37620
+[ 2356469ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37620
+[ 2364502ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37620
+[ 2367728ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[ 2367847ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[ 2367861ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[ 3392983ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed:  @ http://localhost:7200/static/js/bundle.js:37683
+[ 3394009ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37683
+[ 3396084ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37683
+[ 3400171ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37683
+[ 3408240ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37683
+[ 3411971ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[ 3412089ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[ 3412107ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/auth/me:0
+[27403008ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[33656072ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[39039276ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[47213211ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[50505815ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/memories:0
+[50505828ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/memories:0
+[50513734ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[51027427ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55

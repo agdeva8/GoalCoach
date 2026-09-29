@@ -1,5 +1,5 @@
 /**
- * GoalCoach Drizzle schema — Phase 1.
+ * Sutra Drizzle schema — Phase 1.
  *
  * Source of truth: migration/discovery/03-nextjs-architecture.md Section 2.
  *

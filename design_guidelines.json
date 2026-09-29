@@ -1,5 +1,5 @@
 {
-  "project_name": "GoalCoach",
+  "project_name": "Sutra",
   "tagline": "Think through your goals, out loud.",
   "brand_voice": "Precise, curious, rigorous, and direct. The honest coach is harder to like but easier to trust. Zero slop, zero cheerleading, zero fluff.",
   "design_archetype": "ARCHETYPE 4: SWISS & HIGH-CONTRAST / COMMAND CENTER",
@@ -66,7 +66,7 @@
     {
       "name": "Header & Nav",
       "path": "frontend/src/components/Header.js",
-      "description": "Top navbar displaying brand 'GoalCoach', literal tagline 'Think through your goals, out loud.', Model Provider dropdown (Gemini default, Claude, OpenAI), Storyboard Moment picker, and Google Auth trigger.",
+      "description": "Top navbar displaying brand 'Sutra', literal tagline 'Think through your goals, out loud.', Model Provider dropdown (Gemini default, Claude, OpenAI), Storyboard Moment picker, and Google Auth trigger.",
       "testid": "app-header"
     },
     {
@@ -130,7 +130,7 @@
     "The coach response output shape MUST adhere to: 1-paragraph synthesis + <=3 weekly actions + 1 over-commitment warning when applicable.",
     "The LLM cannot modify goal state silently. Any tool call proposal MUST present an inline prompt in the chat for user confirmation.",
     "Ensure exact synchronization between chat state changes (upon user confirmation) and the tracking dashboard view.",
-    "Never add unnecessary marketing gradients or fluffy motivational text — uphold the rigorous, direct, honest voice of GoalCoach.",
+    "Never add unnecessary marketing gradients or fluffy motivational text — uphold the rigorous, direct, honest voice of Sutra.",
     "Ensure all interactive elements have data-testid attributes."
   ],
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": {

@@ -18,7 +18,7 @@ export default function SignInModal({ open, onClose, reason }) {
       return;
     }
     let cancelled = false;
-    fetch(`${API}/auth/dev-login`, { method: "GET" })
+    fetch(`${API}/auth/dev-login?probe=1`, { method: "GET" })
       .then((res) => {
         if (!cancelled) setDevLoginAvailable(res.status === 200);
       })
@@ -67,7 +67,7 @@ export default function SignInModal({ open, onClose, reason }) {
           <Logo className="w-9 h-9 text-[var(--accent)]" />
           <h2 className="font-display text-xl font-semibold tracking-tight mt-4">Sign in to keep this</h2>
           <p className="text-sm leading-relaxed text-[var(--text-secondary)] mt-2">
-            {reason || "You've been previewing GoalCoach. To save this goal, build your timeline, and have the coach remember you next week, sign in."}
+            {reason || "You've been previewing Sutra. To save this goal, build your timeline, and have the coach remember you next week, sign in."}
             {" "}Nothing you did in preview is stored until you do.
           </p>
           <button

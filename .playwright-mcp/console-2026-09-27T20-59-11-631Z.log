@@ -1,0 +1,39 @@
+[   13231ms] [ERROR] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. allowTransparency allowtransparency @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   13851ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   13851ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   13851ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   14025ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790542765, extra: Object, guardList: Array(2), hash: xv0yv1} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[   13851ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   13851ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   13851ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   14038ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   14038ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   14038ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   14085ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790542765, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[   64548ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   64548ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   64548ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   64676ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790542816, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[   64548ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   64548ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   64548ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   65010ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   65010ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   65010ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   65068ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790542816, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83

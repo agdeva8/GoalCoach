@@ -97,5 +97,12 @@ credentials.json
 # GoalCoach-specific cleanup (bolt.diy prep, 2026-09-24)
 graphify-out/
 y/
-tests/
 frontend/package-lock.json
+
+# Playwright artifacts (kept out of history; safe to delete locally)
+/playwright-report/
+/test-results/
+/playwright/.cache/
+/blob-report/
+/playwright/.last-run.json
+tests/e2e/screenshots/

@@ -26,11 +26,27 @@ function Row({ label, value }) {
   );
 }
 
+/**
+ * Flatten a proposal so field access works regardless of whether the
+ * server wrapped fields in `args` (canonical post-parse shape from
+ * `parseProposals` at api/lib/emergent/llm.ts:166) or kept them at
+ * the top level (some legacy / hand-crafted test fixtures). The
+ * canonical shape is `args`, but we tolerate both so a single
+ * proposal object always renders the same.
+ */
+function flatProposal(p) {
+  if (!p) return {};
+  const args = p.args && typeof p.args === "object" ? p.args : {};
+  // Top-level fields win on conflict; args fills the gaps.
+  return { ...args, ...p, args };
+}
+
 export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, onRefine, busy }) {
   const status = proposal.status || "pending";
   const isDrop = proposal.action === "drop_goal" || proposal.action === "pause_goal";
   const [refining, setRefining] = useState(false);
   const [thought, setThought] = useState("");
+  const d = flatProposal(proposal);
 
   const sendRefine = () => {
     const t = thought.trim();
@@ -58,17 +74,17 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
       </div>
 
       <div className="px-3 py-3 space-y-1.5">
-        <Row label="Goal" value={proposal.title || proposal.new_title || proposal.goal_title} />
-        <Row label="Horizon" value={HORIZON_LABELS[proposal.horizon]} />
-        <Row label="Why" value={proposal.why} />
-        <Row label="Action" value={proposal.first_action || proposal.next_action} />
-        <Row label="Milestone" value={proposal.action === "add_milestone" ? proposal.title : null} />
-        <Row label="Target" value={proposal.target_date} />
-        <Row label="Window" value={proposal.action === "add_blocker" ? `${proposal.start_date || ""}${proposal.end_date ? " – " + proposal.end_date : ""}` : null} />
-        <Row label="Commit" value={proposal.text} />
-        <Row label="Due" value={proposal.due} />
-        <Row label="Status" value={proposal.action === "update_goal" ? proposal.status : null} />
-        <Row label="Reason" value={proposal.reason || proposal.note} />
+        <Row label="Goal" value={d.title || d.new_title || d.goal_title} />
+        <Row label="Horizon" value={HORIZON_LABELS[d.horizon]} />
+        <Row label="Why" value={d.why} />
+        <Row label="Action" value={d.first_action || d.next_action} />
+        <Row label="Milestone" value={d.action === "add_milestone" ? d.title : null} />
+        <Row label="Target" value={d.target_date} />
+        <Row label="Window" value={d.action === "add_blocker" ? `${d.start_date || ""}${d.end_date ? " – " + d.end_date : ""}` : null} />
+        <Row label="Commit" value={d.text} />
+        <Row label="Due" value={d.due} />
+        <Row label="Status" value={d.action === "update_goal" ? d.status : null} />
+        <Row label="Reason" value={d.reason || d.note} />
       </div>
 
       {status === "pending" && !refining && (

@@ -11,13 +11,23 @@ The **full project philosophy, operating loop, hard constraints, and Iteration-4
 - **Main agent — `MiniMax-M3`** (high-capability model). The **only** agent that fixes bugs or implements features. Owns the full operating loop (orient → decide → baseline → implement → test → ask → update PRD). All code edits, schema migrations, system-prompt changes, and architectural decisions flow through this agent.
 - **Small agents — `MiniMax-M2.x` family** (fast, lightweight). Never change code. They exist to validate the main agent's work and handle the mechanical wrap-up:
   - **Commit agent** — after the main agent finishes a slice and the user confirms ship-ready, it stages files and writes the commit message in the repo's existing style.
-  - **Test agents** — run additional checks the main agent shouldn't burn context on: lint, type-check, unit/integration suites, dependency audits, security scans. Report results back as a short pass/fail summary with file:line references.
-  - **Browser-level testing agent** — drives the running app via the browser tools at the two required viewports (1920×800 + 390×844), exercises the new flow end-to-end, and reports what it saw (layout, console errors, network failures, visual regressions).
+  - **Test agents** — run only the lowest-priority checks: lint, typecheck, lightweight regression (unit / integration). The browser-E2E fleet is the source of truth and is dispatched separately — see "Testing strategy and orchestration" in `memory/AGENT_BUILDER.md`. Default matrix `[5 explore, 2 verify, 3 bug-hunt, 1 verify-only]` at iteration ship boundary; per-stage count is configurable per slice.
+  - **Browser-level testing fleet** (Stages A → E) — the primary verification surface. Stage A = ≥5 parallel agents open the test instance in independent incognito Chrome profiles and exercise assigned slices of the test plan; Stage B = 2 agents re-run the evidence and gate it; Stage C = 3 agents hunt fresh bugs the explorers missed; Stage D = the main agent fixes consensus-confirmed bugs; Stage E = 1 agent verifies the fixes only. Always runs against a shifted-port dev instance so the founder's live dev server is untouched. Browser E2E > API smoke (curl) > unit/lint/typecheck in priority; the last tier is **optional at MVP** and may be skipped.
 - All small agents **report results back to the main agent** (or directly to the user when invoked standalone). The main agent is the only one that decides what to do with those results — fix, revert, or ship.
 
-If you are the main agent: you own all code changes. Delegate testing/commit/browser verification to small agents — don't do them inline.
+If you are the main agent: you own all code changes. **In MVP mode**, run review + test inline through the iteration; dispatch small agents (test/browser/commit) only at the iteration ship boundary. **Post-MVP**, revert to delegating testing/commit/browser verification to small agents as the default.
 
 If you are a small agent: do **not** edit source files. If you spot something that needs a code change, report it; the main agent (or the user) will decide what to do.
+
+---
+
+## Mode: MVP (Iteration 4+)
+
+**We're in MVP build mode until the founder signals otherwise.** Three defaults are relaxed; everything else in `memory/AGENT_BUILDER.md` still applies.
+
+1. **Spec bar:** 1 round of adversarial review, founder signs. (Post-MVP target: 3 rounds at 8/10.)
+2. **Sub-agent dispatch:** main agent runs review + test inline through iteration. Small-agent fleet (test, browser, commit) fires at the iteration **ship boundary**, not per-feature.
+3. **Doc-reconciliation layer:** runs at the iteration ship boundary, not per-feature. Mid-iteration tweaks go through design + eng only. Copy/CSS-only nits skip design.
 
 ---
 

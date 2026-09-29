@@ -333,7 +333,7 @@ export default function SourceActionDialog({
     )
   } else if (mode === "delete") {
     title = `Remove "${source?.original_filename || "source"}"?`
-    subtitle = "This won't delete the underlying file from your disk — only the link to it from GoalCoach."
+    subtitle = "This won't delete the underlying file from your disk — only the link to it from Sutra."
     body = (
       <div className="space-y-3">
         <p className="text-xs text-[var(--text-secondary)] leading-relaxed">

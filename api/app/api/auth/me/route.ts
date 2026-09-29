@@ -7,7 +7,7 @@
  * Response shape (snake_case keys) matches the legacy FastAPI
  * `/api/auth/me` so the existing frontend `api.me()` and test
  * fixtures keep working without a port:
- *   { user_id, email, name, image, model_provider, is_guest }
+ *   { user_id, email, name, image, model_provider, is_guest, persona_key }
  *
  * `model_provider` is read from the `users` row (Emergent OAuth doesn't
  * carry it; we persist whatever the user picked via `/api/preferences`
@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
         image: users.image,
         modelProvider: users.modelProvider,
         isGuest: users.isGuest,
+        personaKey: users.personaKey,
       })
       .from(users)
       .where(sql`${users.id} = ${userId}`)
@@ -59,22 +60,33 @@ export async function GET(req: NextRequest) {
         image: u.image ?? null,
         model_provider: u.modelProvider ?? 'gemini',
         is_guest: u.isGuest ?? false,
+        persona_key: u.personaKey ?? null,
       })
     }
     return NextResponse.json({ detail: 'Unknown dev user' }, { status: 401 })
   }
 
   // 1) Emergent OAuth session OR guest cookie. `getAuthenticatedUser`
-  //    reads the cookies + looks up the `users` row.
+  //    reads the cookies + looks up the `users` row. We always read
+  //    modelProvider fresh from the DB — the Auth.js session is a JWT
+  //    and doesn't refresh when /api/preferences changes the value, so
+  //    a hard reload after a model switch would otherwise revert.
   const session = await auth()
   if (session?.user?.id) {
+    const row = await db
+      .select({ modelProvider: users.modelProvider, name: users.name, personaKey: users.personaKey })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1)
+    const fresh = row[0]
     return NextResponse.json({
       user_id: session.user.id,
       email: session.user.email ?? null,
-      name: session.user.name ?? null,
+      name: fresh?.name ?? session.user.name ?? null,
       image: session.user.image ?? null,
-      model_provider: session.user.modelProvider ?? 'gemini',
+      model_provider: fresh?.modelProvider ?? session.user.modelProvider ?? 'gemini',
       is_guest: session.user.isGuest ?? false,
+      persona_key: fresh?.personaKey ?? session.user.personaKey ?? null,
     })
   }
 
@@ -91,6 +103,7 @@ export async function GET(req: NextRequest) {
         image: users.image,
         modelProvider: users.modelProvider,
         isGuest: users.isGuest,
+        personaKey: users.personaKey,
       })
       .from(users)
       .where(eq(users.id, guestUserId))
@@ -105,6 +118,7 @@ export async function GET(req: NextRequest) {
         image: guest.image ?? null,
         model_provider: guest.modelProvider ?? 'gemini',
         is_guest: true,
+        persona_key: guest.personaKey ?? null,
       })
     }
   }

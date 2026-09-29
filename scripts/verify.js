@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GoalCoach end-to-end verification script.
+ * Sutra end-to-end verification script.
  *
  * What it does:
  *   1. Hits every key backend route (with bearer + guest cookie fallback)
@@ -23,8 +23,12 @@ const { chromium, devices } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const BACKEND = process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001';
-const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Default to the local-dev convention (api/.env + api/middleware.ts CORS):
+//   API  on http://localhost:4000
+//   Web  on http://localhost:4001
+// Override with FRONTEND_URL / NEXT_PUBLIC_APP_URL / API_URL when needed.
+const BACKEND = process.env.API_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4000';
+const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:4001';
 const OUT = path.join(process.cwd(), 'verify-out');
 const BASELINE = path.join(process.cwd(), 'verify-out', 'baseline.json');
 const REPORT = path.join(process.cwd(), 'verify-out', 'report.json');

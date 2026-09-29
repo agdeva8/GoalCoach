@@ -1,5 +1,5 @@
 /**
- * Auth helpers for GoalCoach — Emergent-OAuth-only world.
+ * Auth helpers for Sutra — Emergent-OAuth-only world.
  *
  * Source of truth: migration/discovery/03-nextjs-architecture.md
  * Section 3 (auth model) — after the Emergent swap.

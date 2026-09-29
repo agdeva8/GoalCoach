@@ -1,5 +1,5 @@
 /**
- * Logo — GoalCoach brand mark.
+ * Logo — Sutra brand mark.
  *
  * Concept: a meditating guru. A seated figure with crossed legs and
  * hands resting on the knees, a "third-eye" dot at the brow, and a

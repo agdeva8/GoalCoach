@@ -1,0 +1,1442 @@
+{
+  "config": {
+    "argv": [
+      "/Users/deva/.nvm/versions/node/v26.1.0/bin/node",
+      "/Users/deva/Documents/Projects/goalcoachv2/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/cli.js",
+      "test",
+      "--list"
+    ],
+    "configFile": "/Users/deva/Documents/Projects/goalcoachv2/playwright.config.ts",
+    "rootDir": "/Users/deva/Documents/Projects/goalcoachv2/tests/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/deva/Documents/Projects/goalcoachv2/test_reports/e2e-artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "desktop",
+        "name": "desktop",
+        "testDir": "/Users/deva/Documents/Projects/goalcoachv2/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/deva/Documents/Projects/goalcoachv2/test_reports/e2e-artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/Users/deva/Documents/Projects/goalcoachv2/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test_reports/e2e-results.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "test_reports/e2e-html",
+          "open": "never"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "_a11y.spec.ts",
+      "file": "_a11y.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "accessibility @ desktop viewport",
+          "file": "_a11y.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "landing page passes axe WCAG 2.1 AA",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "29d7ea9b4e53f50b58de-83651a04ce1af0f8466c",
+              "file": "_a11y.spec.ts",
+              "line": 16,
+              "column": 7
+            },
+            {
+              "title": "landing page passes axe WCAG 2.1 AA",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "29d7ea9b4e53f50b58de-55c5efb03cd08757b833",
+              "file": "_a11y.spec.ts",
+              "line": 16,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "_browser_check.spec.ts",
+      "file": "_browser_check.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "browser harness check @ desktop viewport",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "5ed2f0a1012f675bc7e5-57de729e07196d216509",
+          "file": "_browser_check.spec.ts",
+          "line": 5,
+          "column": 5
+        },
+        {
+          "title": "browser harness check @ mobile viewport",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "5ed2f0a1012f675bc7e5-ab5a0d3d6814fb312801",
+          "file": "_browser_check.spec.ts",
+          "line": 11,
+          "column": 5
+        },
+        {
+          "title": "browser harness check @ desktop viewport",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "5ed2f0a1012f675bc7e5-2c6449b04e20e091c3fa",
+          "file": "_browser_check.spec.ts",
+          "line": 5,
+          "column": 5
+        },
+        {
+          "title": "browser harness check @ mobile viewport",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "5ed2f0a1012f675bc7e5-b0348cc5c48b762a5b6c",
+          "file": "_browser_check.spec.ts",
+          "line": 11,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "01_smoke.spec.ts",
+      "file": "01_smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "smoke",
+          "file": "01_smoke.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "API root responds and UI renders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3440118224d8ef027606-6e08f00f2555eea5624d",
+              "file": "01_smoke.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "guest login round-trips identity through /api/auth/me",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3440118224d8ef027606-c3a69d99c36dc7dcfa16",
+              "file": "01_smoke.spec.ts",
+              "line": 13,
+              "column": 7
+            },
+            {
+              "title": "API root responds and UI renders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3440118224d8ef027606-41f80c96efc0cae56513",
+              "file": "01_smoke.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "guest login round-trips identity through /api/auth/me",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3440118224d8ef027606-4556a4951640b1bb4c3d",
+              "file": "01_smoke.spec.ts",
+              "line": 13,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "02_routes.spec.ts",
+      "file": "02_routes.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "navigation",
+          "file": "02_routes.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "primary routes render without console errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "aac0592fce8777b71139-74d7fdcd8dc89926bbe5",
+              "file": "02_routes.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "browser back/forward restores state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "aac0592fce8777b71139-be3d01d513a31b979430",
+              "file": "02_routes.spec.ts",
+              "line": 23,
+              "column": 7
+            },
+            {
+              "title": "guest cookie auth unlocks protected UI",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "aac0592fce8777b71139-aa5ff31c56dbe697900f",
+              "file": "02_routes.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "primary routes render without console errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "aac0592fce8777b71139-ed4f593d903208b253bd",
+              "file": "02_routes.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "browser back/forward restores state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "aac0592fce8777b71139-c4a734601718182aea2b",
+              "file": "02_routes.spec.ts",
+              "line": 23,
+              "column": 7
+            },
+            {
+              "title": "guest cookie auth unlocks protected UI",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "aac0592fce8777b71139-13a3a168caa89d3d762f",
+              "file": "02_routes.spec.ts",
+              "line": 35,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03_api_auth_state.spec.ts",
+      "file": "03_api_auth_state.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "auth + state",
+          "file": "03_api_auth_state.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "persona switching isolates state per persona",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "13dab7e169fc7cd7a52b-c73395f4222dfd9ca186",
+              "file": "03_api_auth_state.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "preferences persist per user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "13dab7e169fc7cd7a52b-6e38cf481e471392cd57",
+              "file": "03_api_auth_state.spec.ts",
+              "line": 30,
+              "column": 7
+            },
+            {
+              "title": "persona switching isolates state per persona",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "13dab7e169fc7cd7a52b-ceee8f7c126a065071e5",
+              "file": "03_api_auth_state.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "preferences persist per user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "13dab7e169fc7cd7a52b-e4493266ce266361e32d",
+              "file": "03_api_auth_state.spec.ts",
+              "line": 30,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04_chat_and_proposals.spec.ts",
+      "file": "04_chat_and_proposals.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "chat stream + propose/confirm/reject",
+          "file": "04_chat_and_proposals.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "SSE chat streams tokens and at least one proposal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e374e24919f91a2b0e81-9f85e8b27ec2c6acae55",
+              "file": "04_chat_and_proposals.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "confirm a proposal changes state for the caller only",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e374e24919f91a2b0e81-a36b6e4369b02c4ea506",
+              "file": "04_chat_and_proposals.spec.ts",
+              "line": 50,
+              "column": 7
+            },
+            {
+              "title": "reject a proposal updates status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e374e24919f91a2b0e81-665c0423ebed837969d5",
+              "file": "04_chat_and_proposals.spec.ts",
+              "line": 77,
+              "column": 7
+            },
+            {
+              "title": "SSE chat streams tokens and at least one proposal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e374e24919f91a2b0e81-b66b60489d9eaded3288",
+              "file": "04_chat_and_proposals.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "confirm a proposal changes state for the caller only",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e374e24919f91a2b0e81-d246677cfaa64232f017",
+              "file": "04_chat_and_proposals.spec.ts",
+              "line": 50,
+              "column": 7
+            },
+            {
+              "title": "reject a proposal updates status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e374e24919f91a2b0e81-006e636d4c4e81fe4f65",
+              "file": "04_chat_and_proposals.spec.ts",
+              "line": 77,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "05_drop_archive.spec.ts",
+      "file": "05_drop_archive.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "drop goal flow",
+          "file": "05_drop_archive.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "drop_goal moves goal from active to archive for the caller",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7ef85d0c6821b2579bb7-deab2bd2dc1d5de0601c",
+              "file": "05_drop_archive.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "drop_goal moves goal from active to archive for the caller",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7ef85d0c6821b2579bb7-94f8f7588759f9d094e6",
+              "file": "05_drop_archive.spec.ts",
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "06_memories_blockers_motivation.spec.ts",
+      "file": "06_memories_blockers_motivation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "memories",
+          "file": "06_memories_blockers_motivation.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "POST a memory with date+time and GET it back",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "11a9f88273a056df4c28-1c395abf0e378f32917c",
+              "file": "06_memories_blockers_motivation.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "POST a memory with date+time and GET it back",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "11a9f88273a056df4c28-1020bce0185e7d940630",
+              "file": "06_memories_blockers_motivation.spec.ts",
+              "line": 5,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "motivation",
+          "file": "06_memories_blockers_motivation.spec.ts",
+          "line": 33,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET /api/motivation/recommend as guest must NOT 401",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "11a9f88273a056df4c28-128b05161587344f1652",
+              "file": "06_memories_blockers_motivation.spec.ts",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "GET /api/motivation/recommend as guest must NOT 401",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "11a9f88273a056df4c28-fdb7e5693e1d481998ae",
+              "file": "06_memories_blockers_motivation.spec.ts",
+              "line": 34,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "blockers",
+          "file": "06_memories_blockers_motivation.spec.ts",
+          "line": 47,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET / POST / GET-by-id round-trip",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "11a9f88273a056df4c28-8255a8d3dbefcc8ad006",
+              "file": "06_memories_blockers_motivation.spec.ts",
+              "line": 48,
+              "column": 7
+            },
+            {
+              "title": "GET / POST / GET-by-id round-trip",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "11a9f88273a056df4c28-cc2a1c373a1bc1726357",
+              "file": "06_memories_blockers_motivation.spec.ts",
+              "line": 48,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "07_resizable_split.spec.ts",
+      "file": "07_resizable_split.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "regression — UI mechanics",
+          "file": "07_resizable_split.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "resizable split renders two panes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0faa59dad6bd98325231-522ca7979150abb2e0a4",
+              "file": "07_resizable_split.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "guest-to-account migration entry points exist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0faa59dad6bd98325231-f077e0340c93fbbe9628",
+              "file": "07_resizable_split.spec.ts",
+              "line": 18,
+              "column": 7
+            },
+            {
+              "title": "resizable split renders two panes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0faa59dad6bd98325231-fe7f272a1f4847176f3a",
+              "file": "07_resizable_split.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "guest-to-account migration entry points exist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0faa59dad6bd98325231-0197229ffe24279eceb9",
+              "file": "07_resizable_split.spec.ts",
+              "line": 18,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "08_proposal_audit_chain.spec.ts",
+      "file": "08_proposal_audit_chain.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "proposal audit chain",
+          "file": "08_proposal_audit_chain.spec.ts",
+          "line": 27,
+          "column": 6,
+          "specs": [
+            {
+              "title": "confirm on a foreign proposal_id does NOT mutate caller state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "596ee108d7a1019c572d-0e3e390dc143a1df50c6",
+              "file": "08_proposal_audit_chain.spec.ts",
+              "line": 28,
+              "column": 7
+            },
+            {
+              "title": "GET /api/audit returns rows scoped to the caller only",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "596ee108d7a1019c572d-1e6cb4371276b647203f",
+              "file": "08_proposal_audit_chain.spec.ts",
+              "line": 50,
+              "column": 7
+            },
+            {
+              "title": "confirm on a foreign proposal_id does NOT mutate caller state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "596ee108d7a1019c572d-5beef229e80f2714fb9c",
+              "file": "08_proposal_audit_chain.spec.ts",
+              "line": 28,
+              "column": 7
+            },
+            {
+              "title": "GET /api/audit returns rows scoped to the caller only",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "596ee108d7a1019c572d-555e338c231ea643e86e",
+              "file": "08_proposal_audit_chain.spec.ts",
+              "line": 50,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "reject proposal",
+          "file": "08_proposal_audit_chain.spec.ts",
+          "line": 81,
+          "column": 6,
+          "specs": [
+            {
+              "title": "reject on a foreign proposal_id is a 4xx, not a mutation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "596ee108d7a1019c572d-bc56638adbb2c60adc88",
+              "file": "08_proposal_audit_chain.spec.ts",
+              "line": 82,
+              "column": 7
+            },
+            {
+              "title": "reject on a foreign proposal_id is a 4xx, not a mutation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "596ee108d7a1019c572d-5bd79d824ae456008b73",
+              "file": "08_proposal_audit_chain.spec.ts",
+              "line": 82,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "guest-auth.spec.ts",
+      "file": "guest-auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "guest login end-to-end",
+          "file": "guest-auth.spec.ts",
+          "line": 31,
+          "column": 6,
+          "specs": [
+            {
+              "title": "guest cookie persists; /api/auth/me returns the same id",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fc250024b79b5c372454-eeb62ee1f60dd4e076af",
+              "file": "guest-auth.spec.ts",
+              "line": 32,
+              "column": 7
+            },
+            {
+              "title": "switching personas is isolated per persona",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fc250024b79b5c372454-6ff8982e7883c7dc2c2c",
+              "file": "guest-auth.spec.ts",
+              "line": 60,
+              "column": 7
+            },
+            {
+              "title": "guest cookie persists; /api/auth/me returns the same id",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fc250024b79b5c372454-2c6912e175eaad869157",
+              "file": "guest-auth.spec.ts",
+              "line": 32,
+              "column": 7
+            },
+            {
+              "title": "switching personas is isolated per persona",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fc250024b79b5c372454-c954a295b14b24bd5d84",
+              "file": "guest-auth.spec.ts",
+              "line": 60,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "smoke.spec.ts",
+      "file": "smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "smoke — landing page (signed out)",
+          "file": "smoke.spec.ts",
+          "line": 41,
+          "column": 6,
+          "specs": [
+            {
+              "title": "home renders the sign-in gate without console errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-6b137c807435ae1ba826",
+              "file": "smoke.spec.ts",
+              "line": 42,
+              "column": 7
+            },
+            {
+              "title": "home responds within SLA",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-0c24260899643409617c",
+              "file": "smoke.spec.ts",
+              "line": 68,
+              "column": 7
+            },
+            {
+              "title": "home renders the sign-in gate without console errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-b08a81be0a97d1c12273",
+              "file": "smoke.spec.ts",
+              "line": 42,
+              "column": 7
+            },
+            {
+              "title": "home responds within SLA",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-5fc5acdfcf4da37901ed",
+              "file": "smoke.spec.ts",
+              "line": 68,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "smoke — auth API surface reachable",
+          "file": "smoke.spec.ts",
+          "line": 79,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET /api/auth/me returns 401 (or 200 with empty user) when signed out",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-520d4aaf4f5a651fe8c4",
+              "file": "smoke.spec.ts",
+              "line": 80,
+              "column": 7
+            },
+            {
+              "title": "GET /api/auth/google returns a redirect or 4xx, never 5xx",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-5122e59ef486498153f1",
+              "file": "smoke.spec.ts",
+              "line": 90,
+              "column": 7
+            },
+            {
+              "title": "GET /api/auth/me returns 401 (or 200 with empty user) when signed out",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-c116c6d237f6b37f35e5",
+              "file": "smoke.spec.ts",
+              "line": 80,
+              "column": 7
+            },
+            {
+              "title": "GET /api/auth/google returns a redirect or 4xx, never 5xx",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile",
+                  "projectName": "mobile",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-0aff1575724b80e16ae2",
+              "file": "smoke.spec.ts",
+              "line": 90,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-27T17:50:31.132Z",
+    "duration": 61.84899999999999,
+    "expected": 0,
+    "skipped": 56,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

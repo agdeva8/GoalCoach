@@ -5,8 +5,10 @@
  *
  * Used by the Honesty Audit UI ("what has the coach done on my behalf?").
  *
- * Auth: Emergent OAuth session OR valid guest_token cookie.
- * Never includes secrets (session_token values, etc.) — only user-visible data.
+ * Auth: Phase-0 unified resolver — Bearer header → session_token cookie
+ * (dev-login + Auth.js) → Emergent OAuth session → guest_token cookie.
+ * Never includes secrets (session_token values, etc.) — only
+ * user-visible data.
  */
 
 import { eq } from 'drizzle-orm'
@@ -16,24 +18,49 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { auditLog, commitments, goals, messages, users } from '@/db/schema'
 import { GUEST_TOKEN_COOKIE, verifyGuestToken } from '@/lib/guest-token'
+import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+/**
+ * Read the current authenticated user, regardless of source. The
+ * previous helper only read OAuth + guest cookie, so a user signed in
+ * via dev-login (session_token) would either 401 or, if a stale
+ * guest_token happened to be on the wire, silently return the guest's
+ * data — a real cross-user data leak. The Phase-0 unified resolver
+ * `resolveRequestUser` reads every cookie path consistently and
+ * closes that hole.
+ */
 async function getUserIdAndEmail(
   req: NextRequest
 ): Promise<{ userId: string; email: string | null; name: string | null } | null> {
-  // 1) Emergent OAuth (shared helper).
-  const session = await auth()
-  if (session?.user?.id) {
-    return {
-      userId: session.user.id,
-      email: session.user.email ?? null,
-      name: session.user.name ?? null,
+  const resolved = await resolveRequestUser(req).catch(() => null)
+  if (resolved?.userId) {
+    const row = await db
+      .select({ id: users.id, email: users.email, name: users.name })
+      .from(users)
+      .where(eq(users.id, resolved.userId))
+      .limit(1)
+    if (row[0]) {
+      return { userId: row[0].id, email: row[0].email ?? null, name: row[0].name ?? null }
     }
+    return null
   }
 
-  // 2) Bare guest cookie.
+  const session = await auth()
+  if (session?.user?.id) {
+    const row = await db
+      .select({ id: users.id, email: users.email, name: users.name })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1)
+    if (row[0]) {
+      return { userId: row[0].id, email: row[0].email ?? null, name: row[0].name ?? null }
+    }
+    return null
+  }
+
   const token = req.cookies.get(GUEST_TOKEN_COOKIE)?.value
   const guestUserId = verifyGuestToken(token)
   if (guestUserId) {
@@ -44,7 +71,7 @@ async function getUserIdAndEmail(
       .limit(1)
     const user = row[0]
     if (!user) return null
-    return { userId: user.id, email: user.email, name: user.name }
+    return { userId: user.id, email: user.email ?? null, name: user.name ?? null }
   }
 
   return null
@@ -102,7 +129,7 @@ export async function GET(req: NextRequest) {
   }))
 
   const exportedAt = new Date().toISOString()
-  const filename = `goalcoach-export-${userId}-${exportedAt.slice(0, 10)}.json`
+  const filename = `sutra-export-${userId}-${exportedAt.slice(0, 10)}.json`
 
   const payload = {
     exported_at: exportedAt,

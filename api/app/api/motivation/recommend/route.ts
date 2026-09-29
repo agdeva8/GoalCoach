@@ -34,7 +34,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // Hand-curated seed catalogue. The user said 'well curated' — these
-// are chosen by the assistant for the GoalCoach voice. Each entry is
+// are chosen by the assistant for the Sutra voice. Each entry is
 // pattern-matched to one of three buckets; the route picks a subset
 // based on the user's current state.
 interface Seed {

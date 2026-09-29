@@ -4,7 +4,7 @@ import Logo from "./Logo";
 // TODO(founder): replace these with your real links.
 const FOUNDER = {
   name: "Devansh U. Agarwal",
-  blurb: "Building GoalCoach as its own first user — a self-directed IC juggling a career pivot, a fitness rebuild, side projects, and a life.",
+  blurb: "Building Sutra as its own first user — a self-directed IC juggling a career pivot, a fitness rebuild, side projects, and a life.",
   linkedin: "https://www.linkedin.com/in/devansh-u-agarwal/",
 };
 
@@ -35,7 +35,7 @@ export default function AboutModal({ open, onClose }) {
       <div className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-[var(--bg-secondary)] border border-[var(--border)] shadow-2xl gc-fade-up">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-[var(--border)]">
           <Logo className="w-6 h-6 text-[var(--accent)]" />
-          <h2 className="font-display text-base font-bold tracking-tight">GoalCoach</h2>
+          <h2 className="font-display text-base font-bold tracking-tight">Sutra</h2>
           <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">let's sort your life — together.</span>
           <button data-testid="close-about" onClick={onClose} className="ml-auto text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors" aria-label="Close">
             <X className="w-4 h-4" />
@@ -49,7 +49,7 @@ export default function AboutModal({ open, onClose }) {
             week, what's blocking what, and what you promised yourself at 11pm last Tuesday.
           </p>
           <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-            GoalCoach holds all of it at once, remembers across sessions, and tells you the honest thing —
+            Sutra holds all of it at once, remembers across sessions, and tells you the honest thing —
             not the warm thing.
           </p>
 

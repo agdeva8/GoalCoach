@@ -1,0 +1,17 @@
+[     225ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[  183605ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChild (http://localhost:7200/static/js/bundle.js:30473:20)
+    at runWithFiberInDEV (http://localhost:7200/static/js/bundle.js:21218:14)
+    at commitDeletionEffectsOnFiber (http://localhost:7200/static/js/bundle.js:26803:11)
+    at recursivelyTraverseMutationEffects (http://localhost:7200/static/js/bundle.js:26908:7)
+    at commitMutationEffectsOnFiber (http://localhost:7200/static/js/bundle.js:26926:9)
+    at recursivelyTraverseMutationEffects (http://localhost:7200/static/js/bundle.js:26916:104)
+    at commitMutationEffectsOnFiber (http://localhost:7200/static/js/bundle.js:26926:9)
+    at recursivelyTraverseMutationEffects (http://localhost:7200/static/js/bundle.js:26916:104)
+    at commitMutationEffectsOnFiber (http://localhost:7200/static/js/bundle.js:27005:9)
+    at recursivelyTraverseMutationEffects (http://localhost:7200/static/js/bundle.js:26916:104)
+[  183605ms] [WARNING] %s
+
+%s
+ An error occurred in the <div> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ https://assets.emergent.sh/scripts/emergent-main.js:55

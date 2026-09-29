@@ -67,7 +67,26 @@ export async function POST(req: NextRequest) {
   }
 
   const url = new URL(req.url)
-  const userId = safeId(url.searchParams.get('user_id') ?? 'user_founder01')
+  // Probe mode — returns 200 if dev-login is enabled, but does NOT
+  // set any cookie or mutate state. Frontend uses this to decide
+  // whether to render the persona menu and dev-login buttons. Must be
+  // checked BEFORE the user_id guard so a bare probe doesn't 400.
+  if (url.searchParams.get('probe') === '1') {
+    return NextResponse.json({ available: true })
+  }
+  const rawUserId = url.searchParams.get('user_id')
+  // HARD REQUIREMENT: an explicit user_id must be supplied. Defaulting
+  // to 'user_founder01' silently authenticated every page-load probe
+  // from the frontend (which calls `fetch('/api/auth/dev-login')` with
+  // no params to test availability) as the founder user, blowing away
+  // whatever persona the user had just selected via the PersonaMenu.
+  if (!rawUserId) {
+    return NextResponse.json(
+      { detail: 'user_id query param is required' },
+      { status: 400 },
+    )
+  }
+  const userId = safeId(rawUserId)
   const name = safeName(url.searchParams.get('name') ?? 'Dev User')
   // Stable, deterministic-looking email so re-running doesn't churn
   // the row and so audit history is greppable.
@@ -83,10 +102,11 @@ export async function POST(req: NextRequest) {
   let dbUserId: string
   if (existing[0]) {
     dbUserId = existing[0].id
-    await db
-      .update(users)
-      .set({ name })
-      .where(sql`${users.id} = ${userId}`)
+    // Don't overwrite name/email on existing seeded personas — the
+    // seed script sets canonical names (Priya Nair, Kenji Sato, etc.)
+    // and a stale `name=Dev User` from a prior dev-login call was
+    // corrupting the persona list. The dev-login call's name param
+    // is only honored for fresh identities.
   } else {
     dbUserId = userId
     await db.insert(users).values({

@@ -20,7 +20,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col">
       <header className="border-b border-[var(--border)] px-6 sm:px-10 h-16 flex items-center">
-        <span className="font-display font-bold tracking-tight text-lg">GoalCoach</span>
+        <span className="font-display font-bold tracking-tight text-lg">Sutra</span>
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">v1 · founder build</span>
       </header>
 
@@ -35,7 +35,7 @@ export default function Login() {
           <p className="mt-6 text-sm sm:text-base leading-relaxed text-[var(--text-secondary)] max-w-xl">
             You're running a 6-month pivot, a 12-month rebuild, a side project, a relationship goal.
             Each one makes sense alone. What doesn't is what deserves attention this week, what's
-            blocking what, and what you promised yourself last Tuesday at 11pm. GoalCoach holds all
+            blocking what, and what you promised yourself last Tuesday at 11pm. Sutra holds all
             of it, remembers across sessions, and tells you the honest thing — not the warm thing.
           </p>
 

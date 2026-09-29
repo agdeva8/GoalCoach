@@ -1,0 +1,21 @@
+- generic [ref=f1e3]:
+  - generic [ref=f1e4]:
+    - banner [ref=f1e5]:
+      - generic [ref=f1e6]:
+        - generic [ref=f1e18]: GoalCoach
+        - generic [ref=f1e19]: let's sort your life — together.
+      - generic [ref=f1e20]:
+        - button "Chat" [ref=f1e21] [cursor=pointer]
+        - button "Scenarios" [ref=f1e26] [cursor=pointer]
+        - button "gemini" [ref=f1e32] [cursor=pointer]
+        - button "About GoalCoach, privacy & the founder" [ref=f1e37] [cursor=pointer]
+        - button "Audit" [ref=f1e40] [cursor=pointer]
+        - button "Switch to light" [ref=f1e46] [cursor=pointer]
+    - generic [ref=f1e54]:
+      - generic [ref=f1e55]:
+        - button "Goals" [ref=f1e56] [cursor=pointer]
+        - button "Timeline" [ref=f1e62] [cursor=pointer]
+        - button "Memories" [ref=f1e67] [cursor=pointer]
+      - generic [ref=f1e72]: loading…
+    - button "Chat with your coach" [ref=f1e74] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-09-24T16:13:15.748Z",
-  "backend": "http://localhost:3001",
-  "frontend": "http://localhost:3000",
+  "timestamp": "2026-09-27T17:46:10.835Z",
+  "backend": "http://localhost:4000",
+  "frontend": "http://localhost:4001",
   "probes": [
     {
       "method": "GET",
@@ -9,7 +9,7 @@
       "auth": "bearer",
       "status": 401,
       "contentType": "application/json",
-      "bodySnip": "{\"detail\":\"Not authenticated\"}"
+      "bodySnip": "{\"detail\":\"Unknown dev user\"}"
     },
     {
       "method": "GET",
@@ -41,7 +41,7 @@
       "auth": "bearer",
       "status": 200,
       "contentType": "application/json",
-      "bodySnip": "[{\"id\":\"msg_1790262415592_ef69313e\",\"user_id\":\"user_founder01\",\"role\":\"user\",\"content\":\"i want to learn swimming\",\"provider\":\"gemini\",\"proposals\":[],\"created_at\":\"2026-09-24T15:06:56.684Z\"},{\"id\":\"msg"
+      "bodySnip": "[]"
     },
     {
       "method": "POST",
@@ -50,45 +50,30 @@
       "body": {},
       "status": 200,
       "contentType": "application/json",
-      "bodySnip": "{\"user\":{\"user_id\":\"user_guest_dd3f2bdf362c\",\"email\":null,\"name\":\"Guest\",\"picture\":null,\"is_guest\":true,\"model_provider\":\"gemini\"}}"
+      "bodySnip": "{\"user\":{\"user_id\":\"user_guest_b405b7e59280\",\"email\":null,\"name\":\"Guest\",\"picture\":null,\"is_guest\":true,\"model_provider\":\"gemini\"}}"
     }
   ],
   "screenshots": [
     {
       "viewport": "1920x800",
-      "file": "/Users/deva/Documents/Projects/GoalCoach/verify-out/desktop_1920x800.png",
-      "title": "Emergent | Fullstack App",
-      "bodySnippet": "GoalCoach\nLET'S SORT YOUR LIFE — TOGETHER.\nSCENARIOS\nGEMINI\nAudit\nSign in\n\nThis is one chat with memory. The coach reasons across all your goals at once and remembers between sessions. It's the only thing that writes to your tracked state — when it wants to add, change, or drop a goal or commitment,",
+      "file": "/Users/deva/Documents/Projects/goalcoachv2/verify-out/desktop_1920x800.png",
+      "title": "GoalCoach",
+      "bodySnippet": "GoalCoach\nLET'S SORT YOUR LIFE — TOGETHER.\nChat\nSCENARIOS\nGEMINI\nAudit\nGUEST\nSign in\nPREVIEW\nEverything you build is saved in this browser. Sign in to keep it on your account and pick up on any device.\nSign in to save →\nGOALS\nTIMELINE\nMEMORIES\nYour goals\n\nEverything the coach is keeping track of for",
       "consoleErrors": [
         "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
         "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
       ],
       "networkErrors": [
-        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
-        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
-        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED"
-      ]
-    },
-    {
-      "viewport": "390x844",
-      "file": "/Users/deva/Documents/Projects/GoalCoach/verify-out/mobile_390x844.png",
-      "title": "Emergent | Fullstack App",
-      "bodySnippet": "GoalCoach\nGEMINI\nSign in\n\nThis is one chat with memory. The coach reasons across all your goals at once and remembers between sessions. It's the only thing that writes to your tracked state — when it wants to add, change, or drop a goal or commitment, it proposes the change inline and you confirm it",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ],
-      "networkErrors": [
-        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
-        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED",
-        "http://localhost:3000/__emergent_overlay__/report → net::ERR_ABORTED"
+        "http://localhost:4001/__emergent_overlay__/report → net::ERR_ABORTED",
+        "http://localhost:4001/__emergent_overlay__/report → net::ERR_ABORTED",
+        "http://localhost:4001/__emergent_overlay__/report → net::ERR_ABORTED"
       ]
     }
   ],
   "summary": {
     "routeFailures": 0,
     "route401": 2,
-    "consoleErrors": 4,
-    "networkErrors": 6
+    "consoleErrors": 2,
+    "networkErrors": 3
   }
 }

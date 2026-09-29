@@ -1,5 +1,5 @@
 /**
- * Drizzle client for GoalCoach.
+ * Drizzle client for Sutra.
  *
  * Per migration/discovery/03-nextjs-architecture.md Section 2, we use the
  * Neon serverless driver in production / on Vercel (where it integrates

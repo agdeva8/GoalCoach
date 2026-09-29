@@ -1,0 +1,33 @@
+[     184ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[     242ms] TypeError: _lib_api__WEBPACK_IMPORTED_MODULE_12__.api.models is not a function
+    at http://localhost:7200/static/js/bundle.js:4681:48
+    at react-stack-bottom-frame (http://localhost:7200/static/js/bundle.js:32734:18)
+    at runWithFiberInDEV (http://localhost:7200/static/js/bundle.js:21216:14)
+    at commitHookEffectListMount (http://localhost:7200/static/js/bundle.js:26331:618)
+    at commitHookPassiveMountEffects (http://localhost:7200/static/js/bundle.js:26368:56)
+    at commitPassiveMountOnFiber (http://localhost:7200/static/js/bundle.js:27275:25)
+    at recursivelyTraversePassiveMountEffects (http://localhost:7200/static/js/bundle.js:27266:104)
+    at commitPassiveMountOnFiber (http://localhost:7200/static/js/bundle.js:27308:9)
+    at recursivelyTraversePassiveMountEffects (http://localhost:7200/static/js/bundle.js:27266:104)
+    at commitPassiveMountOnFiber (http://localhost:7200/static/js/bundle.js:27274:9)
+[     242ms] [WARNING] %s
+
+%s
+ An error occurred in the <Header> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[     244ms] TypeError: _lib_api__WEBPACK_IMPORTED_MODULE_12__.api.models is not a function
+    at http://localhost:7200/static/js/bundle.js:4681:48
+    at react-stack-bottom-frame (http://localhost:7200/static/js/bundle.js:32734:18)
+    at runWithFiberInDEV (http://localhost:7200/static/js/bundle.js:21216:14)
+    at commitHookEffectListMount (http://localhost:7200/static/js/bundle.js:26331:618)
+    at commitHookPassiveMountEffects (http://localhost:7200/static/js/bundle.js:26368:56)
+    at reconnectPassiveEffects (http://localhost:7200/static/js/bundle.js:27322:9)
+    at recursivelyTraverseReconnectPassiveEffects (http://localhost:7200/static/js/bundle.js:27313:66)
+    at reconnectPassiveEffects (http://localhost:7200/static/js/bundle.js:27336:9)
+    at recursivelyTraverseReconnectPassiveEffects (http://localhost:7200/static/js/bundle.js:27313:66)
+    at reconnectPassiveEffects (http://localhost:7200/static/js/bundle.js:27321:9)
+[     244ms] [WARNING] %s
+
+%s
+ An error occurred in the <Header> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ https://assets.emergent.sh/scripts/emergent-main.js:55

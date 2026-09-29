@@ -9,7 +9,7 @@
 INSERT INTO users (id, email, name, image, model_provider, is_guest, created_at)
 VALUES (
   'user_founder01',
-  'founder@goalcoach.local',
+  'founder@sutra.local',
   'Founder',
   NULL,
   'gemini',

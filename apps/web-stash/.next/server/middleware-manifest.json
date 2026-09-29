@@ -1,0 +1,64 @@
+{
+  "version": 3,
+  "middleware": {
+    "/": {
+      "files": [
+        "server/edge-instrumentation.js",
+        "server/edge-runtime-webpack.js",
+        "server/middleware.js"
+      ],
+      "name": "middleware",
+      "page": "/",
+      "matchers": [
+        {
+          "regexp": "^/.*$",
+          "originalSource": "/:path*"
+        }
+      ],
+      "wasm": [],
+      "assets": [],
+      "env": {
+        "__NEXT_BUILD_ID": "development",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "H4fithaPVPkFSZQ79XyV6aGOLrpFLN1uqROvsWfiSKY=",
+        "__NEXT_PREVIEW_MODE_ID": "c4826464fa14d77e23030349107a4275",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "384fb75f267b578b12682422838be1d808c515404ed890faf911a24ee9f54a2e",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "f1e95acf7ca070c1fe45cf0f1b4623257c916a694efe22100d2f0a92c823d873"
+      }
+    }
+  },
+  "functions": {
+    "/api/chat/route": {
+      "files": [
+        "server/server-reference-manifest.js",
+        "server/app/api/chat/route_client-reference-manifest.js",
+        "server/middleware-build-manifest.js",
+        "server/middleware-react-loadable-manifest.js",
+        "server/next-font-manifest.js",
+        "server/interception-route-rewrite-manifest.js",
+        "server/edge-instrumentation.js",
+        "server/edge-runtime-webpack.js",
+        "server/app/api/chat/route.js"
+      ],
+      "name": "app/api/chat/route",
+      "page": "/api/chat/route",
+      "matchers": [
+        {
+          "regexp": "^/api/chat$",
+          "originalSource": "/api/chat"
+        }
+      ],
+      "wasm": [],
+      "assets": [],
+      "env": {
+        "__NEXT_BUILD_ID": "development",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "H4fithaPVPkFSZQ79XyV6aGOLrpFLN1uqROvsWfiSKY=",
+        "__NEXT_PREVIEW_MODE_ID": "c4826464fa14d77e23030349107a4275",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "384fb75f267b578b12682422838be1d808c515404ed890faf911a24ee9f54a2e",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "f1e95acf7ca070c1fe45cf0f1b4623257c916a694efe22100d2f0a92c823d873"
+      }
+    }
+  },
+  "sortedMiddleware": [
+    "/"
+  ]
+}

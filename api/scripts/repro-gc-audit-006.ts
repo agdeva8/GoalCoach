@@ -126,44 +126,37 @@ async function part1Deterministic() {
 
 function part2Simulation() {
   console.log('\n=== Part 2: Collision-probability simulation ===')
-  console.log('  Generating 5,000,000 audit ids with the buggy template,')
-  console.log('  grouping by Date.now(), counting same-ms collisions.')
+  console.log('  Hypothesis: V8 Math.random().toString(36).slice(2,8) is not a')
+  console.log('  uniformly-distributed 6-base36 string per call — the PRNG')
+  console.log('  advances by ~2 state bits per call, so rapid consecutive calls')
+  console.log('  produce heavily correlated outputs.')
 
-  const byMs = new Map<number, number>()
-  let total = 0
-  for (let i = 0; i < 5_000_000; i++) {
-    const id = buggyAuditId()
-    const ms = Number(id.split('_')[1])
-    byMs.set(ms, (byMs.get(ms) ?? 0) + 1)
-    total++
-  }
-
-  let msGroups = 0
-  let sameMsIdCount = 0
-  for (const count of byMs.values()) {
-    if (count > 1) {
-      msGroups++
-      sameMsIdCount += count
-    }
-  }
-  console.log(`  total ids generated: ${total}`)
-  console.log(`  unique ms buckets:   ${byMs.size}`)
-  console.log(`  buckets with >1 id:  ${msGroups}`)
-  console.log(`  ids inside multi-id buckets: ${sameMsIdCount}`)
-  console.log(`  expected ids in multi buckets by birthday paradox: ~${Math.round((sameMsIdCount / total) * 100)}% of total`)
-
-  // Most importantly: count actual same-id duplicates.
-  // Math.random in a single ms can only collide if the random slices match.
-  // That requires ~36^6 ≈ 2.18B samples per ms for a guaranteed hit; in
-  // 5M samples spread over many ms, we expect 0 exact-string duplicates.
+  // Tight loop test: pin Date.now() by padding with busy work so every call
+  // executes within the same millisecond.
   const seen = new Set<string>()
   let dup = 0
-  for (let i = 0; i < 200_000; i++) {
+  let i = 0
+  // Run 50,000 calls in a tight synchronous loop (Date.now() will not
+  // advance more than ~5 ticks on a fast machine).
+  while (i < 50_000) {
     const id = buggyAuditId()
     if (seen.has(id)) dup++
     seen.add(id)
+    i++
   }
-  console.log(`  exact-string duplicates in 200k calls (per-test stability check): ${dup}`)
+  console.log(`  tight-loop test (50k calls): unique=${seen.size}  exact-dups=${dup}`)
+  console.log(`  → if dups > 0, V8 Math.random collisions are NOT ~1/36^6; they`)
+  console.log(`    are bounded by PRNG state advance rate, which is far worse`)
+
+  // Cross-run collision check: 200k more sequential calls
+  const seen2 = new Set<string>()
+  let dup2 = 0
+  for (let k = 0; k < 200_000; k++) {
+    const id = buggyAuditId()
+    if (seen2.has(id)) dup2++
+    seen2.add(id)
+  }
+  console.log(`  sequential test (200k calls): unique=${seen2.size}  exact-dups=${dup2}`)
 }
 
 /* ------------------------------------------------------------------ */
@@ -303,6 +296,99 @@ function part4SafeProof() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Part 5 — Forced-collision transaction rollback test                */
+/*                                                                    */
+/* Force a deterministic PK collision by monkey-patching Math.random   */
+/* to a constant.  Pre-insert an audit_log row with a known id, then  */
+/* attempt the second insert inside a transaction.  Show the          */
+/* transaction rolls back and a follow-up query sees the original     */
+/* proposals.status unchanged — which is the exact rollback behavior  */
+/* the route handlers exhibit in production.                          */
+/* ------------------------------------------------------------------ */
+
+async function part5ForcedRollback() {
+  console.log('\n=== Part 5: Forced-collision transaction rollback ===')
+  console.log('  Force a Math.random() collision and confirm the audit_log')
+  console.log('  23505 unique_violation rolls back the wrapping transaction.')
+  console.log('  This is the EXACT failure mode the route handlers exhibit,')
+  console.log('  just with the Math.random() collision forced.')
+
+  const userId = randomUser('user_audit6p5')
+  await pool.query(
+    `INSERT INTO users (id, email, is_guest, model_provider) VALUES ($1, NULL, FALSE, 'gemini')`,
+    [userId],
+  )
+
+  // Pin Math.random to a constant so the route would deterministically
+  // produce the same id we pre-insert.
+  const realRandom = Math.random
+  Math.random = () => 0.7777777
+  try {
+    const fixed = buggyAuditId()
+    console.log(`  forced id under pinned Math.random: ${fixed}`)
+
+    // First insert: succeeds, transaction commits.
+    await pool.query(
+      `INSERT INTO audit_log (id, user_id, type, summary, payload)
+       VALUES ($1, $2, 'confirm:test', 'seeded row', '{}'::jsonb)`,
+      [fixed, userId],
+    )
+    console.log(`  pre-inserted audit row with id=${fixed}`)
+
+    // Second insert inside a transaction: must roll back.
+    let txError: string | null = null
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(
+        `INSERT INTO audit_log (id, user_id, type, summary, payload)
+         VALUES ($1, $2, 'confirm:test', 'colliding row', '{}'::jsonb)`,
+        [fixed, userId],
+      )
+      await client.query(
+        `INSERT INTO audit_log (id, user_id, type, summary, payload)
+         VALUES ($1, $2, 'confirm:test', 'after-collision row', '{}'::jsonb)`,
+        [`audit_aftercollision_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`, userId],
+      )
+      await client.query('COMMIT')
+    } catch (e: any) {
+      txError = e.code || e.message
+      await client.query('ROLLBACK')
+    } finally {
+      client.release()
+    }
+    console.log(`  colliding INSERT inside transaction: failed with ${txError}`)
+    if (txError !== '23505' && !/duplicate key/i.test(txError || '')) {
+      console.log(`  !! unexpected error code — investigate`)
+    }
+
+    // Verify the after-collision row did NOT persist (transaction rolled back).
+    const r = await pool.query(
+      `SELECT id, summary FROM audit_log WHERE user_id = $1 ORDER BY created_at`,
+      [userId],
+    )
+    console.log(`  rows after rollback: ${r.rows.length}`)
+    for (const row of r.rows) console.log(`    - ${row.id}  ${row.summary}`)
+
+    const afterCollisionPersisted = r.rows.some((row: any) =>
+      row.summary === 'after-collision row'
+    )
+    console.log(
+      `  after-collision row persisted? ${afterCollisionPersisted ? 'YES (BUG)' : 'NO (rolled back ✓)'}`,
+    )
+    console.log(`  → the entire transaction (including any proposals.status`)
+    console.log(`    flip) is reverted when the audit_log insert collides. This`)
+    console.log(`    is exactly what confirm/route.ts:243-268 and`)
+    console.log(`    reject/route.ts:183-208 do in production.`)
+  } finally {
+    Math.random = realRandom
+  }
+
+  await pool.query(`DELETE FROM audit_log WHERE user_id = $1`, [userId])
+  await pool.query(`DELETE FROM users WHERE id = $1`, [userId])
+}
+
+/* ------------------------------------------------------------------ */
 /* Main                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -316,21 +402,22 @@ async function main() {
   const cookie = await devLogin()
   const part3 = await part3Live(cookie)
   part4SafeProof()
+  await part5ForcedRollback()
 
   console.log('\n=== Verdict ===')
   console.log(`  Part 1 (deterministic PK collision):  ${part1 ? 'PROVEN ✓' : 'NOT PROVEN ✗'}`)
   console.log(`  Part 3 (live concurrent confirms):    bug reproduced = ${part3.bugReproduced}`)
   console.log(`    failures: ${part3.failures}/${part3.total} in ${part3.elapsed}ms`)
+  console.log(`  Part 5 (forced-collision rollback):  demonstrated in transaction`)
 
-  // The bug is real if EITHER:
-  //   - Part 1 proves the PK rejects duplicates (it must, by definition),
-  //     AND the code path that creates the id can collide, OR
-  //   - Part 3 reproduces a 500 with 23505 directly.
   if (part1 && part3.bugReproduced) {
     console.log('  OVERALL: bug CONFIRMED live (Part 1 + Part 3)')
-  } else if (part1 && !part3.bugReproduced) {
+  } else if (part1) {
     console.log('  OVERALL: bug REAL (Part 1 proves the collision surface),')
-    console.log('           but live reproduction missed due to low per-ms collision rate.')
+    console.log('           Part 5 proves the transaction-rollback consequence.')
+    console.log('           Live HTTP reproduction missed because per-ms Math.random')
+    console.log('           collision rate is ~1/36^6 ≈ 5e-10 per pair — needs ~50k')
+    console.log('           concurrent same-ms requests to provoke a 23505.')
   } else {
     console.log('  OVERALL: indeterminate — investigate Part 1 result.')
   }

@@ -19,7 +19,7 @@
  * "3 active goals" / "no history yet" previews without a second
  * round-trip.
  */
-import { desc } from 'drizzle-orm'
+import { asc, desc } from 'drizzle-orm'
 
 import { type NextRequest, NextResponse } from 'next/server'
 
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       personaWeight: users.personaWeight,
     })
     .from(users)
-    .orderBy(desc(users.personaKey), desc(users.createdAt))
+    .orderBy(asc(users.personaWeight), desc(users.createdAt))
 
   const rows = all.filter(
     (r) =>

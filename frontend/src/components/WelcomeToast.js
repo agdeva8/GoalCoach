@@ -50,9 +50,7 @@ export default function WelcomeToast({ user, state, signedIn }) {
         openCommits.length === 1 ? "" : "s"
       } today — top of the list: ${firstThree.join(" · ")}.`;
     } else {
-      body = `Tracking ${activeGoals.length} active goal${
-        activeGoals.length === 1 ? "" : "s"
-      }. Tap the chat button when you're ready for a planning session.`;
+      body = `Tracking ${activeGoals.length} active goal${activeGoals.length === 1 ? "" : "s"}. Tap the chat button when you're ready for a planning session.`;
     }
 
     toast(

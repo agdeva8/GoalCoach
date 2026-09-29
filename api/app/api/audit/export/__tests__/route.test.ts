@@ -135,7 +135,7 @@ describe('GET /api/audit/export', () => {
     expect(res.status).toBe(200)
     const disposition = res.headers.get('Content-Disposition')
     expect(disposition).toMatch(/attachment/)
-    expect(disposition).toMatch(/goalcoach-export-/)
+    expect(disposition).toMatch(/sutra-export-/)
     expect(disposition).toMatch(/\.json/)
   })
 })

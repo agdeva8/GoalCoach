@@ -1,0 +1,212 @@
+/* GoalCoach brand tokens -- design §3
+   Color, type, radius -- single source of truth.
+   Tailwind v4 @theme inline block exposes tokens as utility classes (bg-paper, text-ink, etc.)
+   without a tailwind.config.ts file.
+*/
+
+:root {
+  /* Brand palette -- warm, matte, sober */
+  --ink: #1A1A1A;
+  --paper: #FAF8F4;
+  --moss: #4A5D3A;
+  --slate: #6B6B68;
+
+  /* Typography -- references next/font CSS variables loaded in
+     app/layout.tsx, with the paper-stack family as fallback so non-latin
+     glyphs and offline scenarios still render with a sensible typeface. */
+  --font-serif: var(--font-fraunces), Fraunces, Georgia, serif;
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Geometry */
+  --radius-card: 0px;
+  --radius-button: 4px;
+
+  /* Semantic */
+  --error: #B44;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-moss: var(--moss);
+  --color-slate: var(--slate);
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-card: 0px;
+  --radius-button: 4px;
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
+
+/* Navbar - top-of-page brand + auth. Lives above page content. */
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  font-family: var(--font-sans);
+}
+
+.navbar__brand {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 1.25rem;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.015em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.navbar__spacer {
+  flex: 1;
+}
+
+.navbar__user {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.navbar__email {
+  color: var(--slate);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.navbar__signout-form {
+  display: inline;
+  margin: 0;
+}
+
+.navbar__cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  appearance: none;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--moss);
+  border-radius: var(--radius-button);
+  padding: 0.375rem 0.875rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.navbar__cta:hover,
+.navbar__cta:focus-visible {
+  background: var(--moss);
+  color: var(--paper);
+  outline: none;
+}
+
+.navbar__cta:focus-visible {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--moss);
+}
+
+.primer {
+  max-width: 40rem;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+  text-align: left;
+}
+
+.primer__title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+}
+
+.primer__subtitle {
+  font-family: var(--font-sans);
+  color: var(--slate);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
+.primer__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.primer__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--moss);
+  border-radius: var(--radius-button);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.primer__chip:hover,
+.primer__chip:focus-visible {
+  background: var(--moss);
+  color: var(--paper);
+  outline: none;
+}
+
+.primer__chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--moss);
+}
+
+/* Chat page -- auth-gate CTA when the visitor is not signed in. */
+.chat-gate {
+  max-width: 32rem;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+.chat-gate__title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+
+.chat-gate__body {
+  color: var(--slate);
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.chat__context {
+  color: var(--slate);
+  font-size: 0.875rem;
+  padding: 0 1.5rem;
+  margin: 0;
+}
+

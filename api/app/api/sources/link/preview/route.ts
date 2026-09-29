@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
       response = await fetch(currentUrl, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'GoalCoach/1.0 (+preview)',
+          'User-Agent': 'Sutra/1.0 (+preview)',
           Accept: 'text/html,application/xhtml+xml',
         },
         redirect: 'manual',

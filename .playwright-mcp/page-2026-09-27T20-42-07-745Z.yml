@@ -1,0 +1,14 @@
+- generic [ref=f25e2]:
+  - generic [ref=f25e3]:
+    - generic [ref=f25e6]: Runtime error
+    - button "✕" [ref=f25e7] [cursor=pointer]
+  - generic [ref=f25e8]:
+    - paragraph [ref=f25e9]: The app hit an error while running
+    - paragraph [ref=f25e10]: Cannot read properties of undefined (reading 'label')
+    - paragraph [ref=f25e11]: static/js/bundle.js:4585:27
+    - group [ref=f25e12]:
+      - generic "Stack trace" [ref=f25e13] [cursor=pointer]
+  - generic [ref=f25e14]:
+    - generic [ref=f25e15]: This error was captured by Emergent. Full details also remain in the browser console.
+    - button "Copy details" [ref=f25e16] [cursor=pointer]
+    - button "Reload app" [ref=f25e17] [cursor=pointer]

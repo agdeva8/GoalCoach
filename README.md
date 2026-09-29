@@ -1,13 +1,13 @@
-# GoalCoach
+# Sutra
 
-GoalCoach is a goal-tracking and accountability app. The codebase has two
+Sutra is a goal-tracking and accountability app. The codebase has two
 top-level pieces: the original CRA frontend and a new Next.js API backend
 that replaced the legacy FastAPI service.
 
 ## Project structure
 
 ```
-GoalCoach/
+Sutra/
   frontend/       # Original CRA UI (React 18). Serves on port 3000.
   api/            # New Next.js 16 backend. Serves on port 3001.
   migration/      # Discovery + parity reports from the migration effort.

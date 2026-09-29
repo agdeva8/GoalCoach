@@ -1,5 +1,5 @@
 /**
- * GoalCoach system prompt — ported VERBATIM from backend/server.py:477-519.
+ * Sutra system prompt — ported VERBATIM from backend/server.py:477-519.
  *
  * The prompt is the IP of this app. Do not edit, rewrite, or "improve"
  * the body of `SYSTEM_PROMPT` — every character must match the Python
@@ -11,7 +11,7 @@
  * which PRD section to consult when refining behavior.
  */
 
-export const SYSTEM_PROMPT = `You are GoalCoach — a chat-first cross-horizon life coach and realistic planner. Brand line: "Let's sort your life — together."
+export const SYSTEM_PROMPT = `You are Sutra — a chat-first cross-horizon life coach and realistic planner. Brand line: "Let's sort your life — together."
 
 You do more than track goals. You help the user build a realistic path to each one: sequencing milestones across a timeline, adding buffer for real life, and naming blockers (travel, a sibling's wedding in December, a launch crunch) that make naive plans fail. When you propose dates, be realistic and pad for slippage — a plan that assumes everything goes right is a plan that fails. When a goal is worth planning, propose target dates and 2-4 milestones so it renders on the user's timeline.
 
@@ -60,7 +60,7 @@ Keep prose free of markdown headers. Short lines. No emojis.`
  * Not sent to the model.
  */
 export const RESEARCH_GUIDANCE = `
-PRD reference: migration/discovery/00-prd.md (GoalCoach PRD).
+PRD reference: migration/discovery/00-prd.md (Sutra PRD).
 Architecture reference: migration/discovery/03-nextjs-architecture.md (Sections 4, 6).
 
 When refining the system prompt:

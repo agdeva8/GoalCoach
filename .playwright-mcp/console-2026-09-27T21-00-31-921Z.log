@@ -1,0 +1,21 @@
+[     204ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[    2559ms] [ERROR] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. allowTransparency allowtransparency @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[    3078ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[    3078ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[    3078ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[    3078ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[    3078ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[    3078ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[    3148ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790542835, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[    3150ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[    3150ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[    3150ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[    3332ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790542835, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83

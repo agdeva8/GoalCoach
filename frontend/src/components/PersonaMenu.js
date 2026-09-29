@@ -144,10 +144,10 @@ export default function PersonaMenu({ currentName, currentUserId }) {
         data-testid="persona-menu-trigger"
         onClick={() => setOpen((v) => !v)}
         title="Switch persona (dev-only)"
-        className="h-9 px-3 flex items-center gap-1.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-mono text-[11px] uppercase tracking-wider transition-colors"
+        className="h-11 sm:h-9 px-2 sm:px-3 flex items-center gap-1.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-mono text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       >
         <UserRound className="w-3.5 h-3.5" />
-        <span>{chipLabel}</span>
+        <span className="hidden sm:inline">{chipLabel}</span>
       </button>
       {open && (
         <div

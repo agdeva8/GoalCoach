@@ -5,7 +5,7 @@ import { X } from "lucide-react";
  * CenteredDialog — reusable warm-themed modal wrapper.
  *
  * Builds on top of the shadcn `Dialog` primitives in `components/ui/dialog.jsx`
- * but layers the warm GoalCoach theme (accent border, accent-tinted
+ * but layers the warm Sutra theme (accent border, accent-tinted
  * overlay, fade-up animation, generous padding) and standardizes the
  * header / close-button layout every dialog in the app uses. This is
  * the single source of truth for "centered modal" so the Add Goal,

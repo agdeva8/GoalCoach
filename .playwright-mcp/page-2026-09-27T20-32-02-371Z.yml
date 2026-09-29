@@ -1,0 +1,160 @@
+- generic [ref=f10e3]:
+  - generic [ref=f10e4]:
+    - banner [ref=f10e5]:
+      - generic: GoalCoach
+      - generic [ref=f10e18]:
+        - button "Chat" [ref=f10e19] [cursor=pointer]
+        - button "Gemini" [ref=f10e24] [cursor=pointer]
+        - button "About GoalCoach, privacy & the founder" [ref=f10e29] [cursor=pointer]
+        - button "Every change the coach made — timestamped and exportable" [ref=f10e32] [cursor=pointer]
+        - button "Switch to dark" [ref=f10e37] [cursor=pointer]
+        - button "Sofia" [ref=f10e67] [cursor=pointer]
+        - generic [ref=f10e40]:
+          - button "S" [active] [ref=f10e41] [cursor=pointer]
+          - generic [ref=f10e72]:
+            - generic [ref=f10e73]:
+              - generic [ref=f10e74]: Sofia Iqbal
+              - generic [ref=f10e75]: sofia@dev.local
+            - button "Sign out" [ref=f10e76] [cursor=pointer]
+    - generic [ref=f10e43]:
+      - generic [ref=f10e44]:
+        - button "Goals" [ref=f10e45] [cursor=pointer]
+        - button "Timeline" [ref=f10e51] [cursor=pointer]
+        - button "Memories" [ref=f10e56] [cursor=pointer]
+      - generic [ref=f10e62]:
+        - generic [ref=f10e80]:
+          - generic [ref=f10e81]:
+            - heading "Your goals" [level=2] [ref=f10e82]
+            - paragraph [ref=f10e83]: Everything the coach is keeping track of for you.
+          - button "Add goal" [ref=f10e84] [cursor=pointer]
+        - status [ref=f10e86]:
+          - generic [ref=f10e87]:
+            - generic [ref=f10e90]: Your week · keep an eye on it
+            - generic [ref=f10e91]: 3 goals · 3 to-do s
+          - paragraph [ref=f10e92]: 3 goals in play. Doable, but only one can lead this week.
+        - generic [ref=f10e94]:
+          - generic [ref=f10e95]:
+            - generic [ref=f10e96]:
+              - generic [ref=f10e97]: Today
+              - heading "You're tracking 3 active goal s" [level=2] [ref=f10e98]
+              - paragraph [ref=f10e99]: 2 commitments on the agenda today.
+            - generic [ref=f10e100]:
+              - img [ref=f10e101]:
+                - generic [ref=f10e104]: "%"
+              - generic [ref=f10e105]:
+                - generic [ref=f10e106]: 2 of 2 done
+                - generic [ref=f10e107]: Today's commitments
+            - generic [ref=f10e108]:
+              - generic [ref=f10e109]:
+                - generic [ref=f10e114]: "3"
+                - generic [ref=f10e115]: Open
+              - generic [ref=f10e116]:
+                - generic [ref=f10e120]: "2"
+                - generic [ref=f10e121]: Done today
+              - generic [ref=f10e122]:
+                - generic [ref=f10e126]: "0"
+                - generic [ref=f10e127]: Overdue
+            - button "Ask the coach for today's read" [ref=f10e128] [cursor=pointer]
+            - button "Plan my day with the coach" [ref=f10e131] [cursor=pointer]
+          - generic [ref=f10e134]:
+            - generic [ref=f10e135]: Today timetable
+            - list [ref=f10e138]:
+              - listitem [ref=f10e139]:
+                - generic [ref=f10e143]:
+                  - generic [ref=f10e144]: Transfer ¥50k
+                  - generic [ref=f10e145]:
+                    - generic [ref=f10e146]: Save for the Japan trip
+                    - generic [ref=f10e147]: · 2026-09-27
+              - listitem [ref=f10e148]:
+                - generic [ref=f10e152]:
+                  - generic [ref=f10e153]: Grocery run
+                  - generic [ref=f10e154]:
+                    - generic [ref=f10e155]: Cook one new recipe a week
+                    - generic [ref=f10e156]: · 2026-09-27
+          - generic [ref=f10e157]:
+            - generic [ref=f10e158]:
+              - generic [ref=f10e159]: Streak
+              - generic [ref=f10e162]: On a 2-commit day
+              - generic [ref=f10e163]: Use the momentum — pick the next item.
+            - generic [ref=f10e164]:
+              - generic [ref=f10e165]: This week
+              - generic [ref=f10e168]: No milestones in the next 7 days.
+        - generic [ref=f10e169]:
+          - generic [ref=f10e170]:
+            - generic [ref=f10e173]:
+              - generic [ref=f10e174]: A nudge for today
+              - generic [ref=f10e175]: Curated · server picked these from your week
+            - button "Refresh" [ref=f10e176] [cursor=pointer]
+            - button "Hide for this view" [ref=f10e182] [cursor=pointer]
+          - list [ref=f10e186]:
+            - listitem [ref=f10e187]:
+              - generic [ref=f10e192]:
+                - link "The Habit Loop — cue, routine, reward" [ref=f10e193] [cursor=pointer]:
+                  - /url: https://charlesduhigg.com/the-power-of-habit/
+                - generic [ref=f10e198]: Charles Duhigg · article · 5 min read
+                - paragraph [ref=f10e199]: Right now, you're in the hard middle. Most habit failures are wired loops that reward the wrong thing. Rewrite the cue.
+            - listitem [ref=f10e200]:
+              - generic [ref=f10e205]:
+                - link "Mountain vs. Marshmallow — reframing the boring middle" [ref=f10e206] [cursor=pointer]:
+                  - /url: https://www.profgalloway.com/
+                - generic [ref=f10e211]: Scott Galloway · article · 8 min read
+                - paragraph [ref=f10e212]: Right now, you're in the hard middle. Why the middle of a goal feels like failure — even when it isn’t.
+            - listitem [ref=f10e213]:
+              - generic [ref=f10e218]:
+                - link "The Pomodoro — 25 minutes is a contract with yourself" [ref=f10e219] [cursor=pointer]:
+                  - /url: https://francescocirillo.com/pages/pomodoro-technique
+                - generic [ref=f10e224]: Francesco Cirillo · article · 3 min read
+                - paragraph [ref=f10e225]: Right now, you're in the hard middle. Time-boxed, interruption-free, twenty-five minute sessions. Start one before you finish this sentence.
+        - generic [ref=f10e226]:
+          - generic [ref=f10e227]: Short-term · < 3 months
+          - generic [ref=f10e229]:
+            - generic [ref=f10e235]:
+              - generic [ref=f10e236]: Cook one new recipe a week
+              - generic [ref=f10e237]: next Try the miso-eggplant recipe from the saved photo.
+              - generic [ref=f10e239]:
+                - button "add source" [ref=f10e240] [cursor=pointer]
+                - button "Attach a file to this goal" [ref=f10e243] [cursor=pointer]
+                - button "Add a link as a source" [ref=f10e245] [cursor=pointer]
+            - generic [ref=f10e249]:
+              - button "Add a step / milestone" [ref=f10e250] [cursor=pointer]
+              - button "Refine or rename this goal" [ref=f10e253] [cursor=pointer]
+              - button "Pause this goal" [ref=f10e257] [cursor=pointer]
+              - button "Drop this goal" [ref=f10e261] [cursor=pointer]
+        - generic [ref=f10e265]:
+          - generic [ref=f10e266]: Medium-term · 3–12 months
+          - generic [ref=f10e267]:
+            - generic [ref=f10e268]:
+              - generic [ref=f10e274]:
+                - generic [ref=f10e275]: Get to a 10km PR
+                - generic [ref=f10e276]: next Easy 6km tomorrow morning.
+                - generic [ref=f10e278]:
+                  - button "add source" [ref=f10e279] [cursor=pointer]
+                  - button "Attach a file to this goal" [ref=f10e282] [cursor=pointer]
+                  - button "Add a link as a source" [ref=f10e284] [cursor=pointer]
+              - generic [ref=f10e288]:
+                - button "Add a step / milestone" [ref=f10e289] [cursor=pointer]
+                - button "Refine or rename this goal" [ref=f10e292] [cursor=pointer]
+                - button "Pause this goal" [ref=f10e296] [cursor=pointer]
+                - button "Drop this goal" [ref=f10e300] [cursor=pointer]
+            - generic [ref=f10e304]:
+              - generic [ref=f10e310]:
+                - generic [ref=f10e311]: Save for the Japan trip
+                - generic [ref=f10e312]: next Move ¥50,000 to the travel fund.
+                - generic [ref=f10e314]:
+                  - button "add source" [ref=f10e315] [cursor=pointer]
+                  - button "Attach a file to this goal" [ref=f10e318] [cursor=pointer]
+                  - button "Add a link as a source" [ref=f10e320] [cursor=pointer]
+              - generic [ref=f10e324]:
+                - button "Add a step / milestone" [ref=f10e325] [cursor=pointer]
+                - button "Refine or rename this goal" [ref=f10e328] [cursor=pointer]
+                - button "Pause this goal" [ref=f10e332] [cursor=pointer]
+                - button "Drop this goal" [ref=f10e336] [cursor=pointer]
+        - generic [ref=f10e340]:
+          - generic [ref=f10e341]: Upcoming — headed your way
+          - generic [ref=f10e342]:
+            - generic [ref=f10e343]: Calendar view
+            - generic [ref=f10e344]: Weekly / daily scheduler
+            - generic [ref=f10e345]: Reminders
+            - generic [ref=f10e346]: Trackers
+    - button "Chat with your coach" [ref=f10e63] [cursor=pointer]
+  - region "Notifications alt+T"

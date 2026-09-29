@@ -1,0 +1,31 @@
+[     116ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[     159ms] [ERROR] Access to fetch at 'http://localhost:4000/api/auth/me' from origin 'http://localhost:7200' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: The 'Access-Control-Allow-Origin' header has a value 'http://localhost:3000' that is not equal to the supplied origin. Have the server send the header with a valid value. @ http://localhost:7200/:0
+[     159ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:4000/api/auth/me:0
+[     159ms] [ERROR] Access to fetch at 'http://localhost:4000/api/auth/me' from origin 'http://localhost:7200' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: The 'Access-Control-Allow-Origin' header has a value 'http://localhost:3000' that is not equal to the supplied origin. Have the server send the header with a valid value. @ http://localhost:7200/:0
+[     159ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:4000/api/auth/me:0
+[     167ms] TypeError: Failed to fetch
+    at window.fetch (https://assets.emergent.sh/scripts/emergent-main.js:387:8)
+    at req (http://localhost:7200/static/js/bundle.js:15624:21)
+    at Object.me (http://localhost:7200/static/js/bundle.js:15648:13)
+    at http://localhost:7200/static/js/bundle.js:15409:63
+    at http://localhost:7200/static/js/bundle.js:15434:5
+    at react-stack-bottom-frame (http://localhost:7200/static/js/bundle.js:32207:18)
+    at runWithFiberInDEV (http://localhost:7200/static/js/bundle.js:20689:14)
+    at commitHookEffectListMount (http://localhost:7200/static/js/bundle.js:25804:618)
+    at commitHookPassiveMountEffects (http://localhost:7200/static/js/bundle.js:25841:56)
+    at commitPassiveMountOnFiber (http://localhost:7200/static/js/bundle.js:26748:25)
+[     170ms] TypeError: Failed to fetch
+    at window.fetch (https://assets.emergent.sh/scripts/emergent-main.js:387:8)
+    at req (http://localhost:7200/static/js/bundle.js:15624:21)
+    at Object.me (http://localhost:7200/static/js/bundle.js:15648:13)
+    at http://localhost:7200/static/js/bundle.js:15409:63
+    at http://localhost:7200/static/js/bundle.js:15434:5
+    at react-stack-bottom-frame (http://localhost:7200/static/js/bundle.js:32207:18)
+    at runWithFiberInDEV (http://localhost:7200/static/js/bundle.js:20689:14)
+    at commitHookEffectListMount (http://localhost:7200/static/js/bundle.js:25804:618)
+    at commitHookPassiveMountEffects (http://localhost:7200/static/js/bundle.js:25841:56)
+    at reconnectPassiveEffects (http://localhost:7200/static/js/bundle.js:26795:9)
+[    1091ms] [ERROR] Access to fetch at 'http://localhost:4000/api/auth/dev-login' from origin 'http://localhost:7200' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'http://localhost:3000' that is not equal to the supplied origin. Have the server send the header with a valid value. @ http://localhost:7200/:0
+[    1091ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:4000/api/auth/dev-login:0
+[    2259ms] [ERROR] Access to fetch at 'http://localhost:4000/api/auth/dev-login' from origin 'http://localhost:7200' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'http://localhost:3000' that is not equal to the supplied origin. Have the server send the header with a valid value. @ http://localhost:7200/:0
+[    2259ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:4000/api/auth/dev-login:0

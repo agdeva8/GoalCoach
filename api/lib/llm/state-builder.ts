@@ -1,5 +1,5 @@
 /**
- * GoalCoach state builder — ported from backend/server.py:522-563.
+ * Sutra state builder — ported from backend/server.py:522-563.
  *
  * `buildContext` produces the string that gets appended to SYSTEM_PROMPT as
  * `=== LIVE STATE & MEMORY ===` for every chat turn. The output structure
