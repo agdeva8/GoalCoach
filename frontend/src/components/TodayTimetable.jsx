@@ -154,7 +154,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
 
   if (!loading && error) {
     return compact ? null : (
-      <div className="border border-[var(--border)] rounded-lg p-4 text-center space-y-2 bg-[var(--bg-secondary)]/40" data-testid="timetable-error">
+      <div className="border border-[var(--border)] rounded-lg p-4 text-center space-y-2 bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]" data-testid="timetable-error">
         <p className="text-xs text-[var(--text-secondary)]">Couldn't load today's schedule</p>
         <button
           type="button"
@@ -175,7 +175,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
   return (
     <section
       data-testid="today-timetable"
-      className="border border-[var(--border)] bg-[var(--bg-secondary)]/40 rounded-lg"
+      className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] rounded-lg"
     >
       {!compact && (
         <header className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
@@ -196,26 +196,26 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
         // task list.
         <div
           data-testid="today-dayband"
-          className="px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-primary)]/50"
+          className="px-4 py-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_50%,transparent)]"
         >
           <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
             <span>07:00 · Wake</span>
             <span>23:00 · Sleep</span>
           </div>
           <div className="relative h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-            <div className="absolute left-0 top-0 h-full w-[8%] bg-[var(--accent)]/40" aria-hidden="true" />
-            <div className="absolute left-[8%] top-0 h-full w-[78%] bg-[var(--accent)]/20" aria-hidden="true" />
-            <div className="absolute left-[86%] top-0 h-full w-[14%] bg-[var(--border-accent)]/40" aria-hidden="true" />
+            <div className="absolute left-0 top-0 h-full w-[8%] bg-[color-mix(in_srgb,var(--accent)_40%,transparent)]" aria-hidden="true" />
+            <div className="absolute left-[8%] top-0 h-full w-[78%] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]" aria-hidden="true" />
+            <div className="absolute left-[86%] top-0 h-full w-[14%] bg-[color-mix(in_srgb,var(--border-accent)_40%,transparent)]" aria-hidden="true" />
           </div>
           <div className="mt-2 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest">
             <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-3 bg-[var(--accent)]/40" /> Routine
+              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--accent)_40%,transparent)]" /> Routine
             </span>
             <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-3 bg-[var(--accent)]/20" /> Available
+              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]" /> Available
             </span>
             <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-3 bg-[var(--border-accent)]/40" /> Rest
+              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--border-accent)_40%,transparent)]" /> Rest
             </span>
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
                   data-testid={`timetable-checkbox-${item.id}`}
                   className={`mt-0.5 h-9 w-9 shrink-0 flex items-center justify-center border transition-colors rounded ${
                     done
-                      ? "border-[var(--success)] bg-[var(--success)]/10 text-[var(--success)]"
+                      ? "border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)]"
                       : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
                   } ${!isCommitment ? "opacity-30 cursor-not-allowed" : ""}`}
                 >

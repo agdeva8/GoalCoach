@@ -106,7 +106,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
     >
       <div className="space-y-4">
         {/* Kind tabs */}
-        <div className="inline-flex rounded-md border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-0.5">
+        <div className="inline-flex rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] p-0.5">
           <button
             type="button"
             data-testid="goal-memory-kind-photo"

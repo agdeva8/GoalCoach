@@ -82,8 +82,8 @@ const CATEGORIES = [
     label: "Something else",
     Icon: Wand2,
     gradient: "from-orange-400/30 via-amber-300/20 to-rose-400/0",
-    ring: "ring-[var(--accent)]/40",
-    glow: "bg-[var(--accent)]/20",
+    ring: "ring-[color-mix(in_srgb,var(--accent)_40%,transparent)]",
+    glow: "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]",
     prompt: "",
   },
 ];

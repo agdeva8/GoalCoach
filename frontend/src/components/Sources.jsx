@@ -83,7 +83,7 @@ export default function Sources({ state, onChange }) {
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-lg p-3 space-y-2.5"
+              className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-lg p-3 space-y-2.5"
             >
               <div className="flex items-start gap-2.5">
                 <div className="w-8 h-8 rounded gc-skeleton shrink-0 mt-0.5" />
@@ -106,7 +106,7 @@ export default function Sources({ state, onChange }) {
       )}
 
       {!loading && error && (
-        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[var(--bg-secondary)]/40" data-testid="sources-error">
+        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]" data-testid="sources-error">
           <p className="text-xs text-[var(--text-secondary)]">Couldn't load sources</p>
           <button
             type="button"
@@ -120,7 +120,7 @@ export default function Sources({ state, onChange }) {
       )}
 
       {!loading && !error && sources.length === 0 && (
-        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
+        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]">
           <FolderOpen className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
             No sources yet. Attach files or paste links when adding a goal — the coach
@@ -177,15 +177,15 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
   return (
     <div
       data-testid={`source-card-${source.id}`}
-      className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-lg p-3 space-y-2 group"
+      className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-lg p-3 space-y-2 group"
     >
       {/* Header row: kind icon + name */}
       <div className="flex items-start gap-2.5">
         <div
           className={`w-8 h-8 rounded flex items-center justify-center shrink-0 mt-0.5 ${
             isFile
-              ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-              : "bg-[var(--warning)]/10 text-[var(--warning)]"
+              ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+              : "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)]"
           }`}
         >
           {isFile ? (
@@ -202,8 +202,8 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
             <span
               className={`inline-flex items-center font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded ${
                 isFile
-                  ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                  : "bg-[var(--warning)]/10 text-[var(--warning)]"
+                  ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
+                  : "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)]"
               }`}
             >
               {source.kind}

@@ -77,7 +77,7 @@ function SectionChatInput({ text, setText, onSubmit }) {
     <form
       onSubmit={onSubmit}
       data-testid="today-section-chat"
-      className="border border-[var(--border)] bg-[var(--bg-secondary)]/40 rounded-lg p-3.5 space-y-2"
+      className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] rounded-lg p-3.5 space-y-2"
     >
       <label
         htmlFor="today-section-chat-input"

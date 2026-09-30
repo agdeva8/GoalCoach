@@ -148,10 +148,10 @@ export default function SourceActionDialog({
             data-testid="source-upload-progress"
             className={`flex items-center gap-2 px-3 py-2 rounded border text-xs ${
               progress.status === "error"
-                ? "border-[var(--danger)]/30 bg-[var(--danger)]/10 text-[var(--danger)]"
+                ? "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]"
                 : progress.status === "done"
-                  ? "border-[var(--success)]/30 bg-[var(--success)]/10 text-[var(--success)]"
-                  : "border-[var(--border)] bg-[var(--bg-secondary)]/60 text-[var(--text-secondary)]"
+                  ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)]"
+                  : "border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] text-[var(--text-secondary)]"
             }`}
           >
             {progress.status === "uploading" ? (
@@ -208,7 +208,7 @@ export default function SourceActionDialog({
         {previewing && (
           <div
             data-testid="source-link-preview-loading"
-            className="rounded border border-[var(--border)] bg-[var(--bg-secondary)]/60 px-3 py-2.5 text-xs text-[var(--text-muted)] flex items-center gap-2"
+            className="rounded border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] px-3 py-2.5 text-xs text-[var(--text-muted)] flex items-center gap-2"
           >
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             Fetching metadata…
@@ -217,7 +217,7 @@ export default function SourceActionDialog({
         {preview && preview.ok && !previewing && (
           <div
             data-testid="source-link-preview-card"
-            className="rounded border border-[var(--border)] bg-[var(--bg-secondary)]/60 overflow-hidden"
+            className="rounded border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] overflow-hidden"
           >
             {preview.image && (
               <div className="aspect-[1200/630] bg-[var(--bg-tertiary)] overflow-hidden">
@@ -284,7 +284,7 @@ export default function SourceActionDialog({
         {previewError && !previewing && (
           <div
             data-testid="source-link-preview-error"
-            className="rounded border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-3 py-2.5 text-xs text-[var(--danger)] flex items-start gap-2"
+            className="rounded border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-xs text-[var(--danger)] flex items-start gap-2"
           >
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <div className="flex-1">
@@ -292,7 +292,7 @@ export default function SourceActionDialog({
               <button
                 type="button"
                 onClick={() => runPreview(url.trim())}
-                className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-[var(--danger)]/80 hover:text-[var(--danger)]"
+                className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-[var(--danger)]"
               >
                 <RefreshCw className="w-3 h-3" /> Retry
               </button>

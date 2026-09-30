@@ -325,7 +325,7 @@ export default function FocusedTaskChatDialog({
         />
       </div>
       {isGuest && (
-        <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)]/60 px-3 py-2 text-xs text-[var(--text-secondary)]">
+        <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
           <span className="flex-1">
             You're chatting as a guest. Sign in to keep your goals across devices.

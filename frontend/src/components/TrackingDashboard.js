@@ -322,8 +322,8 @@ export default function TrackingDashboard({
       <TrackerCard state={state} onOpenChat={onOpenChatWith} onOpenToday={onOpenToday} />
 
       {visibleGoals.length === 0 ? (
-        <div data-testid="empty-state" className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
-          <div className="mx-auto h-12 w-12 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/30 flex items-center justify-center mb-4">
+        <div data-testid="empty-state" className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]">
+          <div className="mx-auto h-12 w-12 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center mb-4">
             <Sparkles className="h-6 w-6 text-[var(--accent)]" aria-hidden="true" />
           </div>
           <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">

@@ -26,7 +26,7 @@ function SpeechWave({ text }) {
     <div
       data-testid="speech-wave"
       aria-live="polite"
-      className="mb-2 flex items-center gap-2 px-3 py-2 border border-[var(--danger)]/40 bg-[var(--danger)]/5 rounded-md"
+      className="mb-2 flex items-center gap-2 px-3 py-2 border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] rounded-md"
     >
       <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--danger)] shrink-0">
         listening
@@ -308,7 +308,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         </div>
 
         {pendingClarifications && pendingClarifications.questions?.length > 0 && (
-          <div data-testid="clarification-chips" className="mt-2 p-3 border border-[var(--border-accent)]/40 rounded-md bg-[var(--bg-secondary)]">
+          <div data-testid="clarification-chips" className="mt-2 p-3 border border-[color-mix(in_srgb,var(--border-accent)_40%,transparent)] rounded-md bg-[var(--bg-secondary)]">
             <div className="flex items-start gap-2">
               <HelpCircle className="w-4 h-4 mt-0.5 text-[var(--accent)] shrink-0" />
               <div className="flex-1 min-w-0">
@@ -323,7 +323,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                       type="button"
                       data-testid={`clarification-chip-${i}`}
                       onClick={() => onAnswerClarification(q)}
-                      className="w-full text-left text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
+                      className="w-full text-left text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors"
                     >
                       <span className="font-mono text-[10px] text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
                       {q}

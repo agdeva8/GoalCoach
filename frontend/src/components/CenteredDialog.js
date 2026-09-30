@@ -88,7 +88,7 @@ export default function CenteredDialog({
         ref={dialogRef}
         tabIndex={-1}
         data-testid={`${testId}-content`}
-        className={`relative w-full ${maxWidth} bg-[var(--bg-secondary)] border border-[var(--border-accent)]/30 shadow-2xl gc-fade-up outline-none`}
+        className={`relative w-full ${maxWidth} bg-[var(--bg-secondary)] border border-[color-mix(in_srgb,var(--border-accent)_30%,transparent)] shadow-2xl gc-fade-up outline-none`}
       >
         {(title || Icon) && (
           <div className="flex items-start gap-3 px-5 py-4 border-b border-[var(--border)]">
@@ -127,7 +127,7 @@ export default function CenteredDialog({
         )}
         <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--border)] bg-[var(--bg-primary)]/40">
+          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)]">
             {footer}
           </div>
         )}

@@ -93,7 +93,7 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
             data-testid="confirm-tool-button"
             disabled={busy}
             onClick={onConfirm}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--success)] hover:bg-[var(--success)]/10 disabled:opacity-40 transition-colors border-r border-[var(--border)]"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] disabled:opacity-40 transition-colors border-r border-[var(--border)]"
           >
             <Check className="w-3.5 h-3.5" /> Confirm
           </button>
@@ -101,7 +101,7 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
             data-testid="refine-tool-button"
             disabled={busy}
             onClick={() => setRefining(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-40 transition-colors border-r border-[var(--border)]"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] disabled:opacity-40 transition-colors border-r border-[var(--border)]"
           >
             <Pencil className="w-3.5 h-3.5" /> Refine
           </button>
@@ -109,7 +109,7 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
             data-testid="reject-tool-button"
             disabled={busy}
             onClick={onReject}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-40 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] disabled:opacity-40 transition-colors"
           >
             <X className="w-3.5 h-3.5" /> Reject
           </button>

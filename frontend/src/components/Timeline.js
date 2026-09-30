@@ -690,7 +690,7 @@ function HeaderStrip({
               type="button"
               data-testid="timeline-viewtype-trigger"
               aria-label="Choose how to view your timeline"
-              className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--bg-secondary)]/40 hover:border-[var(--border-accent)] hover:bg-[var(--bg-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+              className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
               <ActiveIcon className="w-3.5 h-3.5 text-[var(--accent)]" aria-hidden="true" />
               <span className="font-display text-[14px] font-semibold text-[var(--text-primary)]">
@@ -877,7 +877,7 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <div
-        className="inline-flex rounded-md border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-0.5"
+        className="inline-flex rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] p-0.5"
         role="tablist"
         aria-label="Calendar span"
       >
@@ -945,7 +945,7 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
 function EmptyState({ onPrefill }) {
   return (
     <div data-testid="timeline-view" className="p-4 sm:p-6">
-      <div className="relative overflow-hidden border border-dashed border-[var(--border)] rounded-lg bg-[var(--bg-secondary)]/30 px-6 py-10 sm:py-14 text-center">
+      <div className="relative overflow-hidden border border-dashed border-[var(--border)] rounded-lg bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] px-6 py-10 sm:py-14 text-center">
         <svg
           aria-hidden="true"
           className="mx-auto mb-5 opacity-90"
@@ -995,7 +995,7 @@ function EmptyState({ onPrefill }) {
                 "Map out a realistic timeline for my goals — propose target dates and 2-4 milestones each, with buffer for real life.",
               )
             }
-            className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[var(--accent)]/90 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+            className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
           >
             Ask the coach to build my timeline →
           </button>
@@ -1034,7 +1034,7 @@ function DrillView({ buckets, itemsIn, blockersIn, today, level, drill, stats })
               className={`group relative border rounded transition-colors overflow-hidden ${
                 isNow
                   ? "border-[var(--accent)] bg-[var(--bg-secondary)]"
-                  : "border-[var(--border)] bg-[var(--bg-secondary)]/40 hover:border-[var(--border-accent)]"
+                  : "border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] hover:border-[var(--border-accent)]"
               }`}
             >
               {clickable && (
@@ -1357,7 +1357,7 @@ function StripEmptyState({ onAsk }) {
   return (
     <div
       data-testid="timeline-view"
-      className="gc-fade-in flex flex-col items-center justify-center text-center gap-4 py-16 px-6 rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/30"
+      className="gc-fade-in flex flex-col items-center justify-center text-center gap-4 py-16 px-6 rounded-lg border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)]"
       role="region"
       aria-label="Timeline empty state"
     >
@@ -1424,7 +1424,7 @@ function StripBody({ children, testId }) {
 function EmptyStrip({ horizon, onAsk }) {
   return (
     <div
-      className="snap-start shrink-0 min-w-[260px] w-[280px] sm:w-[300px] rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/40 px-3.5 py-4 flex flex-col items-start gap-2"
+      className="snap-start shrink-0 min-w-[260px] w-[280px] sm:w-[300px] rounded-md border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] px-3.5 py-4 flex flex-col items-start gap-2"
       role="note"
       aria-label={`No items in ${horizon.label.toLowerCase()}`}
     >
@@ -1884,7 +1884,7 @@ function CalendarView({
         >
           <div
             role="row"
-            className="grid grid-cols-4 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
+            className="grid grid-cols-4 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
           >
             {quarters.map((q, qi) => (
               <div key={qi} role="columnheader" className="px-2 py-2 text-center select-none border-r last:border-r-0 border-[var(--border-accent)]">
@@ -2033,7 +2033,7 @@ function CalendarView({
         >
           <div
             role="row"
-            className="grid grid-cols-[88px_1fr] font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
+            className="grid grid-cols-[88px_1fr] font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
           >
             <div role="columnheader" className="px-2 py-2">Week</div>
             <div role="columnheader" className="px-2 py-2">Items · status-colored bars</div>
@@ -2049,7 +2049,7 @@ function CalendarView({
                   className="grid grid-cols-[88px_1fr]"
                   style={{ minHeight: `${rowHeight}px` }}
                 >
-                  <div className="px-2 py-2 font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-accent)] bg-[var(--bg-secondary)]/30 flex items-center">
+                  <div className="px-2 py-2 font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] flex items-center">
                     {wkLabel}
                   </div>
                   <div
@@ -2176,7 +2176,7 @@ function CalendarView({
       >
         <div
           role="row"
-          className="grid grid-cols-7 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
+          className="grid grid-cols-7 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
         >
           {DOW.map((d, i) => (
             <div key={d} role="columnheader" className="px-2 py-2 text-center select-none">

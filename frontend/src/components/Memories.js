@@ -163,10 +163,10 @@ export default function Memories({ state, onChange }) {
       {adding && (
         <div
           data-testid="memories-add-form"
-          className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-lg p-4 space-y-3"
+          className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-lg p-4 space-y-3"
         >
           <div className="flex items-center gap-1.5">
-            <div className="inline-flex rounded-md border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-0.5">
+            <div className="inline-flex rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] p-0.5">
               <button
                 data-testid="memories-kind-photo"
                 onClick={() => { setKind("photo"); setSubmitError(""); }}
@@ -232,7 +232,7 @@ export default function Memories({ state, onChange }) {
 
           <label className="block">
             <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
-              Caption <span className="text-[var(--text-muted)]/70 normal-case tracking-normal">(optional)</span>
+              Caption <span className="text-[color-mix(in_srgb,var(--text-muted)_70%,transparent)] normal-case tracking-normal">(optional)</span>
             </span>
             <input
               data-testid="memories-caption-input"
@@ -248,7 +248,7 @@ export default function Memories({ state, onChange }) {
 
           <label className="block">
             <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
-              Linked goal <span className="text-[var(--text-muted)]/70 normal-case tracking-normal">(optional)</span>
+              Linked goal <span className="text-[color-mix(in_srgb,var(--text-muted)_70%,transparent)] normal-case tracking-normal">(optional)</span>
             </span>
             <select
               data-testid="memories-goal-select"
@@ -314,7 +314,7 @@ export default function Memories({ state, onChange }) {
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-lg overflow-hidden space-y-2 p-2.5"
+              className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-lg overflow-hidden space-y-2 p-2.5"
             >
               <div className="aspect-square w-full gc-skeleton rounded" />
               <div className="space-y-1.5 pt-1">
@@ -334,7 +334,7 @@ export default function Memories({ state, onChange }) {
       )}
 
       {!loading && error && (
-        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[var(--bg-secondary)]/40" data-testid="memories-error">
+        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]" data-testid="memories-error">
           <p className="text-xs text-[var(--text-secondary)]">Couldn't load memories</p>
           <button
             type="button"
@@ -348,7 +348,7 @@ export default function Memories({ state, onChange }) {
       )}
 
       {!loading && !error && memories.length === 0 && !adding && (
-        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
+        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]">
           <ImageIcon className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
             Pin the things that make goals real — a photo of where you want to be, the post
@@ -391,7 +391,7 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
   return (
     <div
       data-testid={`memory-card-${memory.id}`}
-      className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-lg overflow-hidden group"
+      className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-lg overflow-hidden group"
     >
       <div className="aspect-square bg-[var(--bg-tertiary)] relative overflow-hidden">
         {memory.kind === "photo" && memory.source_id ? (

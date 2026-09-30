@@ -65,7 +65,7 @@ export default function MotivationCard({ state }) {
   return (
     <div
       data-testid="motivation-card"
-      className="border border-[var(--border)] bg-gradient-to-br from-[var(--accent)]/10 via-[var(--accent)]/5 to-transparent rounded-xl overflow-hidden"
+      className="border border-[var(--border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] via-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent rounded-xl overflow-hidden"
     >
       <div className="px-4 sm:px-5 py-3.5 flex items-center gap-2 border-b border-[var(--border)]">
         <Sparkles className="w-4 h-4 text-[var(--accent)]" />
@@ -124,7 +124,7 @@ export default function MotivationCard({ state }) {
           <li
             key={it.id}
             data-testid={`motivation-item-${it.id}`}
-            className="flex items-start gap-3 p-2.5 rounded-md border border-[var(--border)] bg-[var(--bg-primary)]/40"
+            className="flex items-start gap-3 p-2.5 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)]"
           >
             <KindIcon kind={it.kind} />
             <div className="flex-1 min-w-0">
@@ -160,7 +160,7 @@ function KindIcon({ kind }) {
   }
   const Icon = map[kind] || Sparkles
   return (
-    <div className="h-9 w-9 shrink-0 rounded-md bg-[var(--accent)]/15 border border-[var(--accent)]/30 flex items-center justify-center">
+    <div className="h-9 w-9 shrink-0 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center">
       <Icon className="w-4 h-4 text-[var(--accent)]" />
     </div>
   )

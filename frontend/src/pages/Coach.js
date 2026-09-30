@@ -270,7 +270,7 @@ export default function Coach() {
       {isGuest && (
         <div
           data-testid="guest-banner"
-          className="border-b border-[var(--border)] bg-[var(--accent)]/10 px-4 sm:px-6 py-2 flex items-center gap-3 shrink-0"
+          className="border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-4 sm:px-6 py-2 flex items-center gap-3 shrink-0"
         >
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)]">
             preview

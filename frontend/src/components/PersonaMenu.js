@@ -279,7 +279,7 @@ export default function PersonaMenu({ currentName, currentUserId }) {
               type="button"
               data-testid="persona-new-guest"
               onClick={() => setNewPersonaOpen(true)}
-              className="w-full flex items-center gap-2 px-3 py-3 text-xs text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-3 text-xs text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               Continue as new person (fresh identity)

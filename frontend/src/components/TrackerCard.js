@@ -80,7 +80,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
   return (
     <div
       data-testid="tracker-card"
-      className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-xl overflow-hidden"
+      className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-xl overflow-hidden"
     >
       <div className="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Col 1 — greeting + stats + CTAs */}
@@ -196,7 +196,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
         {/* Col 2 — week + flame (Col 2 used to be the timetable; that
             moved to the Today tab in Iteration 7) */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="border border-[var(--border)] bg-[var(--bg-primary)]/40 rounded-md p-3">
+          <div className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] rounded-md p-3">
             <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
               <Flame className="w-3 h-3" />
               Streak
@@ -228,7 +228,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
                   <li
                     key={m.id}
                     data-testid={`tracker-milestone-${m.id}`}
-                    className="text-[12px] text-[var(--text-secondary)] leading-snug px-2 py-1.5 border border-[var(--border)] bg-[var(--bg-primary)]/40 rounded"
+                    className="text-[12px] text-[var(--text-secondary)] leading-snug px-2 py-1.5 border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] rounded"
                   >
                     <span className="block">{m.title || "Milestone"}</span>
                     <span className="block font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mt-0.5">
@@ -254,7 +254,7 @@ function StatTile({ icon: Icon, value, label, tone }) {
   return (
     <div
       data-testid={`tracker-stat-${label.toLowerCase().replace(/\s+/g, "-")}`}
-      className="border border-[var(--border)] bg-[var(--bg-primary)]/40 rounded-md px-2.5 py-2 flex flex-col items-start"
+      className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] rounded-md px-2.5 py-2 flex flex-col items-start"
     >
       <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: tone }} />
       <div className="text-lg font-semibold text-[var(--text-primary)] leading-none mt-1">

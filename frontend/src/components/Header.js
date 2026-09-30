@@ -62,7 +62,7 @@ export default function Header({ user, authLoading, provider, onProvider, onOpen
   return (
     <header
       data-testid="app-header"
-      className="h-16 shrink-0 border-b border-[var(--border)] bg-[var(--bg-primary)]/85 backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50"
+      className="h-16 shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <Logo className="w-7 h-7 text-[var(--accent)] shrink-0" />

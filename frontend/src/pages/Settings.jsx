@@ -87,7 +87,7 @@ export default function Settings() {
   return (
     <div className="h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
       {/* Minimal settings header — back nav, logo, theme */}
-      <header className="h-16 shrink-0 border-b border-[var(--border)] bg-[var(--bg-primary)]/85 backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50">
+      <header className="h-16 shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50">
         <button
           onClick={() => navigate("/")}
           title="Back to Coach"
@@ -207,7 +207,7 @@ export default function Settings() {
                       onClick={() => changeProvider(p.id)}
                       className={`w-full flex items-center justify-between px-4 py-3 border rounded-lg transition-colors ${
                         p.id === provider
-                          ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                          ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
                           : "border-[var(--border)] hover:border-[var(--border-accent)]"
                       }`}
                     >
@@ -244,7 +244,7 @@ export default function Settings() {
                     onClick={toggleTheme}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border rounded-lg transition-colors ${
                       !isLight
-                        ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                        ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
                         : "border-[var(--border)] hover:border-[var(--border-accent)]"
                     }`}
                   >
@@ -255,7 +255,7 @@ export default function Settings() {
                     onClick={toggleTheme}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border rounded-lg transition-colors ${
                       isLight
-                        ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                        ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
                         : "border-[var(--border)] hover:border-[var(--border-accent)]"
                     }`}
                   >

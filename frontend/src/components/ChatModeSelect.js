@@ -96,7 +96,7 @@ export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, set
                 data-testid={`chat-mode-option-${m.id}`}
                 onClick={() => pick(m.id)}
                 className={`w-full text-left flex items-start gap-2 px-3 py-2 transition-colors ${
-                  selected ? "bg-[var(--accent)]/10 text-[var(--accent)]" : "hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
+                  selected ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]" : "hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${selected ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} />
