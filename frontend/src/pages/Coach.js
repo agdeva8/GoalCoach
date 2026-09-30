@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon, FileText, Sparkles, Sun } from "lucide-react";
+import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon, FileText, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import Header from "../components/Header";
@@ -8,7 +8,6 @@ import TrackingDashboard from "../components/TrackingDashboard";
 import Timeline from "../components/Timeline";
 import Memories from "../components/Memories";
 import Sources from "../components/Sources";
-import Today from "../components/Today";
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
@@ -36,7 +35,6 @@ export default function Coach() {
   const isGuest = !!user?.is_guest;
 
   const [state, setState] = useState(null);
-  const [provider, setProvider] = useState("gemini");
   const [theme, setTheme] = useState(
     () => localStorage.getItem("gc_theme") || "dark",
   );
@@ -61,6 +59,10 @@ export default function Coach() {
   const [sourceDialogSource, setSourceDialogSource] = useState(null);
   const [boundaryConfirm, setBoundaryConfirm] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatPrefill, setChatPrefill] = useState("");
+  // Iteration 5 — optional scoped chat context (set by Today Timetable /
+  // Timeline / focused-task CTAs). Null = generic "Chat with your coach".
+  const [chatScope, setChatScope] = useState(null);
   const [devLoginAvailable, setDevLoginAvailable] = useState(false);
 
   const setAutoAnswer = (v) => {
@@ -115,7 +117,6 @@ export default function Coach() {
 
   useEffect(() => {
     if (loading || !user) return;
-    setProvider(user.model_provider || "gemini");
     refreshState();
   }, [loading, user, refreshState]);
 
@@ -127,15 +128,15 @@ export default function Coach() {
 
   const openSignIn = () => setSignInOpen(true);
 
-  const changeProvider = async (p) => {
-    setProvider(p);
-    try {
-      await api.setProvider(p);
-      setUser((u) => (u ? { ...u, model_provider: p } : u));
-      toast.success(`Model switched to ${p}`);
-    } catch {
-      toast.error("Could not switch model");
-    }
+  // Open the chat with a pre-filled question — used by Today Timetable's
+  // "I can't do this" / "Break it down with coach" buttons and the
+  // Timeline's per-tile CTAs. Accepts an optional scoped context
+  // (scope/refId/kind/title/helperText) so the modal can show
+  // "About: <subject>" and mint a per-entity conversation server-side.
+  const openChatWith = (prefill, scoped = null) => {
+    setChatPrefill(prefill || "");
+    setChatScope(scoped);
+    setChatOpen(true);
   };
 
   const openAction = (goal, type) => setActionModal({ goalTitle: goal.title, type });
@@ -246,8 +247,8 @@ export default function Coach() {
   };
 
   const [panelView, setPanelView] = useState(() => {
-    // Default first-time users (no goals) see the Calendar; returning
-    // users see Goals.
+    // Iteration 5 — default to Goals (the most actionable entry); returning
+    // users land where they left off.
     try {
       return localStorage.getItem("gc_panel_view") || "state";
     } catch {
@@ -267,10 +268,7 @@ export default function Coach() {
       <Header
         user={user}
         authLoading={loading}
-        provider={provider}
-        onProvider={changeProvider}
         onOpenChat={() => setChatOpen(true)}
-        onOpenAudit={() => setAuditOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
         onSignIn={openSignIn}
         onLogout={doLogout}
@@ -313,17 +311,6 @@ export default function Coach() {
             <LayoutDashboard className="w-3.5 h-3.5" /> Goals
           </button>
           <button
-            data-testid="panel-tab-today"
-            onClick={() => setPanelView("today")}
-            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-              panelView === "today"
-                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <Sun className="w-3.5 h-3.5" /> Today
-          </button>
-          <button
             data-testid="panel-tab-timeline"
             onClick={() => setPanelView("timeline")}
             className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
@@ -359,23 +346,22 @@ export default function Coach() {
         </div>
 
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
-          {panelView === "today" ? (
-            <Today state={state} onChange={refreshState} />
-          ) : panelView === "state" ? (
+          {panelView === "state" ? (
             <TrackingDashboard
               state={state}
               onAction={(goal, type) => openAction(goal, type)}
               onUploadSource={uploadFile}
               onAddLink={addLink}
               onDeleteSource={deleteSource}
-              onCreated={(newState) => setState(newState)}
+              onCreated={refreshState}
               onOpenChat={() => setChatOpen(true)}
+              onOpenChatWith={openChatWith}
               autoAnswer={autoAnswer}
               grillMe={grillMe}
               isGuest={isGuest}
             />
           ) : panelView === "timeline" ? (
-            <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChat={() => setChatOpen(true)} />
+            <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChatWith={openChatWith} />
           ) : panelView === "sources" ? (
             <Sources state={state} onChange={refreshState} />
           ) : (
@@ -397,7 +383,7 @@ export default function Coach() {
 
       <ChatModal
         open={chatOpen}
-        onClose={() => setChatOpen(false)}
+        onClose={() => { setChatOpen(false); setChatPrefill(""); setChatScope(null); }}
         user={user}
         setUser={setUser}
         autoAnswer={autoAnswer}
@@ -410,6 +396,12 @@ export default function Coach() {
         onAddLink={addLink}
         onOpenSignIn={openSignIn}
         isGuest={isGuest}
+        prefillMessage={chatPrefill}
+        scope={chatScope?.scope}
+        refId={chatScope?.refId}
+        kind={chatScope?.kind}
+        title={chatScope?.title}
+        helperText={chatScope?.helperText}
       />
 
       <WelcomeToast user={user} state={state} signedIn={!isGuest} />
@@ -457,6 +449,10 @@ export default function Coach() {
         onUploadFile={uploadFile}
         onAddLink={addLink}
         onOpenSignIn={openSignIn}
+        scope={focusedTask?.scope}
+        refId={focusedTask?.refId}
+        kind={focusedTask?.kind}
+        helperText={focusedTask?.helperText}
       />
     </div>
   );

@@ -35,7 +35,13 @@ import {
  * `ListView`, and chart-only header controls are gone; the dropdown is the
  * single way to switch views.
  *
- * Props: { state, onPrefill, onOpenChat } — unchanged from before.
+ * Props: { state, onPrefill, onOpenChatWith, onOpenChat }.
+ *   onPrefill      — generic opener, accepts a prefill string only.
+ *   onOpenChatWith — preferred opener, accepts (prefill, scope) so the
+ *                    chat modal can thread `scope/refId/kind/title/
+ *                    helperText` into the new conversation.
+ *   onOpenChat     — legacy alias for onPrefill (string-only), kept so
+ *                    older call sites still work.
  * ------------------------------------------------------------------------ */
 
 const MONTHS = [
@@ -48,6 +54,7 @@ const MONTHS_FULL = [
 ];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DOW_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /* Horizon → color token. weekly + medium share `--accent`. */
 const HORIZON_COLOR = {
@@ -57,6 +64,62 @@ const HORIZON_COLOR = {
   long: "var(--success)",
 };
 const HORIZON_LABEL = { weekly: "WK", short: "SHORT", medium: "MED", long: "LONG" };
+
+/* Status → color token. Issue 2/3 (Iteration 5) — tile color is now
+   driven by status, not horizon, so on-track / overdue / in-progress /
+   not-started reads at a glance. Goal tiles still fall back to
+   HORIZON_COLOR when no status is set (goal is a container, not a
+   deliverable). */
+const STATUS_COLOR = {
+  done: "var(--success)",       // green — on-track / completed
+  active: "var(--success)",     // green — on-track
+  on_track: "var(--success)",   // green — alias
+  overdue: "var(--danger)",     // red — past due / not done
+  blocked: "var(--danger)",     // red — blocked
+  in_progress: "var(--warning)",// yellow — medium / partial
+  open: "var(--warning)",       // yellow — open / partial
+  paused: "var(--text-muted)",  // grey — paused
+  not_started: "var(--text-muted)", // grey
+  dropped: "var(--text-muted)", // grey
+};
+function statusColor(item) {
+  if (!item) return "var(--text-muted)";
+  const s = (item.status || "").toLowerCase();
+  if (s && STATUS_COLOR[s]) return STATUS_COLOR[s];
+  // Goals without status → use horizon. Items without status → warning.
+  if (item.kind === "goal" && item.horizon && HORIZON_COLOR[item.horizon]) {
+    return HORIZON_COLOR[item.horizon];
+  }
+  return "var(--warning)";
+}
+
+/* Scoped-chat context for a calendar item. Centralised because the same
+   scope/kind/helperText map was duplicated across CalendarTile,
+   CalendarDayItem and the quarter bars — the year view needs it too, and
+   one source of truth keeps the chat modal titles consistent. */
+const SCOPE_MAP = {
+  goal: { scope: "goal", kind: "general" },
+  milestone: { scope: "milestone", kind: "plan_day" },
+  commitment: { scope: "commitment", kind: "plan_day" },
+  blocker: { scope: "blocker", kind: "plan_day" },
+};
+const SCOPE_HELPER = {
+  goal: "What do you want to work on for this goal?",
+  milestone: "Where are you on this milestone?",
+  commitment: "What's the next step on this commitment?",
+  blocker: "What's the smallest unblock?",
+};
+function scopeForItem(item) {
+  const m = SCOPE_MAP[item?.kind];
+  if (!m) return null;
+  return {
+    scope: m.scope,
+    kind: m.kind,
+    refId: item.id,
+    title: item.title,
+    helperText: SCOPE_HELPER[item.kind],
+  };
+}
 
 /* View-type dropdown options — plain-language labels for the general public. */
 const VIEW_TYPES = [
@@ -139,6 +202,45 @@ const daysUntil = (d, today) => {
   return Math.round((startOfDay(d).getTime() - today.getTime()) / DAY_MS);
 };
 
+/* ---------------------------------------------------------------------------
+ * Goal span — a goal is a container that runs for weeks or months, so it
+ * must read as a bar that crosses days, never a single-day dot.
+ *
+ * Coach-drafted goals frequently land with `start_date` AND `target_date`
+ * both null. When that happens the old code fell back to
+ * `date = today` for both ends, so every goal collapsed onto one cell and
+ * the calendar looked like a pile of unrelated one-day blocks (the exact
+ * symptom reported: "all goals show as if they are only for 1 day").
+ *
+ * Instead we derive a window from the goal's own horizon, which is the
+ * field the coach already uses to express "how big is this". The window is
+ * anchored to whichever real date we do have, and falls back to today so
+ * an undated goal is still visible in the current view.
+ * ------------------------------------------------------------------------- */
+const HORIZON_SPAN_DAYS = { weekly: 7, short: 30, medium: 90, long: 365 };
+const DEFAULT_SPAN_DAYS = 90;
+
+function goalWindow(goal, today) {
+  const explicitStart = parse(goal.start_date) || parse(goal.created_at);
+  const explicitEnd = parse(goal.target_date);
+  const span = HORIZON_SPAN_DAYS[goal.horizon] ?? DEFAULT_SPAN_DAYS;
+
+  // Both dates real → trust them verbatim.
+  if (explicitStart && explicitEnd) {
+    return { start: explicitStart, end: explicitEnd, inferred: false };
+  }
+  // Only a target → the window runs the horizon's length *up to* it.
+  if (explicitEnd) {
+    return { start: addDays(explicitEnd, -(span - 1)), end: explicitEnd, inferred: true };
+  }
+  // Only a start → the window runs the horizon's length *from* it.
+  if (explicitStart) {
+    return { start: explicitStart, end: addDays(explicitStart, span - 1), inferred: true };
+  }
+  // Neither → run the window from today so the goal is on screen now.
+  return { start: today, end: addDays(today, span - 1), inferred: true };
+}
+
 /* ------------------------------ drill buckets ----------------------------- */
 
 function makeBuckets(level, anchor) {
@@ -196,8 +298,8 @@ function makeBuckets(level, anchor) {
  * Timeline — root component.
  * ========================================================================= */
 
-export default function Timeline({ state, onPrefill, onOpenChat }) {
-  const [viewType, setViewType] = useState("drill");
+export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat }) {
+  const [viewType, setViewType] = useState("calendar");
   const [view, setView] = useState({
     level: "year",
     anchor: new Date(new Date().getFullYear(), 0, 1),
@@ -207,12 +309,20 @@ export default function Timeline({ state, onPrefill, onOpenChat }) {
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
+  // Iteration 5 (Bug 11) — prefer the scoped opener so tile-chip
+  // clicks carry `scope`/`refId`/`kind` into the new conversation.
+  // Falls back to onOpenChat / onPrefill (string-only) for legacy
+  // mounts (e.g. storyboard).
   const openChat = useCallback(
-    (prefill) => {
-      const fn = onOpenChat || onPrefill;
-      if (typeof fn === "function") fn(prefill);
+    (prefill, scope) => {
+      if (typeof onOpenChatWith === "function") {
+        onOpenChatWith(prefill, scope);
+        return;
+      }
+      const legacy = onOpenChat || onPrefill;
+      if (typeof legacy === "function") legacy(prefill);
     },
-    [onOpenChat, onPrefill],
+    [onOpenChatWith, onOpenChat, onPrefill],
   );
 
   /* ---------- collect & normalize data from state ---------- */
@@ -272,17 +382,22 @@ export default function Timeline({ state, onPrefill, onOpenChat }) {
   const allItems = useMemo(() => {
     const out = [];
     goals.forEach((g) => {
-      const s = parse(g.start_date || g.created_at);
-      const e = parse(g.target_date);
+      const explicitEnd = parse(g.target_date);
+      const win = goalWindow(g, today);
       out.push({
         kind: "goal",
-        date: e || s || today,
-        start: s,
-        end: e,
+        // `date` is the item's anchor date for the drill buckets / sorting;
+        // the calendar uses the explicit `start` / `end` span below.
+        date: explicitEnd || win.start,
+        start: win.start,
+        end: win.end,
         id: g.id,
         title: g.title,
         horizon: g.horizon,
         status: g.status,
+        // Surfaced in the tile tooltip so the user can tell a real
+        // target date from a horizon-derived estimate.
+        inferredSpan: win.inferred,
       });
     });
     milestones.forEach((m) => {
@@ -1643,39 +1758,251 @@ function CalendarView({
     return <CalendarEmptyState onAsk={openChat || onPrefill} />;
   }
 
-  /* === Year view === */
+  /* === Year view ===
+   * One column per month, blocks bottom-anchored inside a fixed-height
+   * plot. The previous version gave every block a height derived from the
+   * month's item count but then stacked up to 12 of them inside a 40px
+   * box — so busy months overflowed straight out of the container and
+   * over their neighbours ("messy"). Here the slot height is derived from
+   * how many items the month has, so the stack always fits the plot by
+   * construction and blocks stay readable: a quiet month gets one tall
+   * block, a busy month gets many short ones.
+   */
   if (span === "year") {
+    const PLOT_H = 220;   // plot area height in px
+    const MAX_SLOT = 46;  // tallest a single block may grow to
+    const MIN_SLOT = 10;  // floor so a crowded month stays legible
+    const MAX_VISIBLE = 18;
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {monthCols.map((col) => (
-            <div
-              key={col.start.getMonth()}
-              data-testid={`timeline-cal-year-month-${col.start.getMonth()}`}
-              className="border border-[var(--border)] rounded p-2 min-h-[80px]"
-              style={{ background: "var(--bg-secondary)" }}
-            >
-              <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
-                {MONTHS[col.start.getMonth()]}
-              </div>
-              <div className="space-y-1">
-                {col.items.slice(0, 4).map((it) => (
-                  <CalendarMiniItem key={`${it.kind}-${it.id}`} item={it} today={today} />
-                ))}
-                {col.items.length > 4 && (
-                  <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)]">
-                    +{col.items.length - 4} more
-                  </div>
-                )}
-                {col.items.length === 0 && (
-                  <div className="text-[10px] text-[var(--text-muted)] italic">empty</div>
-                )}
-              </div>
-            </div>
-          ))}
+        <div
+          className="rounded-lg border border-[var(--border-accent)] p-3 overflow-hidden"
+          style={{ background: "var(--bg-secondary)" }}
+        >
+          {/* Plot area — fixed height, so nothing can escape the card. */}
+          <div
+            className="grid grid-cols-12 gap-1 items-end"
+            style={{ height: `${PLOT_H}px` }}
+          >
+            {monthCols.map((col) => {
+              const m = col.start.getMonth();
+              const count = col.items.length;
+              const visible = col.items.slice(0, MAX_VISIBLE);
+              const hidden = count - visible.length;
+              const slot =
+                count === 0
+                  ? 0
+                  : clamp(Math.floor((PLOT_H - 8) / count), MIN_SLOT, MAX_SLOT);
+              return (
+                <div
+                  key={m}
+                  data-testid={`timeline-cal-year-month-${m}`}
+                  aria-label={`${MONTHS[m]}: ${count} item${count === 1 ? "" : "s"}`}
+                  className="flex flex-col justify-end h-full min-w-0"
+                >
+                  {count === 0 ? (
+                    <span
+                      aria-hidden="true"
+                      className="block h-px w-full bg-[var(--border)]"
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-1 min-h-0">
+                      {hidden > 0 && (
+                        <span className="font-mono text-[9px] text-[var(--text-muted)] text-center leading-none">
+                          +{hidden}
+                        </span>
+                      )}
+                      {visible.map((it) => (
+                        <button
+                          key={`${it.kind}-${it.id}`}
+                          type="button"
+                          data-testid={`timeline-cal-year-item-${it.kind}-${it.id}`}
+                          onClick={() => openChat("", scopeForItem(it))}
+                          title={`${it.kind}: ${it.title}`}
+                          aria-label={`${it.kind}: ${it.title}`}
+                          className="block w-full rounded-sm transition-all hover:brightness-110 hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-secondary)]"
+                          style={{ height: `${slot}px`, background: statusColor(it) }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Month labels live below the plot, never behind the blocks. */}
+          <div className="grid grid-cols-12 gap-1 mt-2 pt-2 border-t border-[var(--border)]">
+            {monthCols.map((col) => {
+              const m = col.start.getMonth();
+              const count = col.items.length;
+              return (
+                <div key={m} className="flex flex-col items-center gap-0.5 min-w-0">
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)]">
+                    {MONTHS_SHORT[m]}
+                  </span>
+                  <span
+                    className={`font-mono text-[9px] tabular-nums ${
+                      count > 0
+                        ? "text-[var(--text-secondary)]"
+                        : "text-[var(--text-muted)] opacity-50"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-          ← → year · T today · 1–5 change span
+
+        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+          <span>
+            <span className="text-[var(--text-secondary)]">← →</span> year ·{" "}
+            <span className="text-[var(--text-secondary)]">T</span> today ·{" "}
+            <span className="text-[var(--text-secondary)]">1–5</span> change span
+          </span>
+          {/* Legend matches the actual encoding — block colour is status. */}
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--success)" }} />
+            <span>on track</span>
+            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--warning)" }} />
+            <span>in progress</span>
+            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--danger)" }} />
+            <span>overdue</span>
+            <span className="opacity-60">· click a block to chat</span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  /* === Quarter view (Issue 4) — week-grain quantization ===
+   * 90 days / 7 = ~13 weeks. The previous code dropped the user into the
+   * same 7-day grid used by the week/month view, which made "3 months"
+   * indistinguishable from "month" except for being scrolled further.
+   * The point of picking 3 months is to see rhythm across weeks, not to
+   * read individual days. So: one row per ISO week (Mon-anchored… matches
+   * the existing week start), a single lane, each item rendered as a bar
+   * that spans the whole 7-column row and is colored by status. The
+   * bar's left/right within the row is its actual day-of-week span.
+   * Hover shows the title; click opens a scoped chat. */
+  if (span === "quarter") {
+    const quarterStart = startOfDay(anchor);
+    const quarterEnd = addDays(quarterStart, 90);
+    const rows = [];
+    let cursor = startOfWeek(quarterStart);
+    let i = 0;
+    while (cursor < quarterEnd && i < 16) {
+      const rowEnd = addDays(cursor, 7);
+      const overlaps = allItems.filter((it) => {
+        if (!it) return false;
+        const s = startOfDay(it.start || it.date);
+        const e = startOfDay(it.end || it.date);
+        if (!s || !e || isNaN(s.getTime()) || isNaN(e.getTime())) return false;
+        return e >= cursor && s < rowEnd;
+      });
+      rows.push({ start: cursor, end: addDays(cursor, 6), items: overlaps });
+      cursor = rowEnd;
+      i++;
+    }
+    const rowHeight = 30;
+    return (
+      <div className="space-y-3">
+        <div
+          className="rounded-lg border border-[var(--border-accent)] overflow-hidden"
+          style={{ background: "var(--bg-primary)" }}
+        >
+          <div
+            role="row"
+            className="grid grid-cols-[88px_1fr] font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
+          >
+            <div role="columnheader" className="px-2 py-2">Week</div>
+            <div role="columnheader" className="px-2 py-2">Items · status-colored bars</div>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {rows.map((r, ri) => {
+              const wkLabel = `${MONTHS_SHORT[r.start.getMonth()]} ${r.start.getDate()}`;
+              return (
+                <div
+                  key={ri}
+                  role="row"
+                  data-testid={`timeline-cal-quarter-row-${ri}`}
+                  className="grid grid-cols-[88px_1fr]"
+                  style={{ minHeight: `${rowHeight}px` }}
+                >
+                  <div className="px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-accent)] bg-[var(--bg-secondary)]/30 flex items-center">
+                    {wkLabel}
+                  </div>
+                  <div
+                    className="relative px-2 py-1.5"
+                    style={{ minHeight: `${rowHeight}px` }}
+                  >
+                    {/* 7 day-grid guides so the user can read "Mon–Sun". */}
+                    <div className="grid grid-cols-7 h-full pointer-events-none absolute inset-0 px-2">
+                      {Array.from({ length: 7 }).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className={`border-l ${idx === 0 ? "border-transparent" : "border-[var(--border)]"}`}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </div>
+                    <div className="relative space-y-1">
+                      {r.items.length === 0 ? (
+                        <span className="font-mono text-[10px] text-[var(--text-muted)] italic">nothing scheduled</span>
+                      ) : (
+                        r.items.slice(0, 4).map((it) => {
+                          const s = startOfDay(it.start || it.date);
+                          const e = startOfDay(it.end || it.date);
+                          const segStart = s < r.start ? r.start : s;
+                          const segEnd = e > r.end ? r.end : e;
+                          const offset = (segStart.getTime() - r.start.getTime()) / (7 * 86400000);
+                          const width = Math.max(
+                            0.05,
+                            (segEnd.getTime() - segStart.getTime() + 86400000) / (7 * 86400000),
+                          );
+                          const c = statusColor(it);
+                          const scoped = scopeForItem(it);
+                          return (
+                            <button
+                              key={`${it.kind}-${it.id}`}
+                              type="button"
+                              data-testid={`timeline-cal-quarter-bar-${it.kind}-${it.id}`}
+                              onClick={() => openChat("", scoped)}
+                              title={it.title}
+                              className="block h-5 rounded-sm text-left text-[10px] text-[var(--text-primary)] px-2 truncate hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                              style={{
+                                marginLeft: `${offset * 100}%`,
+                                width: `${width * 100}%`,
+                                background: c,
+                                opacity: 0.85,
+                              }}
+                            >
+                              {it.title}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+            ← → 3 months · T today · 1–5 change span
+          </div>
+          <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] flex items-center gap-2">
+            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--success)" }} />
+            <span>on track</span>
+            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--warning)" }} />
+            <span>in progress</span>
+            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--danger)" }} />
+            <span>overdue</span>
+          </div>
         </div>
       </div>
     );
@@ -1687,7 +2014,7 @@ function CalendarView({
     const its = itemsByDay[key] || [];
     return (
       <div className="space-y-3">
-        <div className="border border-[var(--border)] rounded p-4" style={{ background: "var(--bg-secondary)" }}>
+        <div className="border border-[var(--border-accent)] rounded p-4" style={{ background: "var(--bg-secondary)" }}>
           <div className="flex items-baseline justify-between mb-3">
             <h3 className="font-display text-[16px] font-semibold text-[var(--text-primary)]">
               {fmtDay(anchor)}, {MONTHS_FULL[anchor.getMonth()]} {anchor.getDate()}
@@ -1712,17 +2039,17 @@ function CalendarView({
     );
   }
 
-  const baseBarHeight = 22;
+  const baseBarHeight = 26;
 
   return (
     <div className="space-y-3">
       <div
-        className="rounded-lg border border-[var(--border)] overflow-hidden"
+        className="rounded-lg border border-[var(--border-accent)] overflow-hidden shadow-[0_1px_0_color-mix(in_srgb,var(--accent)_15%,transparent)]"
         style={{ background: "var(--bg-primary)" }}
       >
         <div
           role="row"
-          className="grid grid-cols-7 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border)]"
+          className="grid grid-cols-7 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
         >
           {DOW.map((d, i) => (
             <div key={d} role="columnheader" className="px-2 py-2 text-center select-none">
@@ -1741,14 +2068,29 @@ function CalendarView({
               gridTemplateRows: `auto repeat(${maxLanes}, ${baseBarHeight}px)`,
             };
             return (
-              <div key={wi} role="row" className="grid" style={gridStyle}>
+              <div key={wi} role="row" className="grid relative" style={gridStyle}>
+                {/* Column guides span the FULL row height, including the
+                    tile lanes. Previously only the day-number row (gridRow
+                    1) drew a right border, so the day columns visually
+                    dissolved underneath any spanning tile. */}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 grid grid-cols-7 pointer-events-none"
+                >
+                  {Array.from({ length: 7 }).map((_, ci) => (
+                    <div
+                      key={ci}
+                      className={ci === 6 ? "" : "border-r border-[var(--border-accent)]"}
+                    />
+                  ))}
+                </div>
                 {week.map((cell, ci) => {
                   if (!cell || !cell.date) {
                     return (
                       <div
                         key={ci}
                         role="gridcell"
-                        className="relative px-1.5 pt-1 pb-1 border-r border-[var(--border)] last:border-r-0 min-h-[36px] opacity-40"
+                        className="relative px-1.5 pt-1 pb-1 min-h-[36px] opacity-40"
                         style={{ gridColumn: ci + 1, gridRow: 1 }}
                       />
                     );
@@ -1762,7 +2104,7 @@ function CalendarView({
                       role="gridcell"
                       aria-label={`${MONTHS_FULL[cell.date.getMonth()]} ${cell.date.getDate()}${isToday ? ", today" : ""}${count ? `, ${count} item${count === 1 ? "" : "s"}` : ""}`}
                       className={[
-                        "relative px-1.5 pt-1 pb-1 border-r border-[var(--border)] last:border-r-0 min-h-[36px]",
+                        "relative px-1.5 pt-1 pb-1 min-h-[36px]",
                         cell.inSpan ? "" : "opacity-40",
                         isToday
                           ? "ring-1 ring-inset ring-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-primary))]"
@@ -1817,13 +2159,9 @@ function CalendarView({
 
 function CalendarTile({ item, today, openChat }) {
   if (!item) return null;
-  const color = item.kind === "goal"
-    ? (HORIZON_COLOR[item.horizon] || "var(--accent)")
-    : item.kind === "milestone"
-    ? "var(--warning)"
-    : item.kind === "commitment"
-    ? "var(--accent)"
-    : "var(--danger)";
+  // Iteration 5 — color is now status-driven (green/red/yellow/grey)
+  // so the calendar reads as on-track vs overdue at a glance.
+  const color = statusColor(item);
 
   const isDone = (item.status || "").toLowerCase() === "done";
   const rawDate = item.end || item.date || item.start;
@@ -1834,25 +2172,26 @@ function CalendarTile({ item, today, openChat }) {
     : 1;
 
   const tileTestId = `timeline-cal-tile-${item.kind}-${item.id}`;
+  // Spanning items get an explicit "Sep 30 – Dec 28" range in the tooltip
+  // so the bar's width is legible as a duration, not just a block.
+  const range =
+    spanDays > 1 && item.start && item.end
+      ? ` · ${fmtDay(startOfDay(item.start))} – ${fmtDay(startOfDay(item.end))}`
+      : "";
+  const inferredNote = item.inferredSpan ? " · estimated from horizon" : "";
   const tip = item.kind === "goal"
-    ? `Goal: ${item.title}${item.horizon ? ` · ${HORIZON_LABEL[item.horizon] || ""}` : ""}${spanDays > 1 ? ` · ${spanDays}d` : ""}`
+    ? `Goal: ${item.title}${item.horizon ? ` · ${HORIZON_LABEL[item.horizon] || ""}` : ""}${range}${inferredNote}`
     : item.kind === "milestone"
     ? `Milestone: ${item.title}${item.goalTitle ? ` · ${item.goalTitle}` : ""}`
     : item.kind === "commitment"
     ? `Commitment: ${item.title}${item.goalTitle ? ` · ${item.goalTitle}` : ""}`
     : `Blocker: ${item.title}`;
 
-  const onActivate = () => {
-    if (item.kind === "goal") {
-      openChat(`Let's work on my goal: ${item.title}`);
-    } else if (item.kind === "milestone") {
-      openChat(`Let's check in on the milestone "${item.title}"${item.goalTitle ? ` for ${item.goalTitle}` : ""}.`);
-    } else if (item.kind === "commitment") {
-      openChat(`I want to follow through on: "${item.title}". What's the best way to start?`);
-    } else {
-      openChat(`I'm stuck on "${item.title}". Can you help me unblock this?`);
-    }
-  };
+  // Iteration 5 (Issue 7+8) — thread scoped chat context. No more
+  // hardcoded "Let's work on my goal: …" prefills; the user types
+  // their own intent in an empty chat that already has the entity's
+  // title + kind + id pinned in the conversation.
+  const onActivate = () => openChat("", scopeForItem(item));
 
   if (item.kind === "blocker") {
     return (
@@ -1931,20 +2270,11 @@ function CalendarMiniItem({ item, today }) {
 }
 
 function CalendarDayItem({ item, today, openChat }) {
-  const color = item.kind === "goal"
-    ? (HORIZON_COLOR[item.horizon] || "var(--accent)")
-    : item.kind === "milestone"
-    ? "var(--warning)"
-    : item.kind === "commitment"
-    ? "var(--accent)"
-    : "var(--danger)";
+  // Iteration 5 (Issue 2-3) — status color
+  const color = statusColor(item);
 
-  const onActivate = () => {
-    if (item.kind === "goal") openChat(`Let's work on my goal: ${item.title}`);
-    else if (item.kind === "milestone") openChat(`Let's check in on the milestone "${item.title}".`);
-    else if (item.kind === "commitment") openChat(`I want to follow through on: "${item.title}".`);
-    else openChat(`I'm stuck on "${item.title}".`);
-  };
+  // Iteration 5 (Issue 7+8) — scoped chat, no hardcoded prefill
+  const onActivate = () => openChat("", scopeForItem(item));
 
   return (
     <button
@@ -1982,10 +2312,13 @@ function CalendarEmptyState({ onAsk }) {
         Goals, milestones, and commitments will appear here as colored tiles across the days they cover.
       </p>
       {typeof onAsk === "function" && (
+        // Iteration 5 (Issue 8) — empty-state CTA no longer pre-fills a
+        // canned goal prompt. Opens the generic chat so the user can
+        // describe whatever they actually want to talk about.
         <button
           type="button"
           data-testid="timeline-prefill-button"
-          onClick={() => onAsk("Help me set my first goal")}
+          onClick={() => onAsk("")}
           className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md font-mono text-[11px] uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
           style={{ background: "var(--accent)" }}
         >

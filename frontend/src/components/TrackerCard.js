@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import TodayTimetable from "./TodayTimetable";
+import { localDateKey } from "../lib/utils";
 import {
   CheckCircle2,
   Circle,
@@ -37,9 +39,9 @@ import {
  * surfaces the "ask the coach" handoff so the card never tries to
  * own chat state itself.
  */
-export default function TrackerCard({ state, onOpenChat }) {
+export default function TrackerCard({ state, onChange, onOpenChat }) {
   const data = useMemo(() => {
-    const todayIso = new Date().toISOString().slice(0, 10)
+    const todayIso = localDateKey()
     const todayCommits = (state?.commitments || []).filter(
       (c) => c.due === todayIso || (c.due && c.due < todayIso && c.status === "open"),
     )
@@ -173,7 +175,7 @@ export default function TrackerCard({ state, onOpenChat }) {
           <button
             data-testid="tracker-plan-day-cta"
             onClick={() => {
-              const today = new Date().toISOString().slice(0, 10)
+              const today = localDateKey()
               onOpenChat?.(
                 `Plan my day with me. Today is ${today}. ` +
                   `Walk me through it hour by hour, from when I wake up to when I sleep. ` +
@@ -201,62 +203,9 @@ export default function TrackerCard({ state, onOpenChat }) {
               Nothing on the docket today. Ask the coach to plan tomorrow, or pick a goal and add a milestone.
             </div>
           ) : (
-            <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-              {data.todayCommits.map((c) => {
-                const due = c.due || ""
-                const isOverdue = due < new Date().toISOString().slice(0, 10) && c.status === "open"
-                const isToday = due === new Date().toISOString().slice(0, 10) && c.status === "open"
-                const isDone = c.status === "done"
-                return (
-                  <li
-                    key={c.id}
-                    data-testid={`tracker-commit-${c.id}`}
-                    className={`flex items-start gap-2 px-3 py-2 rounded-md border ${
-                      isDone
-                        ? "border-[var(--success)]/30 bg-[var(--success)]/5"
-                        : isOverdue
-                          ? "border-[var(--danger)]/30 bg-[var(--danger)]/5"
-                          : isToday
-                            ? "border-[var(--accent)]/30 bg-[var(--accent)]/5"
-                            : "border-[var(--border)] bg-[var(--bg-primary)]/40"
-                    }`}
-                  >
-                    {isDone ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[var(--success)]" />
-                    ) : (
-                      <Circle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[var(--text-muted)]" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div
-                        className={`text-sm leading-snug ${isDone ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)]"}`}
-                      >
-                        {c.text}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-                          {c.goal_title || "free"}
-                        </span>
-                        {due && (
-                          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-                            · {due}
-                          </span>
-                        )}
-                        {isOverdue && !isDone && (
-                          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--danger)]">
-                            · overdue
-                          </span>
-                        )}
-                        {isToday && (
-                          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)]">
-                            · today
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            <div className="max-h-72 overflow-y-auto pr-1">
+              <TodayTimetable state={state} onChange={onChange} onOpenChat={onOpenChat} compact={true} />
+            </div>
           )}
         </div>
 

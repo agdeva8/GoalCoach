@@ -7,6 +7,8 @@ import {
   Loader2,
   FolderOpen,
   RefreshCw,
+  Eye,
+  Download,
 } from "lucide-react";
 import { api, API } from "../lib/api";
 
@@ -64,7 +66,8 @@ export default function Sources({ state, onChange }) {
       <div>
         <h2 className="font-display text-sm font-semibold tracking-tight">Sources</h2>
         <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-          Files and links the coach reasons over — reference material that grounds your goals.
+          Material you attach to a goal so the coach can work out where it starts and ends. The
+          coach reads these to confirm the goal&apos;s boundary — not your memories.
         </p>
       </div>
 
@@ -145,7 +148,11 @@ function SourceCard({ source, goalTitle, onDelete, deleting }) {
   const isFile = source.kind === "file";
   const isLink = source.kind === "link";
 
+  /* Files are stored with `original_filename`; `name` only exists on link
+     sources. Reading `name` first meant every uploaded file rendered as
+     "Untitled file" even though the API had the name the whole time. */
   const displayName =
+    (isFile ? source.original_filename : source.name) ||
     source.name ||
     (isLink ? source.url : "Untitled file");
 
@@ -202,11 +209,17 @@ function SourceCard({ source, goalTitle, onDelete, deleting }) {
         </div>
       </div>
 
-      {/* Goal linkage */}
-      {goalTitle && (
+      {/* Goal linkage — sources exist to define a goal's boundary, so an
+          unlinked source should say so rather than showing nothing. */}
+      {goalTitle ? (
         <div className="text-[11px] text-[var(--text-secondary)] pl-0.5">
           <span className="text-[var(--text-muted)] font-mono uppercase tracking-widest text-[9px]">goal</span>{" "}
           {goalTitle}
+        </div>
+      ) : (
+        <div className="text-[11px] text-[var(--text-muted)] pl-0.5">
+          <span className="font-mono uppercase tracking-widest text-[9px]">not linked</span>{" "}
+          — attach it to a goal so the coach can set that goal&apos;s boundary
         </div>
       )}
 
@@ -224,14 +237,31 @@ function SourceCard({ source, goalTitle, onDelete, deleting }) {
           </a>
         )}
         {isFile && downloadUrl && (
-          <a
-            href={downloadUrl}
-            download
-            className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
-          >
-            <ExternalLink className="w-3 h-3" />
-            Download
-          </a>
+          <>
+            {/* View opens the stored file inline in a new tab (the browser
+                renders images and PDFs natively). Download saves it with
+                the original filename via the same endpoint's
+                Content-Disposition header. */}
+            <a
+              href={downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid={`source-view-${source.id}`}
+              className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+            >
+              <Eye className="w-3 h-3" />
+              View file
+            </a>
+            <a
+              href={downloadUrl}
+              download
+              data-testid={`source-download-${source.id}`}
+              className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+            >
+              <Download className="w-3 h-3" />
+              Download
+            </a>
+          </>
         )}
         <button
           onClick={onDelete}

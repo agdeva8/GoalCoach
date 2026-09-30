@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Sun, Moon, Sunset, Coffee, Sparkles, Check } from "lucide-react";
+import { localDateKey } from "../lib/utils";
 
 /**
  * WelcomeToast — a single, context-aware greeting that fires after the
@@ -27,7 +28,20 @@ export default function WelcomeToast({ user, state, signedIn }) {
   useEffect(() => {
     if (firedRef.current) return;
     if (!state) return;
+
+    // Once-per-day sentinel — the same person reloading the page an
+    // hour later shouldn't see the greeting again. The date is stored
+    // in localStorage so it survives reloads.
+    const today = localDateKey();
+    try {
+      if (localStorage.getItem("gc_welcome_date") === today) {
+        firedRef.current = true;
+        return;
+      }
+    } catch { /* localStorage blocked — fall through to toast */ }
+
     firedRef.current = true;
+    try { localStorage.setItem("gc_welcome_date", today); } catch { /* ignore */ }
 
     // Compute the body — keep it tiny.
     const greeting = greetingFor(new Date());
@@ -71,10 +85,14 @@ export default function WelcomeToast({ user, state, signedIn }) {
         id: "gc-welcome",
         duration: 8000,
         closeButton: true,
-        // Note: Sonner's Toaster (App.js:28) is configured with
-        // `position="bottom-right"` and that wins over any per-toast
-        // position prop. The previous `position: "top-right"` here
-        // was silently ignored — dropped it to remove the lie.
+        // Sonner Toaster is configured `position="bottom-right"` on
+        // desktop and `bottom-center` on mobile (App.js). That wins
+        // over per-toast position. To keep the toast from covering
+        // the FAB on the bottom-right, we put it top-right via a
+        // className trick — sonner forwards className to the toast
+        // root; we anchor it with a fixed top-right utility.
+        className:
+          "!fixed !top-4 !right-4 !left-auto !bottom-auto !translate-x-0 !translate-y-0 sm:!top-4",
       },
     );
   }, [user, state, signedIn]);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Sparkles, ExternalLink, Loader2, RefreshCw, X, BookOpen, Headphones, Video, FileText } from "lucide-react";
 import { api } from "../lib/api";
+import { localDateKey } from "../lib/utils";
 
 /**
  * MotivationCard — surfaces 1-3 hand-curated motivation items when
@@ -33,7 +34,7 @@ export default function MotivationCard({ state }) {
     (c) =>
       c.status === "open" &&
       c.due &&
-      c.due < new Date().toISOString().slice(0, 10),
+      c.due < localDateKey(),
   ).length
   const activeGoals = (state?.goals || []).filter((g) => g.status === "active").length
 

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Image as ImageIcon, Link2, Plus, Trash2, X, Loader2, Camera, ExternalLink, RefreshCw } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Image as ImageIcon, Link2, Plus, Trash2, X, Loader2, Camera, ChevronLeft, ChevronRight, ExternalLink, RefreshCw, Download } from "lucide-react";
 import { api, API } from "../lib/api";
 
 /**
@@ -44,6 +44,14 @@ export default function Memories({ state, onChange }) {
   const [goalId, setGoalId] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
+  // Iteration 5 (Ask 6) — lightbox state. `null` = closed; number = open index in `memories`.
+  const [lightboxIndex, setLightboxIndex] = useState(null)
+  const goPrev = useCallback(() => {
+    setLightboxIndex((i) => (i == null ? null : (i - 1 + memories.length) % memories.length))
+  }, [memories.length])
+  const goNext = useCallback(() => {
+    setLightboxIndex((i) => (i == null ? null : (i + 1) % memories.length))
+  }, [memories.length])
 
   const refresh = () => {
     setLoading(true)
@@ -354,17 +362,32 @@ export default function Memories({ state, onChange }) {
           data-testid="memories-grid"
           className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
         >
-          {memories.map((m) => (
-            <MemoryCard key={m.id} memory={m} onDelete={() => deleteMemory(m.id)} />
+          {memories.map((m, i) => (
+            <MemoryCard
+              key={m.id}
+              memory={m}
+              isPhoto={m.kind === "photo" && !!m.source_id}
+              onOpen={() => setLightboxIndex(i)}
+              onDelete={() => deleteMemory(m.id)}
+            />
           ))}
         </div>
       )}
+
+      <MemoryLightbox
+        memories={memories}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onPrev={goPrev}
+        onNext={goNext}
+        onDelete={async (id) => { await deleteMemory(id); goPrev(); }}
+      />
     </div>
   )
 }
 
-function MemoryCard({ memory, onDelete }) {
-  const [confirmDel, setConfirmDel] = useState(false)
+function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
+  const downloadUrl = isPhoto ? `${API}/sources/${memory.source_id}/download` : null;
   return (
     <div
       data-testid={`memory-card-${memory.id}`}
@@ -372,12 +395,20 @@ function MemoryCard({ memory, onDelete }) {
     >
       <div className="aspect-square bg-[var(--bg-tertiary)] relative overflow-hidden">
         {memory.kind === "photo" && memory.source_id ? (
-          <img
-            src={`${API}/sources/${memory.source_id}/download`}
-            alt={memory.caption || "Memory"}
-            className="w-full h-full object-cover transition-transform group-hover:scale-[1.02]"
-            loading="lazy"
-          />
+          <button
+            type="button"
+            data-testid={`memory-photo-${memory.id}`}
+            onClick={onOpen}
+            aria-label={memory.caption ? `Open photo: ${memory.caption}` : "Open photo"}
+            className="block w-full h-full p-0 m-0 border-0 cursor-zoom-in focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            <img
+              src={`${API}/sources/${memory.source_id}/download`}
+              alt={memory.caption || "Memory"}
+              className="w-full h-full object-cover transition-transform group-hover:scale-[1.02]"
+              loading="lazy"
+            />
+          </button>
         ) : memory.kind === "instagram" && memory.instagram_shortcode ? (
           <InstagramEmbed shortcode={memory.instagram_shortcode} caption={memory.caption} />
         ) : (
@@ -385,36 +416,34 @@ function MemoryCard({ memory, onDelete }) {
             <ImageIcon className="w-8 h-8" />
           </div>
         )}
+        {/* Overlay actions. Download is always visible on hover for photos
+            (and permanently in the card footer below) so the user can
+            keep the original file; delete is in the lightbox for photos
+            so the trash never covers the picture. */}
         <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-          {!confirmDel ? (
+          {downloadUrl && (
+            <a
+              href={downloadUrl}
+              download
+              data-testid={`memory-download-${memory.id}`}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Download photo"
+              title="Download photo"
+              className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <Download className="w-3.5 h-3.5" aria-hidden="true" />
+            </a>
+          )}
+          {!isPhoto && (
             <button
               type="button"
-              data-testid={`memory-delete-trigger-${memory.id}`}
-              onClick={() => setConfirmDel(true)}
+              data-testid={`memory-delete-${memory.id}`}
+              onClick={onDelete}
               aria-label="Delete memory"
               className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
-          ) : (
-            <div className="flex items-center gap-1 px-2 py-1 rounded bg-black/80 text-[11px]">
-              <span className="text-white">Delete?</span>
-              <button
-                type="button"
-                data-testid={`memory-delete-confirm-${memory.id}`}
-                onClick={onDelete}
-                className="h-7 px-2 rounded bg-[var(--danger)] text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDel(false)}
-                className="h-7 px-2 rounded border border-white/30 text-white/80 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                No
-              </button>
-            </div>
           )}
         </div>
       </div>
@@ -444,6 +473,24 @@ function MemoryCard({ memory, onDelete }) {
               </a>
             </>
           )}
+          {downloadUrl && (
+            <>
+              <span className="opacity-50">·</span>
+              {/* Always-visible download in the footer — the hover
+                  overlay alone is undiscoverable on touch devices. */}
+              <a
+                href={downloadUrl}
+                download
+                data-testid={`memory-download-link-${memory.id}`}
+                className="inline-flex items-center gap-1 hover:text-[var(--accent)] transition-colors"
+                title="Download the original file"
+                aria-label="Download the original file"
+              >
+                <Download className="w-3 h-3" aria-hidden="true" />
+                <span className="hidden sm:inline">download</span>
+              </a>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -463,4 +510,177 @@ function InstagramEmbed({ shortcode, caption }) {
       referrerPolicy="no-referrer"
     />
   )
+}
+
+/**
+ * MemoryLightbox — fullscreen photo viewer (Iteration 5 Ask 6).
+ *
+ * Open when `index` is a number; null = closed.
+ *
+ * Interaction:
+ *   - Desktop: left/right chevron buttons.
+ *   - Mobile: swipe horizontally (touchstart records startX, touchend
+ *     compares to endX with a 50px threshold so taps and small
+ *     motions don't fire).
+ *   - All clients: ESC closes, click on the backdrop (outside the
+ *     photo + outside the chevrons) closes.
+ *
+ * Delete affordance moves here from the card's group-hover overlay so
+ * the lightbox chrome stays minimal and the trash button isn't blocked
+ * by the photo itself.
+ */
+function MemoryLightbox({ memories, index, onClose, onPrev, onNext, onDelete }) {
+  const touchStartXRef = useRef(null);
+
+  useEffect(() => {
+    if (index == null) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+      else if (e.key === "ArrowLeft") onPrev?.();
+      else if (e.key === "ArrowRight") onNext?.();
+    };
+    document.addEventListener("keydown", onKey);
+    // Lock background scroll while overlay is open.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [index, onClose, onPrev, onNext]);
+
+  if (index == null || !memories || memories.length === 0) return null;
+  const mem = memories[index];
+  if (!mem) return null;
+
+  const isPhoto = mem.kind === "photo" && !!mem.source_id;
+  const imgSrc = isPhoto ? `${API}/sources/${mem.source_id}/download` : null;
+
+  const handleTouchStart = (e) => {
+    const t = e.touches?.[0];
+    if (t) touchStartXRef.current = t.clientX;
+  };
+  const handleTouchEnd = (e) => {
+    const startX = touchStartXRef.current;
+    const t = e.changedTouches?.[0];
+    touchStartXRef.current = null;
+    if (startX == null || !t) return;
+    const dx = t.clientX - startX;
+    if (Math.abs(dx) < 50) return;
+    if (dx > 0) onPrev?.();
+    else onNext?.();
+  };
+
+  const hasMany = memories.length > 1;
+
+  const handleBackdrop = (e) => {
+    if (e.target === e.currentTarget) onClose?.();
+  };
+
+  return (
+    <div
+      data-testid="memory-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={mem.caption || "Memory photo"}
+      onClick={handleBackdrop}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
+    >
+      {/* Header chrome — close + delete + caption. Stop propagation
+          so clicks here don't bubble to the backdrop close handler. */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="absolute top-3 left-3 right-3 flex items-start gap-3"
+      >
+        <div className="flex-1 min-w-0">
+          {mem.caption && (
+            <div className="text-sm text-white/90 line-clamp-2">{mem.caption}</div>
+          )}
+          <div className="mt-0.5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-white/60">
+            <span>
+              {new Date(mem.created_at).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+            {hasMany && (
+              <span>
+                {index + 1} / {memories.length}
+              </span>
+            )}
+          </div>
+        </div>
+        <a
+          href={imgSrc || "#"}
+          download
+          data-testid="memory-lightbox-download"
+          onClick={(e) => { if (!imgSrc) e.preventDefault(); }}
+          aria-label="Download this photo"
+          title="Download the original file"
+          className={`h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+            imgSrc ? "" : "opacity-40 pointer-events-none"
+          }`}
+        >
+          <Download className="w-4 h-4" aria-hidden="true" />
+        </a>
+        <button
+          type="button"
+          data-testid="memory-lightbox-delete"
+          onClick={() => onDelete?.(mem.id)}
+          aria-label="Delete this memory"
+          className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          <Trash2 className="w-4 h-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          data-testid="memory-lightbox-close"
+          onClick={onClose}
+          aria-label="Close"
+          className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          <X className="w-5 h-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* Prev / next chevrons — desktop only; mobile uses swipe.
+          Hidden when only one memory. */}
+      {hasMany && (
+        <>
+          <button
+            type="button"
+            data-testid="memory-lightbox-prev"
+            onClick={(e) => { e.stopPropagation(); onPrev?.(); }}
+            aria-label="Previous photo"
+            className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <ChevronLeft className="w-6 h-6" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            data-testid="memory-lightbox-next"
+            onClick={(e) => { e.stopPropagation(); onNext?.(); }}
+            aria-label="Next photo"
+            className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <ChevronRight className="w-6 h-6" aria-hidden="true" />
+          </button>
+        </>
+      )}
+
+      {/* Photo. max-h keeps the image inside the viewport so the
+          chrome (caption / counters / close) stays accessible. */}
+      {isPhoto && imgSrc && (
+        <img
+          src={imgSrc}
+          alt={mem.caption || "Memory"}
+          onClick={(e) => e.stopPropagation()}
+          className="relative max-h-[80vh] max-w-[92vw] object-contain rounded shadow-2xl"
+        />
+      )}
+    </div>
+  );
 }
