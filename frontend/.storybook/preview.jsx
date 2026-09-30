@@ -101,11 +101,43 @@ const preview = {
       },
     },
   },
+  // The app's theme is not a Storybook concern by itself: Coach.js/Header.js
+  // flip it by toggling the `light` class on <html>, which re-defines every
+  // CSS variable in index.css. Without that class all stories render with
+  // dark tokens — even next to Storybook's own "light" UI-theme button, which
+  // only repaints Storybook's chrome. This global drives the same class.
+  globalTypes: {
+    appTheme: {
+      description: "App theme (mirrors the real app's light/dark toggle)",
+      toolbar: {
+        title: "App theme",
+        dynamicTitle: true,
+        items: [
+          { value: "dark", title: "Dark (app default)" },
+          { value: "light", title: "Light" },
+        ],
+      },
+    },
+  },
+  initialGlobals: { appTheme: "dark" },
   decorators: [
     (Story, context) => {
-      // Parent renders before its children, so the story's `parameters.api`
-      // is live before any component effect fires a request.
+      // Parent renders before its children, so both assignments below are in
+      // place before any component effect fires or reads them.
       activeApiRoutes = context.parameters.api || null;
+      const isLight = context.globals.appTheme === "light";
+      document.documentElement.classList.toggle("light", isLight);
+
+      // Repaint the canvas the way the app's <body> does. Storybook's own
+      // preview background is white and would show through every transparent
+      // story surface. Set it on <body> directly rather than wrapping <Story/>
+      // in a styled <div>: fullscreen layout leaves html/body/#storybook-root
+      // without a definite height, and a wrapper's min-height doesn't add one —
+      // it just perturbs the DOM chain for no benefit (height-dependent
+      // stories like Calendar collapse either way; that's a known gap).
+      document.body.style.background = "var(--bg-primary)";
+      document.body.style.color = "var(--text-primary)";
+
       return (
         // Header and AuthCallback call `useNavigate`; a MemoryRouter gives
         // them a route context without mounting any routes (navigation then
@@ -113,7 +145,7 @@ const preview = {
         <MemoryRouter>
           {/* sonner toasts are invisible without a <Toaster /> in the tree */}
           <Toaster
-            theme="dark"
+            theme={isLight ? "light" : "dark"}
             position="bottom-right"
             toastOptions={{
               style: { fontFamily: "JetBrains Mono, monospace", fontSize: "12px" },
