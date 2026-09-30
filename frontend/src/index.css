@@ -12,7 +12,12 @@
   --border-accent: #574636;
   --text-primary: #F6EEE3;
   --text-secondary: #C6B5A1;
-  --text-muted: #94806B;
+  /* Raised from #94806B. --text-muted is the workhorse token (calendar
+   * day numbers, captions, counts, stat labels, footers) and it sits on
+   * --bg-tertiary cards far more often than on --bg-primary, so the
+   * binding surface is bg-tertiary: 4.08 -> 5.01 (still a clear step
+   * below --text-secondary's 7.72 so the hierarchy survives). */
+  --text-muted: #A3907B;
   --accent: #E8925C;
   --warning: #E0A458;
   --danger: #D9705A;
@@ -30,11 +35,36 @@
   --border-accent: #C9B7A0;
   --text-primary: #2B2118;
   --text-secondary: #5E4F40;
-  --text-muted: #93806A;
-  --accent: #C4683A;
-  --warning: #B9772E;
-  --danger: #C0563E;
-  --success: #5E8B57;
+  /* Raised from #93806A, which sat at 2.88 on --bg-tertiary. Same warm
+   * sepia ramp, just stepped down the ramp: 4.92 on bg-tertiary, and a
+   * full step lighter than --text-secondary (#5E4F40, 5.98) so the
+   * primary / secondary / muted ladder still reads. */
+  --text-muted: #6E5B45;
+
+  /* Semantic hues do double duty: they are calendar/status BAR FILLS
+   * (with dark ink on top) *and* status text. In light mode the old
+   * values failed both jobs — #C4683A was 2.96 as text on bg-tertiary
+   * and 3.62 under #FBF6EF ink on its own fill.
+   *
+   * Rather than split into fill/on-surface pairs (which would leave
+   * ~140 `text-[var(--accent)]`-style call sites in components this
+   * change does not own pointing at the fill token), these are darkened
+   * to the band that satisfies BOTH at once. The binding constraint is
+   * the lighter of the two requirements, and it is met with headroom:
+   *
+   *   token    as text on bg-tertiary   ink on fill
+   *   accent   4.54                     5.56
+   *   warning  4.65                     5.70
+   *   danger   4.82                     5.89
+   *   success  4.79                     5.86
+   *
+   * So light-mode bars stay saturated and clean instead of going muddy,
+   * and status text clears AA. Dark mode already passed both tests and
+   * is deliberately left alone — it is the default look. */
+  --accent: #9E4C22;
+  --warning: #8C551A;
+  --danger: #A0422E;
+  --success: #3F6A3A;
   --tool-bg: #F6EFE4;
   --popover: 36 43% 91%;
   --popover-foreground: 27 28% 13%;

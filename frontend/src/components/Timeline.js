@@ -93,6 +93,67 @@ function statusColor(item) {
   return "var(--warning)";
 }
 
+/* ---------------------------------------------------------------------------
+ * Bar treatment — long spans vs single days.
+ *
+ * The 3-months and Year views were painting *every* item as an opaque
+ * fill of `statusColor()`. A goal with no target_date gets a 90-day
+ * window from its horizon, so it painted a full-width `--success` block
+ * that repeated in all 13 week rows — the view became a wall of flat
+ * pastel green, and a quarter-long goal carried the same visual weight
+ * as a one-day commitment. The data hierarchy was completely flat.
+ *
+ * Gantt convention fixes this, and it is what these two views now do:
+ *
+ *   long run  → tinted body (the hue at low alpha over the card) plus a
+ *               saturated leading edge. The body says "this runs", the
+ *               edge says "and its status is this".
+ *   short run → the solid, higher-emphasis fill, unchanged.
+ *
+ * The tint is deliberately *below* the 3:1 data-mark threshold against
+ * the card (1.3–1.4:1) because it is a surface, not the mark. The 3:1
+ * data contrast is carried by the leading edge, which is the full
+ * semantic hue (4.5–8.5:1 against every surface in both themes).
+ *
+ * `surface` is the card the bar is painted on — the 3-months rows sit
+ * on --bg-primary, the Year plot on --bg-secondary — so the tint is
+ * always mixed against what is actually behind it.
+ * ------------------------------------------------------------------------- */
+
+const SPAN_TINT_PCT = 18;      // hue share in the tinted body
+const SPAN_SOLID_MAX_DAYS = 2; // ≤2 days still reads as "one thing, one day"
+
+/* Length of an item in days, 1 for a single-day point. */
+function spanDays(item) {
+  if (!item) return 1;
+  const s = item.start || item.date;
+  const e = item.end || item.date;
+  if (!s || !e) return 1;
+  const a = startOfDay(s);
+  const b = startOfDay(e);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return 1;
+  return Math.max(1, Math.round((b - a) / DAY_MS) + 1);
+}
+
+/* Returns the paint recipe for one calendar bar. `stripePx` is the width
+ * of the leading edge; 0 means the solid single-day treatment. */
+function barPaint(item, surface, stripePx = 3) {
+  const hue = statusColor(item);
+  if (spanDays(item) <= SPAN_SOLID_MAX_DAYS) {
+    return {
+      background: hue,
+      stripe: null,
+      color: "var(--bg-primary)", // dark ink on a saturated fill
+    };
+  }
+  return {
+    background: `color-mix(in srgb, ${hue} ${SPAN_TINT_PCT}%, ${surface})`,
+    stripe: hue,
+    color: "var(--text-primary)", // label sits on a near-card tint
+    boxShadow: `inset ${stripePx}px 0 0 0 ${hue}`,
+  };
+}
+
 /* Scoped-chat context for a calendar item. Centralised because the same
    scope/kind/helperText map was duplicated across CalendarTile,
    CalendarDayItem and the quarter bars — the year view needs it too, and
@@ -1597,6 +1658,35 @@ function BlockerCard({ b, onActivate }) {
   );
 }
 
+/* Kind → a short glyph carried in the bar's own label. Status hue is one
+ * signal; this is the non-colour one, so a goal never has to be told from
+ * a commitment by colour alone. Matches the glyphs CalendarTile uses. */
+const KIND_GLYPH = { commitment: "▸ ", milestone: "◆ ", blocker: "! ", goal: "" };
+function itemKindGlyph(kind) {
+  return KIND_GLYPH[kind] ?? "";
+}
+
+/* ============================================================================
+ * BarLegendSwatch — draws the *actual* bar recipe (tinted body + saturated
+ * leading edge) so the legend can never drift from what is painted.
+ * ========================================================================== */
+
+function BarLegendSwatch({ hue, label }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className="inline-block h-3 w-4 rounded-[2px]"
+        style={{
+          background: `color-mix(in srgb, ${hue} ${SPAN_TINT_PCT}%, var(--bg-secondary))`,
+          boxShadow: `inset 3px 0 0 0 ${hue}`,
+        }}
+      />
+      <span>{label}</span>
+    </span>
+  );
+}
+
 /* ============================================================================
  * CalendarView — multi-day spanning tiles across all item kinds.
  * ========================================================================= */
@@ -1808,22 +1898,29 @@ function CalendarView({
                   ) : (
                     <div className="flex flex-col gap-1 min-h-0">
                       {hidden > 0 && (
-                        <span className="font-mono text-[9px] text-[var(--text-muted)] text-center leading-none">
+                        <span className="font-mono text-[12px] text-[var(--text-muted)] text-center leading-none">
                           +{hidden}
                         </span>
                       )}
-                      {visible.map((it) => (
-                        <button
-                          key={`${it.kind}-${it.id}`}
-                          type="button"
-                          data-testid={`timeline-cal-year-item-${it.kind}-${it.id}`}
-                          onClick={() => openChat("", scopeForItem(it))}
-                          title={`${it.kind}: ${it.title}`}
-                          aria-label={`${it.kind}: ${it.title}`}
-                          className="block w-full rounded-sm transition-all hover:brightness-110 hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-secondary)]"
-                          style={{ height: `${slot}px`, background: statusColor(it) }}
-                        />
-                      ))}
+                      {visible.map((it) => {
+                        const paint = barPaint(it, "var(--bg-secondary)");
+                        return (
+                          <button
+                            key={`${it.kind}-${it.id}`}
+                            type="button"
+                            data-testid={`timeline-cal-year-item-${it.kind}-${it.id}`}
+                            onClick={() => openChat("", scopeForItem(it))}
+                            title={`${it.kind}: ${it.title}`}
+                            aria-label={`${it.kind}: ${it.title}`}
+                            className="block w-full rounded-[2px] transition-all hover:brightness-110 hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-secondary)]"
+                            style={{
+                              height: `${slot}px`,
+                              background: paint.background,
+                              boxShadow: paint.boxShadow,
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1838,11 +1935,11 @@ function CalendarView({
               const count = col.items.length;
               return (
                 <div key={m} className="flex flex-col items-center gap-0.5 min-w-0">
-                  <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)]">
+                  <span className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
                     {MONTHS_SHORT[m]}
                   </span>
                   <span
-                    className={`font-mono text-[9px] tabular-nums ${
+                    className={`font-mono text-[12px] tabular-nums ${
                       count > 0
                         ? "text-[var(--text-secondary)]"
                         : "text-[var(--text-muted)] opacity-50"
@@ -1856,21 +1953,21 @@ function CalendarView({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
           <span>
             <span className="text-[var(--text-secondary)]">← →</span> year ·{" "}
             <span className="text-[var(--text-secondary)]">T</span> today ·{" "}
             <span className="text-[var(--text-secondary)]">1–5</span> change span
           </span>
-          {/* Legend matches the actual encoding — block colour is status. */}
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--success)" }} />
-            <span>on track</span>
-            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--warning)" }} />
-            <span>in progress</span>
-            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--danger)" }} />
-            <span>overdue</span>
-            <span className="opacity-60">· click a block to chat</span>
+          {/* Legend mirrors the actual encoding: hue = status, and the
+              filled vs tinted chip is the span treatment itself. */}
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <BarLegendSwatch hue="var(--success)" label="on track" />
+            <BarLegendSwatch hue="var(--warning)" label="in progress" />
+            <BarLegendSwatch hue="var(--danger)" label="overdue" />
+            <span className="inline-block h-3 w-4 rounded-[2px] bg-[var(--warning)]" aria-hidden="true" />
+            <span>single day</span>
+            <span className="opacity-70">· click a block to chat</span>
           </span>
         </div>
       </div>
@@ -1915,7 +2012,7 @@ function CalendarView({
         >
           <div
             role="row"
-            className="grid grid-cols-[88px_1fr] font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
+            className="grid grid-cols-[88px_1fr] font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
           >
             <div role="columnheader" className="px-2 py-2">Week</div>
             <div role="columnheader" className="px-2 py-2">Items · status-colored bars</div>
@@ -1931,7 +2028,7 @@ function CalendarView({
                   className="grid grid-cols-[88px_1fr]"
                   style={{ minHeight: `${rowHeight}px` }}
                 >
-                  <div className="px-2 py-2 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-accent)] bg-[var(--bg-secondary)]/30 flex items-center">
+                  <div className="px-2 py-2 font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-accent)] bg-[var(--bg-secondary)]/30 flex items-center">
                     {wkLabel}
                   </div>
                   <div
@@ -1950,7 +2047,7 @@ function CalendarView({
                     </div>
                     <div className="relative space-y-1">
                       {r.items.length === 0 ? (
-                        <span className="font-mono text-[10px] text-[var(--text-muted)] italic">nothing scheduled</span>
+                        <span className="font-mono text-[12px] text-[var(--text-muted)] italic">nothing scheduled</span>
                       ) : (
                         r.items.slice(0, 4).map((it) => {
                           const s = startOfDay(it.start || it.date);
@@ -1962,7 +2059,7 @@ function CalendarView({
                             0.05,
                             (segEnd.getTime() - segStart.getTime() + 86400000) / (7 * 86400000),
                           );
-                          const c = statusColor(it);
+                          const paint = barPaint(it, "var(--bg-primary)");
                           const scoped = scopeForItem(it);
                           return (
                             <button
@@ -1971,14 +2068,19 @@ function CalendarView({
                               data-testid={`timeline-cal-quarter-bar-${it.kind}-${it.id}`}
                               onClick={() => openChat("", scoped)}
                               title={it.title}
-                              className="block h-5 rounded-sm text-left text-[10px] text-[var(--text-primary)] px-2 truncate hover:opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                              aria-label={`${it.kind}: ${it.title}`}
+                              className="group block h-5 rounded-[3px] text-left text-[12px] px-2 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                               style={{
                                 marginLeft: `${offset * 100}%`,
                                 width: `${width * 100}%`,
-                                background: c,
-                                opacity: 0.85,
+                                background: paint.background,
+                                boxShadow: paint.boxShadow,
+                                color: paint.color,
+                                // Keep the label off the accent stripe.
+                                paddingLeft: paint.stripe ? 10 : undefined,
                               }}
                             >
+                              {itemKindGlyph(it.kind)}
                               {it.title}
                             </button>
                           );
@@ -1991,17 +2093,21 @@ function CalendarView({
             })}
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
             ← → 3 months · T today · 1–5 change span
           </div>
-          <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] flex items-center gap-2">
-            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--success)" }} />
-            <span>on track</span>
-            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--warning)" }} />
-            <span>in progress</span>
-            <span className="inline-block h-2 w-3 rounded-sm" style={{ background: "var(--danger)" }} />
-            <span>overdue</span>
+          <div className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] flex flex-wrap items-center gap-x-2 gap-y-1">
+            <BarLegendSwatch hue="var(--success)" label="on track" />
+            <BarLegendSwatch hue="var(--warning)" label="in progress" />
+            <BarLegendSwatch hue="var(--danger)" label="overdue" />
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="inline-block h-3 w-4 rounded-[2px] bg-[var(--warning)]"
+              />
+              <span>single day</span>
+            </span>
           </div>
         </div>
       </div>
