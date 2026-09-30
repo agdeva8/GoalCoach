@@ -199,15 +199,6 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
             {displayName}
           </p>
           <div className="flex items-center gap-1.5 mt-1">
-            <span
-              className={`inline-flex items-center font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                isFile
-                  ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]"
-                  : "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)]"
-              }`}
-            >
-              {source.kind}
-            </span>
             {displayDate && (
               <span className="font-mono text-[10px] text-[var(--text-muted)]">
                 {displayDate}
