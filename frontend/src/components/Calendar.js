@@ -270,9 +270,9 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 relative border-b border-r border-[var(--border)] overflow-hidden
                 cursor-pointer transition-colors select-none
                 ${currentMonth ? "" : "opacity-30"}
-                ${todayDay ? "bg-[var(--accent)]/10 ring-1 ring-inset ring-[var(--accent)]/40" : ""}
-                ${selectedDay2 ? "bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/40" : ""}
-                hover:bg-[var(--bg-tertiary)]/50
+                ${todayDay ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] ring-1 ring-inset ring-[var(--accent)]" : ""}
+                ${selectedDay2 ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] ring-1 ring-[var(--accent)]" : ""}
+                hover:bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]
               `}
             >
               <div className={`absolute top-1 left-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-mono ${todayDay ? "bg-[var(--accent)] text-[var(--bg-primary)] font-semibold" : "text-[var(--text-secondary)]"}`}>
@@ -320,7 +320,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                   key={b.id}
                   data-testid={`calendar-blocker-${b.id}`}
                   onClick={(e) => openEditBlocker(e, b)}
-                  className="absolute left-0 right-0 h-3 bg-[var(--danger)]/70 hover:bg-[var(--danger)]/90 transition-colors cursor-pointer flex items-center px-1"
+                  className="absolute left-0 right-0 h-3 bg-[color-mix(in_srgb,var(--danger)_70%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_90%,transparent)] transition-colors cursor-pointer flex items-center px-1"
                   style={{ top: "26px" }}
                   title={b.title}
                 >
@@ -358,8 +358,8 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                       title={c.text}
                       className={`h-3.5 px-1.5 flex items-center text-[8px] truncate cursor-pointer transition-colors ${
                         c.status === "done"
-                          ? "bg-[var(--success)]/70 hover:bg-[var(--success)] text-[var(--bg-primary)] line-through"
-                          : "bg-[var(--accent)]/85 hover:bg-[var(--accent)] text-[var(--bg-primary)]"
+                          ? "bg-[color-mix(in_srgb,var(--success)_70%,transparent)] hover:bg-[var(--success)] text-[var(--bg-primary)] line-through"
+                          : "bg-[color-mix(in_srgb,var(--accent)_85%,transparent)] hover:bg-[var(--accent)] text-[var(--bg-primary)]"
                       }`}
                     >
                       <span className="truncate leading-none">{c.text}</span>
@@ -432,7 +432,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                     key={b.id}
                     data-testid={`detail-blocker-${b.id}`}
                     onClick={(e) => openEditBlocker(e, b)}
-                    className="flex items-center gap-1.5 text-[11px] text-[var(--danger)] bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded px-2 py-1 cursor-pointer hover:bg-[var(--danger)]/20 transition-colors"
+                    className="flex items-center gap-1.5 text-[11px] text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] rounded px-2 py-1 cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors"
                   >
                     <AlertOctagon className="w-3 h-3 shrink-0" />
                     <span className="truncate">{b.title}</span>
@@ -537,7 +537,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 data-testid="blocker-delete-btn"
                 onClick={deleteBlocker}
                 disabled={saving}
-                className="px-3 py-1.5 rounded text-xs border border-[var(--danger)]/40 text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 rounded text-xs border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-colors disabled:opacity-50"
               >
                 Remove
               </button>

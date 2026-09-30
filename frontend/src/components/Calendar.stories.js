@@ -44,6 +44,19 @@ export default {
   component: Calendar,
   tags: ["autodocs"],
   parameters: { layout: "fullscreen" },
+  // Calendar's month grid is `grid-rows-6` + absolutely-positioned cells +
+  // overflow:hidden, so it only gets real row heights when an ancestor
+  // supplies a definite height — the app's layout does, Storybook's
+  // fullscreen chain (html/body/#storybook-root) does not, and the grid
+  // otherwise collapses to ~6px with every bar clipped. One viewport-tall
+  // wrapper supplies that number without touching the global preview.
+  decorators: [
+    (Story) => (
+      <div style={{ height: "100vh" }}>
+        <Story />
+      </div>
+    ),
+  ],
   args: {
     state,
     onPrefill: fn(),
