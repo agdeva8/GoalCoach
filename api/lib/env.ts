@@ -40,14 +40,10 @@ const EnvSchema = z.object({
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
 
-  // Database (Neon). DATABASE_URL is required at runtime for the serverless
-  // driver; DATABASE_URL_UNPOOLED is required only for migrations / drizzle-kit
-  // (see drizzle.config.ts).
-  DATABASE_URL: z.string().url(),
-  DATABASE_URL_UNPOOLED: z.string().url().optional(),
-  DATABASE_URL_DRIVER: z
-    .enum(['neon-http', 'neon-ws', 'pg', 'auto'])
-    .default('auto'),
+  // Database (Supabase / Postgres). Uses string not .url() because
+  // postgres:// and postgresql:// connection strings are not HTTP URLs.
+  DATABASE_URL: z.string(),
+  DATABASE_URL_UNPOOLED: z.string().optional(),
 
   // Emergent — single key for auth + LLM + storage.
   // Starts with `sk-emergent-` per the Emergent proxy contract.
@@ -56,6 +52,11 @@ const EnvSchema = z.object({
   // Emergent integrations proxy URL. Defaults to
   // https://integrations.emergentagent.com — see lib/emergent/*.ts.
   INTEGRATION_PROXY_URL: z.string().url().optional(),
+
+  // Tavily search API. Required when MOTIVATION_AGENT_ENABLED=true;
+  // the motivation pipeline falls back to the catalogue at runtime
+  // when missing. Optional at boot so dev/test without the flag work.
+  TAVILY_API_KEY: z.string().min(1).optional(),
 
   // For 10-min guest_token HMAC signing.
   AUTH_SECRET: z.string().min(32, 'AUTH_SECRET must be >= 32 chars'),

@@ -31,6 +31,7 @@
 import {
   boolean,
   date,
+  doublePrecision,
   integer,
   jsonb,
   time,
@@ -104,6 +105,12 @@ export const commitments = pgTable('commitments', {
   goalId: text('goal_id').references(() => goals.id, { onDelete: 'set null' }),
   goalTitle: text('goal_title').notNull().default(''),
   text: text('text').notNull(),
+  // Iteration 5 (Bug 7) — free-text "what you did" note from the Today
+  // timetable. Persists on the row alongside `text` and is rendered back
+  // in the tile. Added by migration 0007_commitments_note.sql to live DB
+  // (0001_init does not create the column). Nullable on purpose so the
+  // optimistic-save path on TodayTimetable leaves no half-written state.
+  note: text('note').default(''),
   due: date('due'),
   status: text('status', { enum: ['open', 'done'] })
     .notNull()
@@ -420,3 +427,71 @@ export const stateOverrides = pgTable('state_overrides', {
     .notNull()
     .defaultNow(),
 })
+
+/* -------------------------------------------------------------------------- */
+/* Motivation pipeline tables (Iteration 6, Motivation Pipeline v1)            */
+/*                                                                             */
+/* Mirror the migration at db/migrations/0008_motivation_pipeline.sql. The     */
+/* orchestrator at api/lib/motivation/recommend.ts reads motivation_cache for  */
+/* fast repeats and writes motivation_rejects per non-passing candidate so we  */
+/* can tune the 10-dim weights and prompt over time. motivation_served_log     */
+/* enforces DAILY_USER_CAP (config.ts) by counting cache-miss calls per day.   */
+/* -------------------------------------------------------------------------- */
+
+export const motivationCache = pgTable(
+  'motivation_cache',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    bucket: text('bucket', {
+      enum: ['overdue', 'dormant', 'stuck'],
+    }).notNull(),
+    /** Hash of (overdue ids + goal updated_at + chat theme bag). */
+    stateHash: text('state_hash').notNull(),
+    /** JSON array of RecommendationItem. Matches RecommendationResponseSchema.items. */
+    items: jsonb('items').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** 60m TTL from generatedAt. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.bucket, t.stateHash] }),
+  ],
+)
+
+export const motivationRejects = pgTable('motivation_rejects', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  bucket: text('bucket', {
+    enum: ['overdue', 'dormant', 'stuck'],
+  }).notNull(),
+  url: text('url').notNull(),
+  title: text('title').notNull().default(''),
+  scoreBreakdown: jsonb('score_breakdown').notNull(),
+  weightedTotal: doublePrecision('weighted_total').notNull(),
+  topReasons: jsonb('top_reasons').notNull().default([]),
+  /** Array of gate names that failed: 'core_four' | 'k_of_n' | 'weighted_total'. */
+  gatesFailed: jsonb('gates_failed').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+export const motivationServedLog = pgTable(
+  'motivation_served_log',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    servedOn: date('served_on').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.servedOn] }),
+  ],
+)
