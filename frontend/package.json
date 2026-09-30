@@ -65,7 +65,9 @@
   "scripts": {
     "start": "node node_modules/@craco/craco/dist/scripts/start.js",
     "build": "node node_modules/@craco/craco/dist/scripts/build.js",
-    "test": "node node_modules/@craco/craco/dist/scripts/test.js"
+    "test": "node node_modules/@craco/craco/dist/scripts/test.js",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "browserslist": {
     "production": [
@@ -95,7 +97,16 @@
     "eslint-plugin-react-hooks": "5.2.0",
     "globals": "15.15.0",
     "postcss": "8.5.10",
-    "tailwindcss": "3.4.17"
+    "tailwindcss": "3.4.17",
+    "storybook": "^10.6.1",
+    "@storybook/react-webpack5": "^10.6.1",
+    "@storybook/preset-create-react-app": "^10.6.1",
+    "@storybook/addon-a11y": "^10.6.1",
+    "@storybook/addon-docs": "^10.6.1",
+    "@storybook/addon-onboarding": "^10.6.1",
+    "webpack": "latest",
+    "prop-types": "latest",
+    "eslint-plugin-storybook": "^10.6.1"
   },
   "resolutions": {
     "react-router": "7.15.1",
@@ -141,5 +152,10 @@
     "**/tinyglobby/picomatch": "4.0.4",
     "http-proxy-middleware": "2.0.10"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "eslintConfig": {
+    "extends": [
+      "plugin:storybook/recommended"
+    ]
+  }
 }

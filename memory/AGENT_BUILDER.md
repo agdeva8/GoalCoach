@@ -8,7 +8,7 @@ You are the **Sutra builder agent**. Single source of truth: [`memory/PRD.md`](.
 - **Small agents — `MiniMax-M2.x` family** (fast, lightweight). These agents **do not** change code. They exist to validate the main agent's work and to handle the mechanical wrap-up:
   - **Commit agent** — after the main agent finishes a slice and the user confirms ship-ready, the commit agent stages the relevant files and writes the commit message in the repo's existing style (no Co-Authored-By trailer unless the repo already uses one).
   - **Test agents** — run additional checks the main agent shouldn't burn context on: lint, type-check, unit/integration suites, dependency audits, security scans, etc. Report results back as a short pass/fail summary with file:line references.
-  - **Browser-level testing agent** — drives the running app via the browser tools (openBrowserPage / navigate / screenshot / click) at the two required viewports (1920×800 + 390×844), exercises the new flow end-to-end, and reports what it saw (layout, console errors, network failures, visual regressions).
+  - **Browser-level testing agent** — **⚠️ disabled for MVP.** The multi-agent browser fleet does not run at MVP; the main agent verifies its own slice inline with `agent-browser` (see "Main-agent browser verification" below). Post-MVP, this agent drives the app at both required viewports (1920×800 + 390×844) and reports layout, console errors, network failures, and visual regressions.
 - All small agents **report results back to the main agent** (or directly to the user when invoked standalone). The main agent is the only one that decides what to do with those results — fix, revert, or ship.
 - **Dispatch timing (MVP):** through iteration the main agent runs review + test inline (same context, no extra round-trip). Small agents fan out only at the iteration **ship boundary** — once per iteration, after the founder approves the slice. Post-MVP, dispatch mid-iteration as needed. See "Mode: MVP" above.
 
@@ -32,20 +32,66 @@ In the dev container this repo mounts at `/app/` (so `/app/api/`, `/app/frontend
 2. **Sub-agent fleet deferred to the iteration ship boundary.** The main agent runs review + verification + test inline (one context, no round-trip) through iteration. Small agents (test, browser, commit) only fan out once per iteration, when the founder confirms the slice. The hierarchy itself is unchanged — small agents remain the only ones that run lint/typecheck, drive the browser, and write commits.
 3. **Doc-reconciliation layer runs at the iteration ship boundary, not per-feature.** Mid-iteration tweaks go through design + eng only. Copy/CSS-only nits skip design and go straight to eng. The full 5-layer chain (office-hours → ceo → design → eng → devex) still fires — once, at iteration close, not on every change.
 
-## Testing strategy and orchestration (browser-first fleet)
+## Testing strategy and orchestration (MVP — slice-scoped)
 
-**Priority ladder, top to bottom:**
-1. **Browser E2E** (mandatory, top priority) — the fleet described below.
+> ⚠️ **The E2E fleet (Stages A → E) is disabled for MVP.** It is post-MVP only. Do not dispatch a browser testing fleet, and do not run whole-app verification, unless I explicitly ask for it. See "Post-MVP" below for the dormant fleet spec.
+
+### The verification route (pick by what changed)
+
+Verification scope is **exactly the slice or bug in front of you** — nothing wider. Never run whole-app or whole-flow verification unprompted.
+
+| What changed | Verify with | How |
+|---|---|---|
+| **Backend only** (route, SQL, migration, LLM tool schema) | `curl` smoke | Hit the affected route directly. Assert status + response shape. `REACT_APP_BACKEND_URL`, never localhost. |
+| **Frontend only, presentational** (component render, layout, copy, CSS, state variants) | **`agent-browser` → Storybook** | `http://localhost:6006`. Snap the story for the component, screenshot, run the axe-core a11y addon. No backend needed. |
+| **Both** (or anything touching real data flow, auth, SSE, routing, state sync) | **`agent-browser` → shifted-port dev instance** | `node scripts/dev.js --api 3001 --web 3002`, then drive only the affected flow. |
+
+**The split rule:** if the change can be seen in a Storybook story with mock data, verify it in Storybook. If it needs a real API response, a real session, or a real stream, verify it against the dev instance. A frontend change that only *looks* presentational but rewires data fetching is a **Both** case — check what the component actually consumes before choosing.
+
+**Not required:** the E2E fleet, the `/browser` slash command, Playwright, and Chrome DevTools MCP are all off. See "Post-MVP".
+
+### Storybook (frontend component surface)
+
+- Dev: `cd frontend && yarn storybook` → `http://localhost:6006`. Build check: `cd frontend && yarn build-storybook`.
+- Config lives in `frontend/.storybook/`; stories are `src/**/*.stories.js(x)`, auto-globbed.
+- `@storybook/addon-a11y` runs axe-core per story — treat a violation as a real defect, same as a failing test.
+- **Coverage (Phase 1):** one happy-path story per top-level component in `frontend/src/components/` — 28 files, 32 stories. `frontend/src/components/ui/` (shadcn/Radix primitives) has **no stories** — don't assume the gallery covers it. Multi-state variants are out of scope for Phase 1; don't add them without asking.
+- For a new or changed component: confirm the story exists and covers the state you touched, then verify there — not in the app.
+
+**Story conventions (the gallery already follows these — match them):**
+
+- CSF3: `export default { title, tags: ['autodocs'], parameters: { layout: 'fullscreen' } }` + named `export const` stories. Mock data lives **inline in the story file**; no API calls, no fetch-mocking library, no new dependencies.
+- **Read the component source for real prop names/shapes before writing a story — never guess props.**
+- **Fetch-on-mount components:** opt in with `parameters: { api: { "<path after /api/>": <body> } }`. A hand-written `window.fetch` shim in `.storybook/preview.jsx` (no msw) answers from that map before the story's effects run. Undeclared routes in an opted-in story resolve to a 404 body (never the network); stories without `parameters.api` use real `fetch`. A route value may be a raw body, a `Response`, or a promise — a **never-settling promise pins a component in its loading state** (how `AuthCallback` stays on "establishing session").
+- The global decorator in `preview.jsx` already supplies the app CSS (`src/index.css`), a sonner `<Toaster>`, and a `<MemoryRouter>` — stories don't set these up. The router keeps `useNavigate` calls (Header, AuthCallback) from blanking the canvas.
+- **Config invariants in `.storybook/main.js` — both load-bearing, don't remove:** the `@` → `src` webpack alias (the app gets it from craco; Storybook reuses CRA's webpack, which only maps jsconfig `baseUrl`) and `process.env.DISABLE_ESLINT_PLUGIN = "true"` (CRA's eslint plugin resolves package.json `eslintConfig`, which lacks `react-hooks`, so existing `exhaustive-deps` disable comments in `src/` fail the build).
+- **Known console noise:** the `Memories` story logs three image 404s by design (`/api/sources/101..103/download` — real `<img>` URLs the shim can't intercept; a global error handler swaps in an inline SVG placeholder). Every other story should be console-clean.
+- HMR picks up component/CSS edits and new `.stories.js` automatically; restart for `.env`, `.storybook/main.js`, new deps/aliases, or Tailwind config. HMR can leave stale story state — hard-refresh the story.
+
+### Post-MVP (dormant — do not run)
+
+The full Stage A → E fleet, the multi-agent browser testing matrix, and whole-app regression all return when I say so. The spec is preserved below so it costs nothing to re-enable.
+
+<details>
+<summary>Dormant fleet spec (post-MVP)</summary>
+
+**Priority ladder at MVP, top to bottom:**
+1. **Browser E2E** (post-MVP only) — the fleet described below.
 2. **API smoke with curl** (secondary) — fail-fast on auth/CRUD; blind to UI/feel/data-binding. Use external `REACT_APP_BACKEND_URL`, not localhost.
 3. **Unit tests / lint / typecheck** (lowest priority, optional at MVP). Cheap regression only. **Skipping is fine — they are NOT a gate.**
 
 ### Test instance setup
 
-Per slice, run the browser fleet against a **shifted-port dev instance** so it never collides with the founder's live dev server. Same repo, same env, same DB URL, same seeded personas — different ports only. Default offsets: api on `3001` (`pnpm dev -p 3001` or `next dev -p 3001`), frontend on `3002` (`PORT=3002 yarn start` in `frontend/`), `REACT_APP_BACKEND_URL=http://localhost:3001`. Each Stage-A agent opens its own incognito Chrome profile so browser sessions are independent. If a slice touches storage, secrets, or schema, start the test instance from a fresh seeded DB so explorers don't see the founder's working state.
+Per slice, run the browser fleet against a **shifted-port dev instance** so it never collides with the founder's live dev server. Same repo, same env, same DB URL, same seeded personas — different ports only. Use the unified dev script with port flags:
+```bash
+node scripts/dev.js --api 3001 --web 3002
+# or: API_PORT=3001 WEB_PORT=3002 pnpm dev
+```
+This automatically frees conflicting ports, binds the Next.js API to `3001`, points the CRA frontend on `3002` to `REACT_APP_BACKEND_URL=http://localhost:3001`, and sets CORS appropriately. Each Stage-A agent opens its own incognito Chrome profile so browser sessions are independent. If a slice touches storage, secrets, or schema, start the test instance from a fresh seeded DB so explorers don't see the founder's working state.
 
 ### Fleet stages
 
-Dispatch via the `Agent` tool — prefer `agentType: "general-purpose"` (full tool set incl. browser MCP) or `agent-skills:browser-testing-with-devtools`. Use the **high-capability model with 512K context**, thinking on or off per the founder's call (this matches the `MiniMax-M3` family). Default matrix `[5 explore, 2 verify, 3 bug-hunt, fix, 1 verify-only]` is **configurable per slice** — the founder sets the per-stage count.
+Dispatch via the **`/browser` slash command** to invoke the browser subagent (MVP note: this whole stage is dormant; at MVP the main agent verifies inline with `agent-browser` instead). Use the **high-capability model with 512K context**, thinking on or off per the founder's call (this matches the `MiniMax-M3` family). Default matrix `[5 explore, 2 verify, 3 bug-hunt, fix, 1 verify-only]` is **configurable per slice** — the founder sets the per-stage count.
 
 | Stage | Count | What they do | Gate |
 |---|---|---|---|
@@ -83,13 +129,15 @@ Concretely on a typical mid-iteration tweak where Stage B comes back clean, the 
 
 The fleet is expensive. Trigger condition is **"behaviour or surface changed,"** not "I edited a file." The default matrix `[5, 2, 3, fix, 1]` is the floor for behaviour/surface slices.
 
+</details>
+
 ## Hard constraints (non-negotiable)
 
 1. **Emergent stack stays on Emergent**: do NOT swap auth (Emergent Google OAuth), LLM (Emergent Universal Key — default `gemini-3-flash-preview`, switchable to `claude-sonnet-4-6` and `gpt-5.4`), or storage (Emergent Object Storage) for anything else. Before writing/modifying ANY auth or third-party integration code, consult the integration playbook first.
 2. **The LLM is the only writer to goals, milestones & commitments.** Every such change goes through the MCP-style **propose → user confirm → `/api/tools/confirm|reject`** path. Never add client writes that bypass it. **Exception (already decided):** blockers and daily-timetable blocks are *scheduling/constraint data* and are edited **directly via the UI** (the `/api/blockers` CRUD routes, and any future timetable endpoints) with no confirm step. If you introduce a new writeable concept, decide explicitly which bucket it's in and record the choice in the PRD.
 3. **Chat is the surface; the dashboard + timeline are the readable view of the same state.** One source of truth — never fork state into two.
 4. **Voice & brand**: precise/curious, never warm/validating ("the honest coach is harder to like but easier to trust"). Tagline is literal: **"Let's sort your life — together."** Every interactive/critical element needs a unique `data-testid`. Meet WCAG 2.1 AA (keyboard, screen-reader, contrast, `prefers-reduced-motion`).
-5. **Frontend skill policy**: pick the skill that actually fits the slice. `/bolt-frontend` is the default for **in-app product UI** (multi-file edits inside `frontend/src/`, working with the existing Tailwind + shadcn/Radix + lucide-react stack and the running dev server). `/visual-page` is a better fit for **standalone visual deliverables** — landing pages, marketing one-pagers, comparison pages, anything that doesn't need to merge into the React app. Don't reach for either until you've actually read the existing components; the codebase already has a real vocabulary (CenteredDialog, HonestyAuditView, ActionPromptModal, the warm dark/light theme tokens) and new UI should match it.
+5. **Frontend skill policy**: pick the skill that actually fits the slice. For **in-app product UI** (multi-file edits inside `frontend/src/`, working with the existing Tailwind + shadcn/Radix + lucide-react stack): **`ui-ux-pro-max`** is the default — it carries styles, palettes, font pairings, UX guidelines, and stack-specific patterns; reach for **`ui-styling`** when the work is shadcn/Radix mechanics (accessible dialogs, forms, tables, theming, dark mode); use **`enhance-prompt`** to turn an agreed design spec into a precise implementation prompt; use **`superdesign:superdesign`** when you need to explore visual variants on a canvas before writing code. For **standalone visual deliverables** that don't merge into the React app (landing pages, one-pagers, comparison pages): the same design skills still apply, but scope the output outside `frontend/src/`. Don't reach for any of them until you've actually read the existing components; the codebase already has a real vocabulary (CenteredDialog, HonestyAuditView, ActionPromptModal, the warm dark/light theme tokens) and new UI should match it.
 6. **Agent boundary**: the main agent (`MiniMax-M3`) is the only one that edits code, schema, or prompts. Small agents (`MiniMax-M2.x`) only commit, run tests, and drive browser-level verification — they never modify source files. If a small agent spots something that needs a code change, it reports it; the main agent makes the fix.
 
 ## Operating loop (every feature)
@@ -101,80 +149,102 @@ The fleet is expensive. Trigger condition is **"behaviour or surface changed,"**
    - **Spec-review gate (MVP):** at MVP, the gate is **1 round of adversarial review + founder sign-off**, then build. Post-MVP, the gate tightens to 3 rounds at 8/10 — see "Mode: MVP" above.
 3. **Baseline**: confirm services are up (`curl $REACT_APP_BACKEND_URL/api/state` returns 200 for a known user; `api/` compiles with `pnpm typecheck`; `frontend/` compiles with `yarn build`).
 4. **Implement the smallest correct slice** — backend route → frontend wiring → UI — using parallel edits. After the first build, **edit existing files with search_replace, never overwrite.** Update the tool schema/system prompt if the LLM needs a new affordance. New SQL schema changes go through `drizzle-kit generate` → committed migration.
-5. **Test — browser E2E first (this is the source of truth).** Priority ladder, top to bottom:
-   1. **Browser E2E** (mandatory, top priority) — caught by the fleet in "Testing strategy and orchestration" above.
-   2. **API smoke with curl** (secondary) — fail-fast on auth/CRUD; blind to UI/feel/data-binding. Use external `REACT_APP_BACKEND_URL`, not localhost.
-   3. **Unit tests / lint / typecheck** (lowest priority, **optional at MVP**) — cheap regression only. Skipping is fine; NOT a gate.
+5. **Verify — slice-scoped, route by change type.** Test **only the slice or bug you just changed.** Whole-app / whole-flow verification happens when I ask for it, not before.
+   - **Backend only** → `curl` the affected route; assert status + response shape.
+   - **Frontend presentational** → `agent-browser` against Storybook (`http://localhost:6006`); check the story + the a11y addon.
+   - **Both / real data / auth / SSE / routing** → `agent-browser` against a shifted-port dev instance (`node scripts/dev.js --api 3001 --web 3002`).
+   - **E2E fleet, `/browser`, Playwright, chrome-devtools MCP** → not used at MVP. Whole-app regression on my request only.
 
-   For a behaviour/UI slice, run the full fleet (Stages A → E). For a mid-iteration tweak on behaviour/UI, run only Stages A → B. For a copy/CSS nit or pure-logistics change, skip the fleet entirely (cost-floor). The per-stage count matrix is configurable; see the section above.
+   Full routing table and the dormant post-MVP fleet spec: "Testing strategy and orchestration" above.
 
    ### Regression
-
-   Re-run the prior iteration's verified flows as part of this slice's Stage A plan. They must stay green. The canonical regression set: SSE streaming, propose→confirm→audit, dashboard/timeline sync, guest→account migration, resizable split, blockers CRUD.
+   Do **not** re-run the prior iteration's verified flows as a matter of course. Re-verify the canonical regression set (SSE streaming, propose→confirm→audit, dashboard/timeline sync, guest→account migration, resizable split, blockers CRUD) only when I ask for whole-app verification, or when the change plausibly touches one of those paths.
 6. **Stop and ask me to verify in my own browser** before declaring shipped. Paste exact repro steps and what to look for. Do not proceed until I confirm.
 7. **Commit via the commit agent (small agent) once I confirm ship-ready** — pass it the file list + a one-line summary; it owns the commit message and runs the commit.
 8. **Update `memory/PRD.md` (append-only) only after I confirm**: add `## Iteration N (YYYY-MM) — shipped` with concise bullets + a `Verified: <testing summary — backend/frontend counts or key flows>` line; move shipped items out of "Backlog / next"; add newly-discovered items. Never rewrite earlier history.
 
-## Main-agent Chrome UX toolkit (inline verification)
+## Main-agent browser verification (inline, slice-scoped)
 
-The browser-E2E fleet above dispatches **small agents**. The **main agent itself** also drives the browser inline (no extra round-trip) when a slice is small or when debugging a specific element. Use this loop when *you* are inspecting/fixing UX directly — it's a different surface from the small-agent fleet.
+The main agent verifies its own work inline — no sub-agent, no fleet, no round-trip. Verification is scoped to **the slice or bug just changed**, never the whole app.
 
-### Pre-work vs verification
+**Use the `agent-browser` CLI** (Vercel Labs, installed globally at `agent-browser@0.38.1`; project skill at `.agents/skills/agent-browser/SKILL.md`). It attaches to a CDP endpoint, so no MCP server install is needed.
 
-- **Pre-work (separate from verification):** `superpowers:brainstorming` runs *before* you decide what to fix. It is **not part of the verification loop**.
-- **Verification:** everything below this line. Don't sprinkle brainstorming into it.
+**Do not use** the `/browser` slash command, `mcp__chrome-devtools__*`, or `mcp__playwright__*`. Those are off for MVP.
 
-### Browser MCP — pick one per task
+### Which surface to drive
 
-| MCP | When to use |
-|---|---|
-| `mcp__chrome-devtools__*` | **Primary.** Full CDP: `take_screenshot`, `take_snapshot`, `get_css_styles`, `list_console_messages`, `list_network_requests`, `lighthouse_audit`, `performance_start_trace`, `take_heapsnapshot`, `emulate`, `resize_page`, `upload_file`, `drag`, `evaluate_script`. Best for **deep inspection + perf + CSS rules**. |
-| `mcp__playwright__*` | **Secondary.** Locator ergonomics + scripted automation via `browser_fill_form` (batch form fill), `browser_evaluate`, `browser_run_code_unsafe` (arbitrary Playwright code), `browser_find` (regex snapshot search), `browser_tabs`. Best for **E2E flows + scripted runs**. |
-| `mcp__browsermcp__*` | **Redundant — disable** in `~/.claude/settings.json`. Keep only as a fallback if the other two fail. |
+| Change type | Target | Command sketch |
+|---|---|---|
+| Backend only | (no browser) | `curl` the affected route |
+| Frontend presentational | Storybook `http://localhost:6006` | `agent-browser connect http://127.0.0.1:9223` → `agent-browser open http://localhost:6006` → `agent-browser snapshot` / `screenshot` |
+| Both, or real data/auth/SSE/routing | Shifted-port dev instance | `node scripts/dev.js --api 3001 --web 3002` → `agent-browser open http://localhost:3002` |
 
-### The inline verification loop (in order)
+### CDP attach (do this once per session)
 
-1. `navigate_page` → load the target URL on the shifted-port test instance.
-2. `take_screenshot` → baseline "before" PNG.
-3. `take_snapshot` + `get_css_styles` → element refs + the matched CSS rules for any element you suspect.
-4. `list_console_messages` (and `get_console_message` for the interesting ones) → surface JS errors with stack traces.
-5. [Edit code — built-in Edit/Write. Keep edits scoped to the slice.]
-6. `navigate_page` → reload.
-7. `take_snapshot` + `get_css_styles` → re-inspect the same elements.
-8. `take_screenshot` → "after" PNG (compare against step 2).
-9. `emulate` (Slow 4G and/or mobile viewport 390×844) → regression-check the other viewport(s).
-10. `lighthouse_audit` → CWV regression.
-11. `pnpm test:e2e:a11y` → axe a11y regression.
-12. `superpowers:verification-before-completion` → confirm with evidence (don't claim done without it).
-13. `compound-engineering:ce-noslop` (or `ce-simplify-code`) → cleanup pass.
+`agent-browser` must attach to an existing CDP endpoint before you navigate. Never run `agent-browser open` first — that can make the CLI auto-launch Chrome into a crash loop.
 
-### Skills to invoke inside the loop
+```bash
+if ! curl -fsS http://127.0.0.1:9223/json/version | rg -q webSocketDebuggerUrl; then
+  open -na "Google Chrome" --args \
+    --remote-debugging-port=9223 \
+    --user-data-dir=/tmp/sutra-agent-browser-chrome \
+    --no-first-run --no-default-browser-check
+  for i in {1..20}; do
+    curl -fsS http://127.0.0.1:9223/json/version 2>/dev/null | rg -q webSocketDebuggerUrl && break
+    sleep 0.5
+  done
+fi
+agent-browser connect http://127.0.0.1:9223
+```
 
-- `agent-skills:browser-testing-with-devtools` — explicit Chrome DevTools workflow.
-- `compound-engineering:ce-test-browser` — only when fanning out to small agents (different surface from this loop).
-- `gstack:investigate` or `superpowers:systematic-debugging` — **only when a fix breaks something**.
-- `superpowers:verification-before-completion` — step 12, mandatory.
+When finished, close the temporary profile:
+```bash
+pkill -f -- "--user-data-dir=/tmp/sutra-agent-browser-chrome" || true
+```
+
+### The inline loop (Storybook case, in order)
+
+1. `agent-browser open http://localhost:6006` → navigate to the story via `agent-browser snapshot` + click, or open the story iframe URL directly.
+2. Screenshot the "before" state.
+3. `agent-browser eval "<js>"` to read computed styles, or `agent-browser get styles <sel>` for CSS rules.
+4. `agent-browser console` / `agent-browser errors` for JS errors with traces.
+5. **Edit code** — keep edits scoped to the slice.
+6. Reload (`agent-browser reload`) — Storybook hot-reloads.
+7. Re-snapshot + re-screenshot; compare against step 2.
+8. **a11y**: the `@storybook/addon-a11y` panel reports axe-core violations per story. Check it, or run `agent-browser a11y --json`.
+9. `agent-browser diff screenshot --baseline <path>` when you want an explicit visual diff against step 2.
+
+### The inline loop (dev-instance case)
+
+Same order, but target the affected flow only. Use `agent-browser pushstate <url>` for SPA navigation on this Next.js stack (auto-detects the router; avoids a full reload and preserves state).
+
+### Useful commands
+
+`open` · `reload` · `back` · `snapshot` (a11y tree with refs) · `screenshot [path]` · `get title|url|text|styles|count` · `is visible|enabled|checked` · `find role|text|label|testid <v> <action>` · `click` · `fill` · `type` · `press` · `select` · `check`/`uncheck` · `hover` · `drag` · `upload` · `wait` · `scroll` · `eval` · `console` · `errors` · `network requests` · `vitals` · `a11y` · `trace` · `diff snapshot|screenshot` · `pushstate` · `tab` · `close`
 
 ### Design reference skills (invoke during/after edits)
 
 Use these for the *fix* half — they inform *what* to change, not *how* to inspect.
 
-- `design-taste-frontend` — anti-slop audit (use first).
-- `emil-design-eng` — Emil Kowalski polish philosophy.
-- `emilkowalski-motion` — micro-interactions and state transitions.
-- `impeccable-design-polish` — final polish pass.
-- `apple-hig`, `shadcn-ui`, `web-design-guidelines` — situational reference.
+**Frontend skills available for in-app product UI work in `frontend/`:**
+- **`ui-ux-pro-max`** — primary. UI/UX design intelligence: styles, palettes, font pairings, UX guidelines, icon and chart selection, stack-specific patterns. Reach for this first on any layout, hierarchy, or component-visual question.
+- **`enhance-prompt`** — turn an agreed design spec into a precise implementation prompt.
+- **`ui-styling`** — shadcn/ui on Radix + Tailwind. The right reference for accessible dialogs, forms, tables, theming, and dark mode, since this app already uses that stack.
+- **`superdesign:superdesign`** — canvas-based design and multi-page flows when you need to explore visual variants before writing code.
+
+Match the existing codebase vocabulary (`CenteredDialog`, `HonestyAuditView`, `ActionPromptModal`, the warm dark/light theme tokens) before introducing anything new.
+
+**Skip for UX debugging** — these create visuals, they don't inspect existing pages: `brand-extract`, `competitive-ads-extractor`, `fal-*`, `d3-visualization`, deck/card/frame templates, `sora`, `venice-*`, `remotion`, `theme-factory`, `mockup-device-3d`, `gif-sticker-maker`, `youtube-clipper`, `web-artifacts-builder`.
+
+### Pre-work vs verification
+
+- **Pre-work (separate from verification):** `brainstorming` runs *before* you decide what to fix. It is **not part of the verification loop**.
+- **Verification:** everything above this line. Don't sprinkle brainstorming into it.
 
 ### Known gaps (worth closing later)
 
-- **No visual-diff tool.** Workaround: side-by-side `Read` on before/after PNGs. Longer-term: wire Playwright `toHaveScreenshot()` for diff'd regression, or install a dedicated visual-diff skill.
-- **No "design audit existing page" skill.** Closest is `design-taste-frontend`; worth a project-local `ux-audit` skill that orchestrates `chrome-devtools.take_screenshot` + the design-taste reference.
-- **No console-error triage workflow.** Wrap `list_console_messages` + `get_console_message` in a project-local helper.
-- **No Lighthouse-over-time tracking.** Pair `lighthouse_audit` with `gstack:benchmark` for trend tracking.
-
-### Skip — creative/design noise for Chrome UX debugging
-
-`brand-extract`, `competitive-ads-extractor`, `fal-*`, `d3-visualization`, all deck/card/frame templates, `sora`, `venice-*`, `remotion`, `theme-factory`, `mockup-device-3d`, `gif-sticker-maker`, `youtube-clipper`, `web-artifacts-builder`, etc. These are for *creating* visuals, not for inspecting existing pages.
+- **No automated visual-diff regression in CI.** Workaround for now: `agent-browser diff screenshot --baseline`.
+- **No console-error triage helper.** Wrap `agent-browser console` + `errors` in a project-local helper if it becomes repetitive.
 
 ## Env & safety rules
 
@@ -192,12 +262,12 @@ PRD ends at **Iteration 3 shipped** with P0 next:
 1. Read the blockers route at `api/app/api/blockers/route.ts` and `api/app/api/blockers/[id]/route.ts`; confirm the fields they expose (title, start_date, end_date, note per the Mongo→Postgres schema).
 2. Ask me for calendar/timetable UX preferences if any; otherwise design a month grid + day view consistent with the existing warm theme and the dashboard/timeline.
 3. Apply Hard constraint #2: blockers + daily-timetable blocks = **direct UI CRUD** (add timetable endpoints if missing); anything that changes goals/milestones still goes propose→confirm. Record the decision in the PRD.
-4. Ship the slice → agentic-test (API + UI at both viewports + browser-level testing agent) → ask me to verify → commit agent runs → update the PRD.
+4. Ship the slice → verify **only this slice** (curl for backend, Storybook for presentational frontend, shifted-port dev instance if data/auth/SSE is involved) → ask me to verify → commit agent runs → update the PRD.
 
 ## Reporting (end of every loop)
 
 - **What changed**: file list, one line each.
-- **Agentic test summary**: API / UI / integration with counts and the testing-report path (browser-level + any other testing agents invoked).
+- **Verification summary**: what you verified and *how* (curl / Storybook / dev instance), scoped to this slice. Include the screenshot or story path when a browser was involved. Don't report whole-app coverage unless I asked for it.
 - **Exact repro steps** for me to verify in the browser (URL, creds, clicks, expected result).
 - **PRD diff**: the new `## Iteration N` block you'd append.
 
