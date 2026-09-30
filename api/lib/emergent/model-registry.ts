@@ -47,10 +47,17 @@ export interface ModelEntry {
  * The chat route and the model-switcher UI both import this; legacy
  * AI-SDK `getModel()` calls are routed through `getModel()` below.
  *
- * Note: the python PROVIDER_MODELS uses the key `openai` for what the
- * architecture plan calls `claude` (i.e. Anthropic). We keep both
- * `claude` and `anthropic` keys here mapping to the same model so
- * legacy `model_provider='anthropic'` requests keep working.
+ * MVP note: when `DEEPSEEK_API_KEY` is set in env, `streamChat`
+ * (lib/emergent/stream-chat.ts) routes through DeepSeek instead of the
+ * Emergent proxy. DeepSeek only accepts its own model ids, so every row's
+ * `model` field is a DeepSeek model id rather than an Emergent-flavored
+ * one. For MVP, all three user-facing rows (Gemini / Claude / OpenAI)
+ * route to the same backend model — `deepseek-flash`. The UI labels are
+ * preserved so the user thinks they're picking the provider they
+ * recognize; the actual LLM underneath is uniform. To re-enable Emergent
+ * proxy routing per row, restore the prior strings
+ * (`gemini/gemini-3-flash-preview`, `claude-sonnet-4-5`, `gpt-5.4`) and
+ * unset `DEEPSEEK_API_KEY`.
  */
 export const MODEL_REGISTRY: Record<ProviderId, ModelEntry> = {
   gemini: {
@@ -58,22 +65,21 @@ export const MODEL_REGISTRY: Record<ProviderId, ModelEntry> = {
     label: 'Gemini',
     hint: '3 Flash',
     provider: 'gemini',
-    // Emergent requires the `gemini/` prefix on this model id.
-    model: 'gemini/gemini-3-flash-preview',
+    model: 'deepseek-flash',
   },
   claude: {
     id: 'claude',
     label: 'Claude',
     hint: 'Sonnet 4.5',
     provider: 'anthropic',
-    model: 'claude-sonnet-4-5',
+    model: 'deepseek-flash',
   },
   openai: {
     id: 'openai',
     label: 'OpenAI',
     hint: 'GPT-5.4',
     provider: 'openai',
-    model: 'gpt-5.4',
+    model: 'deepseek-flash',
   },
 }
 

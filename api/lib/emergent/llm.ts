@@ -1,27 +1,30 @@
 /**
- * Emergent LLM REST client + tool-call text-block parser.
+ * LLM REST client + tool-call text-block parser.
  *
  * Source of truth:
  *   - backend/server.py:606-773 (the SSE handler we are replacing)
  *   - migration/discovery/03-nextjs-architecture.md Section 4
  *
- * Endpoint discovery (the wheel isn't on PyPI; the source on jsDelivr
- * is the canonical reference):
+ * Endpoint discovery:
  *
- *   POST  {INTEGRATION_PROXY_URL}/llm/chat/completions
- *        Headers: Authorization: Bearer sk-emergent-…
- *                 Content-Type: application/json
- *        Body:   OpenAI-compatible chat.completion.create params
- *                { model, messages, stream: true }
+ *   Emergent (default):
+ *     POST  {INTEGRATION_PROXY_URL}/llm/chat/completions
+ *          Headers: Authorization: Bearer sk-emergent-…
+ *          `INTEGRATION_PROXY_URL` defaults to
+ *          `https://integrations.emergentagent.com`.
  *
- *   - `INTEGRATION_PROXY_URL` defaults to
- *     `https://integrations.emergentagent.com`.
- *   - Model strings: gemini uses `gemini/<model>` (e.g. `gemini/gemini-3-flash-preview`);
- *     openai / anthropic use the bare model name (e.g. `claude-sonnet-4-6`).
+ *   DeepSeek (MVP override, see `resolveBackend()` in stream-chat.ts):
+ *     POST  {DEEPSEEK_API_URL}/chat/completions
+ *          Headers: Authorization: Bearer ${DEEPSEEK_API_KEY}
+ *     `DEEPSEEK_API_URL` defaults to `https://api.deepseek.com`.
+ *     Activated by setting `DEEPSEEK_API_KEY` in env.
+ *
  *   - `EMERGENT_LLM_KEY` must start with `sk-emergent-` (the proxy rejects
  *     raw provider keys).
+ *   - Model strings: gemini uses `gemini/<model>` (e.g. `gemini/gemini-3-flash-preview`)
+ *     for the Emergent proxy; DeepSeek accepts the string as-is.
  *
- * Streaming shape — OpenAI-style SSE:
+ * Streaming shape — OpenAI-style SSE (both backends):
  *
  *   data: {"id":"…","choices":[{"delta":{"content":"…"}}]}
  *   data: {"id":"…","choices":[{"delta":{}], "finish_reason":"stop"}]}

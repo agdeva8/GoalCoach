@@ -1,10 +1,24 @@
 /**
- * Emergent LLM streaming client.
+ * LLM streaming client.
  *
  * Standalone module (no `server-only` guard) so it can be imported by
  * scripts like `scripts/smoke-model.ts` that run outside the Next.js
  * server context. Next.js API routes use `streamChat` re-exported from
  * `lib/emergent/llm.ts` instead.
+ *
+ * MVP routing (env-only, opt-in):
+ *   - If `DEEPSEEK_API_URL` and `DEEPSEEK_API_KEY` are both set in env,
+ *     `streamChat` hits that endpoint instead of the Emergent proxy.
+ *     Wire format is OpenAI-compatible (`/v1/chat/completions` with
+ *     `Authorization: Bearer <DEEPSEEK_API_KEY>`), so the SSE parser
+ *     below works unchanged.
+ *   - Otherwise we fall back to the Emergent proxy path
+ *     (`EMERGENT_LLM_KEY` + `INTEGRATION_PROXY_URL`) so existing
+ *     deploys / smoke tests / dev setups are unaffected.
+ *
+ * The chat route, model registry, and `users.model_provider` column are
+ * not touched — the model id in the registry row is sent verbatim to
+ * whichever endpoint is active.
  */
 
 import { SYSTEM_PROMPT } from '@/lib/llm/prompts'
@@ -18,25 +32,49 @@ import type { ProviderId } from './model-registry'
 /* -------------------------------------------------------------------------- */
 
 const DEFAULT_PROXY_URL = 'https://integrations.emergentagent.com'
+const DEFAULT_DEEPSEEK_URL = 'https://api.deepseek.com'
 
-function resolveProxyUrl(): string {
-  const fromEnv = process.env.INTEGRATION_PROXY_URL?.trim()
-  return (fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_PROXY_URL)
-}
+/**
+ * Returns `{ url, apiKey }` for whichever backend is active.
+ *
+ * Env precedence:
+ *   1. DeepSeek  — `DEEPSEEK_API_URL` + `DEEPSEEK_API_KEY` set → DeepSeek.
+ *                  Defaults `DEEPSEEK_API_URL` to `https://api.deepseek.com`.
+ *   2. Emergent  — `EMERGENT_LLM_KEY` (with `INTEGRATION_PROXY_URL`).
+ *
+ * Throws when neither path has the keys it needs. The DeepSeek path
+ * only requires `DEEPSEEK_API_KEY` (URL defaults); the Emergent path
+ * keeps its `sk-emergent-` prefix check so misconfiguration is loud.
+ */
+function resolveBackend(): { url: string; apiKey: string } {
+  const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim()
+  if (deepseekKey && deepseekKey.length > 0) {
+    const deepseekUrl = process.env.DEEPSEEK_API_URL?.trim()
+    return {
+      url: (deepseekUrl && deepseekUrl.length > 0
+        ? deepseekUrl
+        : DEFAULT_DEEPSEEK_URL
+      ).replace(/\/$/, ''),
+      apiKey: deepseekKey,
+    }
+  }
 
-function resolveApiKey(): string {
-  const k = process.env.EMERGENT_LLM_KEY
-  if (!k || k.length === 0) {
+  const emergentKey = process.env.EMERGENT_LLM_KEY
+  if (!emergentKey || emergentKey.length === 0) {
     throw new Error(
-      'EMERGENT_LLM_KEY is not set. Required for Emergent LLM calls.',
+      'No LLM backend configured. Set DEEPSEEK_API_KEY (and optionally DEEPSEEK_API_URL) for DeepSeek, or EMERGENT_LLM_KEY for the Emergent proxy.',
     )
   }
-  if (!k.startsWith('sk-emergent-')) {
+  if (!emergentKey.startsWith('sk-emergent-')) {
     throw new Error(
       'EMERGENT_LLM_KEY must start with "sk-emergent-". Direct provider keys are rejected by the Emergent proxy.',
     )
   }
-  return k
+  const emergentUrl = process.env.INTEGRATION_PROXY_URL?.trim()
+  return {
+    url: (emergentUrl && emergentUrl.length > 0 ? emergentUrl : DEFAULT_PROXY_URL).replace(/\/$/, ''),
+    apiKey: emergentKey,
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -105,15 +143,17 @@ export interface StreamChatArgs {
  */
 export async function* streamChat(args: StreamChatArgs): AsyncIterable<StreamEvent> {
   const entry = getModel(args.provider)
-  const apiKey = resolveApiKey()
-  const proxy = resolveProxyUrl()
+  const backend = resolveBackend()
+  const apiKey = backend.apiKey
 
-  // The proxy prefixes `gemini/` automatically based on the provider
-  // field — we just pass the bare model name (matches
-  // `emergentintegrations._buildCompletionParams`).
+  // The Emergent proxy prefixes `gemini/` automatically based on the
+  // provider field — we just pass the bare model name (matches
+  // `emergentintegrations._buildCompletionParams`). DeepSeek accepts
+  // arbitrary model strings verbatim.
   const model = args.model ?? entry.model
 
-  const url = `${proxy.replace(/\/$/, '')}/llm/chat/completions`
+  // Both backends expose an OpenAI-compatible chat completions endpoint.
+  const url = `${backend.url}/chat/completions`
 
   // Prepend the system message to the messages array. The Emergent
   // proxy expects a single `system` OR system-as-first-message; using
