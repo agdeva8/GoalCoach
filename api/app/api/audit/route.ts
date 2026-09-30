@@ -15,6 +15,7 @@ import { and, eq, lt, sql } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
+import { cachedGet } from '@/lib/cache'
 import { db } from '@/lib/db'
 import { auditLog } from '@/db/schema'
 import { GUEST_TOKEN_COOKIE, verifyGuestToken } from '@/lib/guest-token'
@@ -35,54 +36,64 @@ async function getUserId(req: NextRequest): Promise<string | null> {
   return verifyGuestToken(token)
 }
 
-export async function GET(req: NextRequest) {
-  const userId = await getUserId(req)
-  if (!userId) {
-    return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
-  }
+export const GET = cachedGet(
+  (req) => {
+    // Namespace encodes the pagination cursor + filter so each page
+    // caches independently and any cursor-driven read returns the
+    // right slice (the cache key does not, however, alter the result
+    // — only its staleness — because every write path that touches
+    // `audit_log` drops the user's entries via invalidateForRequest).
+    const { searchParams } = req.nextUrl
+    return `audit:${searchParams.get('limit') ?? '50'}:${searchParams.get('type') ?? ''}:${searchParams.get('before') ?? ''}`
+  },
+  async (userId, req) => {
+    const { searchParams } = req.nextUrl
+    const rawLimit = parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10)
+    const limit = Math.min(Math.max(1, isNaN(rawLimit) ? DEFAULT_LIMIT : rawLimit), MAX_LIMIT)
+    const typeFilter = searchParams.get('type')
+    const before = searchParams.get('before')
 
-  const { searchParams } = req.nextUrl
-  const rawLimit = parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10)
-  const limit = Math.min(Math.max(1, isNaN(rawLimit) ? DEFAULT_LIMIT : rawLimit), MAX_LIMIT)
-  const typeFilter = searchParams.get('type')
-  const before = searchParams.get('before')
+    // Build where conditions.
+    const conditions = [eq(auditLog.userId, userId)]
 
-  // Build where conditions.
-  const conditions = [eq(auditLog.userId, userId)]
-
-  if (typeFilter) {
-    conditions.push(sql`${auditLog.type} LIKE ${typeFilter || ''}%`)
-  }
-
-  // Cursor: if `before` looks like a timestamp use it directly, otherwise use
-  // the id as a tiebreaker (both are safe because the index is compound).
-  if (before) {
-    const isTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(before)
-    if (isTimestamp) {
-      conditions.push(lt(auditLog.createdAt, new Date(before)))
-    } else {
-      // Treat as id cursor — rows with id < before (for forward pagination).
-      conditions.push(sql`${auditLog.id} < ${before}`)
+    if (typeFilter) {
+      conditions.push(sql`${auditLog.type} LIKE ${typeFilter || ''}%`)
     }
-  }
 
-  const rows = await db
-    .select()
-    .from(auditLog)
-    .where(and(...conditions))
-    .orderBy(sql`${auditLog.createdAt} DESC, ${auditLog.id} DESC`)
-    .limit(limit)
+    // Cursor: if `before` looks like a timestamp use it directly, otherwise use
+    // the id as a tiebreaker (both are safe because the index is compound).
+    if (before) {
+      const isTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(before)
+      if (isTimestamp) {
+        conditions.push(lt(auditLog.createdAt, new Date(before)))
+      } else {
+        // Treat as id cursor — rows with id < before (for forward pagination).
+        conditions.push(sql`${auditLog.id} < ${before}`)
+      }
+    }
 
-  // Drizzle returns snake_case from the schema; map to the legacy snake_case
-  // field names the frontend expects (matching the FastAPI response shape).
-  const events = rows.map((r) => ({
-    id: r.id,
-    user_id: r.userId,
-    type: r.type,
-    summary: r.summary,
-    payload: r.payload,
-    created_at: r.createdAt.toISOString(),
-  }))
+    const rows = await db
+      .select()
+      .from(auditLog)
+      .where(and(...conditions))
+      .orderBy(sql`${auditLog.createdAt} DESC, ${auditLog.id} DESC`)
+      .limit(limit)
 
-  return NextResponse.json(events)
-}
+    // Drizzle returns snake_case from the schema; map to the legacy snake_case
+    // field names the frontend expects (matching the FastAPI response shape).
+    return rows.map((r) => ({
+      id: r.id,
+      user_id: r.userId,
+      type: r.type,
+      summary: r.summary,
+      payload: r.payload,
+      created_at: r.createdAt.toISOString(),
+    }))
+  },
+  // The audit route uses its own raw auth + verifyGuestToken helper
+  // (`getUserId`, defined above). The wrapper handles `null` returns.
+  async (req) => {
+    const userId = await getUserId(req)
+    return userId ? { userId } : null
+  },
+)

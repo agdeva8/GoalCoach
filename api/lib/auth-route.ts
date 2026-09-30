@@ -24,6 +24,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+import { invalidateForRequest } from '@/lib/cache'
 import { auth } from '@/lib/auth'
 import { GUEST_TOKEN_COOKIE, verifyGuestToken } from '@/lib/guest-token'
 
@@ -43,6 +44,8 @@ export type AuthResult =
 export async function authenticateRoute(req?: {
   headers: Headers
   cookies: { get(name: string): { value: string } | undefined }
+  /** Optional so callers that pass a structural shim (tests, SCs) stay happy. */
+  method?: string
 }): Promise<AuthResult> {
   // 1) Bearer header on the request — the legacy FastAPI contract
   //    accepted both cookies AND `Authorization: Bearer <token>` for the
@@ -59,6 +62,7 @@ export async function authenticateRoute(req?: {
     if (authz?.startsWith('Bearer ')) {
       const token = authz.slice('Bearer '.length).trim()
       if (token && token !== 'bogus_xxx') {
+        invalidateForRequest(req?.method, token)
         return { userId: token, isGuest: false }
       }
     }
@@ -69,6 +73,7 @@ export async function authenticateRoute(req?: {
   //    Server Components.
   const session = await auth().catch(() => null)
   if (session?.user?.id) {
+    invalidateForRequest(req?.method, session.user.id)
     return { userId: session.user.id, isGuest: false }
   }
 
@@ -80,7 +85,10 @@ export async function authenticateRoute(req?: {
     : (await cookies()).get(GUEST_TOKEN_COOKIE)?.value
   if (cookieValue) {
     const guestUserId = verifyGuestToken(cookieValue)
-    if (guestUserId) return { userId: guestUserId, isGuest: true }
+    if (guestUserId) {
+      invalidateForRequest(req?.method, guestUserId)
+      return { userId: guestUserId, isGuest: true }
+    }
   }
 
   // No auth source — caller returns the 401 directly.

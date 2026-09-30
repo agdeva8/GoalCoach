@@ -43,6 +43,8 @@
 
 import 'server-only'
 
+import { invalidateForRequest } from '@/lib/cache'
+
 export type RequestUserSource = 'session' | 'guest' | 'bearer'
 
 export interface RequestUser {
@@ -64,6 +66,8 @@ export interface RequestUser {
 export interface RequestLike {
   headers: { get(name: string): string | null | undefined }
   cookies: { get(name: string): { value: string } | undefined }
+  /** Optional so callers passing a structural shim stay happy. */
+  method?: string
 }
 
 /**
@@ -100,6 +104,7 @@ export async function resolveRequestUser(
     const { auth } = await import('@/lib/auth')
     const session = await auth()
     if (session?.user?.id) {
+      invalidateForRequest(req.method, session.user.id)
       return {
         userId: session.user.id,
         isGuest: !!session.user.isGuest,
@@ -122,6 +127,7 @@ export async function resolveRequestUser(
       const { verifyGuestToken } = await import('@/lib/guest-token')
       const guestUserId = verifyGuestToken(guestCookie)
       if (guestUserId) {
+        invalidateForRequest(req.method, guestUserId)
         return { userId: guestUserId, isGuest: true, source: 'guest' }
       }
     } catch {
@@ -138,6 +144,7 @@ export async function resolveRequestUser(
     if (authz?.startsWith('Bearer ')) {
       const token = authz.slice('Bearer '.length).trim()
       if (token && token !== 'bogus_xxx') {
+        invalidateForRequest(req.method, token)
         return { userId: token, isGuest: false, source: 'bearer' }
       }
     }

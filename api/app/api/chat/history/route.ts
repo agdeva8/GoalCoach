@@ -32,6 +32,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { asc, eq, inArray } from 'drizzle-orm'
 
+import { cachedGet, type RouteAuthResolver } from '@/lib/cache'
 import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
@@ -50,95 +51,93 @@ const MAX_LIMIT = 200
 /* GET handler                                                                */
 /* -------------------------------------------------------------------------- */
 
-export async function GET(req: NextRequest) {
-  const caller = await resolveRequestUser(req)
-  if (!caller) {
-    return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
-  }
+export const GET = cachedGet(
+  (req) => {
+    // Different limits cache independently. The dev-mode fixture path
+    // is handled inside the loader (returns the fixture directly).
+    const limit = new URL(req.url).searchParams.get('limit') ?? 'default'
+    return `chat-history:${limit}`
+  },
+  async (userId, req) => {
+    const url = new URL(req.url)
+    const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10)
+    const limit =
+      Number.isFinite(rawLimit) && rawLimit > 0
+        ? Math.min(rawLimit, MAX_LIMIT)
+        : DEFAULT_LIMIT
 
-  const url = new URL(req.url)
-  const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10)
-  const limit =
-    Number.isFinite(rawLimit) && rawLimit > 0
-      ? Math.min(rawLimit, MAX_LIMIT)
-      : DEFAULT_LIMIT
+    // Test/dev mode — keep the existing fixture shape so chat.test.ts
+    // (`test_history_persisted`) and any client fixture stay green.
+    if (!process.env.DATABASE_URL) {
+      return testHistoryFixture().slice(-limit)
+    }
 
-  // Test/dev mode — keep the existing fixture shape so chat.test.ts
-  // (`test_history_persisted`) and any client fixture stay green.
-  // Sliced by `limit` so callers (and our smoke tests) can verify
-  // shape under narrower bounds.
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json(testHistoryFixture().slice(-limit))
-  }
+    const { db } = await import('@/lib/db')
+    const { messages, proposals } = await import('@/db/schema')
 
-  /* ------------------------------------------------------------ */
-  /* Production                                                   */
-  /* ------------------------------------------------------------ */
-  const { db } = await import('@/lib/db')
-  const { messages, proposals } = await import('@/db/schema')
+    // Pull the last-N oldest-first slice. Drizzle's `.limit()` + `.orderBy(asc)`
+    // returns the first N from the oldest-first ordering, so we cap by `limit`
+    // and then drop everything before the user's Nth-from-end message by
+    // ranking in JS — same semantics as `history[-N:]` in Python.
+    const rows = await db
+      .select({
+        id: messages.id,
+        userId: messages.userId,
+        role: messages.role,
+        content: messages.content,
+        provider: messages.provider,
+        createdAt: messages.createdAt,
+      })
+      .from(messages)
+      .where(eq(messages.userId, userId))
+      .orderBy(asc(messages.createdAt))
+      .limit(2000)
 
-  // Pull the last-N oldest-first slice. Drizzle's `.limit()` + `.orderBy(asc)`
-  // returns the first N from the oldest-first ordering, so we cap by `limit`
-  // and then drop everything before the user's Nth-from-end message by
-  // ranking in JS — same semantics as `history[-N:]` in Python.
-  const rows = await db
-    .select({
-      id: messages.id,
-      userId: messages.userId,
-      role: messages.role,
-      content: messages.content,
-      provider: messages.provider,
-      createdAt: messages.createdAt,
-    })
-    .from(messages)
-    .where(eq(messages.userId, caller.userId))
-    .orderBy(asc(messages.createdAt))
-    .limit(2000)
+    // Take the last `limit` rows in chronological order.
+    const tail = rows.slice(-limit)
 
-  // Take the last `limit` rows in chronological order.
-  const tail = rows.slice(-limit)
+    if (tail.length === 0) return []
 
-  if (tail.length === 0) return NextResponse.json([])
+    // Fetch all proposals for these message IDs in one query to keep the
+    // round-trip count down — N+1 is the most common regression here.
+    const messageIds = tail.map((r) => r.id)
+    const proposalRows = await db
+      .select({
+        id: proposals.id,
+        messageId: proposals.messageId,
+        action: proposals.action,
+        status: proposals.status,
+        args: proposals.args,
+      })
+      .from(proposals)
+      .where(inArray(proposals.messageId, messageIds))
 
-  // Fetch all proposals for these message IDs in one query to keep the
-  // round-trip count down — N+1 is the most common regression here.
-  const messageIds = tail.map((r) => r.id)
-  const proposalRows = await db
-    .select({
-      id: proposals.id,
-      messageId: proposals.messageId,
-      action: proposals.action,
-      status: proposals.status,
-      args: proposals.args,
-    })
-    .from(proposals)
-    .where(inArray(proposals.messageId, messageIds))
+    const proposalsByMessageId = new Map<string, typeof proposalRows>()
+    for (const p of proposalRows) {
+      const arr = proposalsByMessageId.get(p.messageId) ?? []
+      arr.push(p)
+      proposalsByMessageId.set(p.messageId, arr)
+    }
 
-  const proposalsByMessageId = new Map<string, typeof proposalRows>()
-  for (const p of proposalRows) {
-    const arr = proposalsByMessageId.get(p.messageId) ?? []
-    arr.push(p)
-    proposalsByMessageId.set(p.messageId, arr)
-  }
-
-  // Re-shape to the legacy snake_case contract.
-  const shaped = tail.map((m) => ({
-    id: m.id,
-    user_id: m.userId,
-    role: m.role,
-    content: m.content,
-    provider: m.provider,
-    proposals: (proposalsByMessageId.get(m.id) ?? []).map((p) => ({
-      id: p.id,
-      action: p.action,
-      status: p.status,
-      ...((p.args as Record<string, unknown>) ?? {}),
-    })),
-    created_at: m.createdAt.toISOString(),
-  }))
-
-  return NextResponse.json(shaped)
-}
+    // Re-shape to the legacy snake_case contract.
+    return tail.map((m) => ({
+      id: m.id,
+      user_id: m.userId,
+      role: m.role,
+      content: m.content,
+      provider: m.provider,
+      proposals: (proposalsByMessageId.get(m.id) ?? []).map((p) => ({
+        id: p.id,
+        action: p.action,
+        status: p.status,
+        ...((p.args as Record<string, unknown>) ?? {}),
+      })),
+      created_at: m.createdAt.toISOString(),
+    }))
+  },
+  // Adapter: resolveRequestUser returns RequestUser|null.
+  async (req) => resolveRequestUser(req),
+)
 
 /* -------------------------------------------------------------------------- */
 /* DELETE handler — clear all chat history for the current user               */

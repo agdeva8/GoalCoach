@@ -27,52 +27,17 @@
  * `lib/auth-route.ts` handles both.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-import { authenticateRoute } from '@/lib/auth-route'
-import { db } from '@/lib/db'
-import { auditLog } from '@/db/schema'
-import { loadState } from '@/lib/llm/state-builder'
-import { eq, desc } from 'drizzle-orm'
+import { cachedGet } from '@/lib/cache'
+import { loadDashboardState } from '@/lib/dashboard-state'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
-  const auth = await authenticateRoute(req)
-  if (auth.error) return auth.error
+// Per-user dashboard read model. Freshness is enforced by the auth
+// resolver's invalidateForRequest — every mutating request drops this
+// entry before its handler runs, so a cache hit can never serve a
+// pre-write snapshot.
+export const GET = cachedGet('dashboard', (userId) => loadDashboardState(userId))
 
-  // loadState hits 5 tables (goals, commitments, milestones, blockers,
-  // sources) and computes the over-commitment chip server-side.
-  const state = await loadState(auth.userId)
-
-  // Audit summary — small enough to inline so the dashboard can render
-  // a "recent activity" section without a second round-trip.
-  const recentRows = await db
-    .select({
-      id: auditLog.id,
-      type: auditLog.type,
-      summary: auditLog.summary,
-      createdAt: auditLog.createdAt,
-    })
-    .from(auditLog)
-    .where(eq(auditLog.userId, auth.userId))
-    .orderBy(desc(auditLog.createdAt))
-    .limit(10)
-
-  return NextResponse.json({
-    ...state,
-    audit_summary: {
-      recent: recentRows.map((r) => ({
-        id: r.id,
-        type: r.type,
-        summary: r.summary,
-        created_at:
-          r.createdAt instanceof Date
-            ? r.createdAt.toISOString()
-            : String(r.createdAt),
-      })),
-    },
-    generated_at: new Date().toISOString(),
-  })
-}

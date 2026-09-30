@@ -30,6 +30,7 @@ import {
   badRequestResponse,
 } from '@/lib/auth-route'
 import { AUDIT_TYPES, newId, todayIso, writeAudit } from '@/lib/audit'
+import { cachedGet } from '@/lib/cache'
 import { db } from '@/lib/db'
 import { blockers } from '@/db/schema'
 
@@ -114,21 +115,16 @@ export async function POST(req: NextRequest) {
 /* GET                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export async function GET(req: NextRequest) {
-  const auth = await authenticateRoute(req)
-  if (auth.error) return auth.error
-
+export const GET = cachedGet('blockers', async (userId) => {
   const rows = await db
     .select()
     .from(blockers)
-    .where(eq(blockers.userId, auth.userId!))
+    .where(eq(blockers.userId, userId))
     .orderBy(asc(blockers.startDate))
     .limit(500)
 
-  return NextResponse.json({
-    blockers: rows.map(serialize),
-  })
-}
+  return { blockers: rows.map(serialize) }
+})
 
 function serialize(row: any) {
   return {

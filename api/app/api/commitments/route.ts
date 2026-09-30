@@ -32,6 +32,7 @@ import {
   notFoundResponse,
 } from '@/lib/auth-route'
 import { AUDIT_TYPES, newId, writeAudit } from '@/lib/audit'
+import { cachedGet } from '@/lib/cache'
 import { db } from '@/lib/db'
 import { commitments, goals } from '@/db/schema'
 
@@ -41,19 +42,16 @@ export const dynamic = 'force-dynamic'
 /* GET                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export async function GET(req: NextRequest) {
-  const auth = await authenticateRoute(req)
-  if (auth.error) return auth.error
-
+export const GET = cachedGet('commitments', async (userId) => {
   const rows = await db
     .select()
     .from(commitments)
-    .where(eq(commitments.userId, auth.userId!))
+    .where(eq(commitments.userId, userId))
     .orderBy(asc(commitments.due))
     .limit(500)
 
-  return NextResponse.json({ commitments: rows.map(serialize) })
-}
+  return { commitments: rows.map(serialize) }
+})
 
 const CreateCommitmentBody = z.object({
   text: z.string().trim().min(1, 'text is required'),

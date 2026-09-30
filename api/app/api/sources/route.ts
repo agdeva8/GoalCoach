@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
+import { cachedGet, type RouteAuthResolver } from '@/lib/cache'
 import { verifyGuestToken } from '@/lib/guest-token'
 import { db } from '@/lib/db'
 import { sources } from '@/db/schema'
@@ -38,55 +39,63 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
   return null
 }
 
-export async function GET(req: NextRequest) {
-  const userId = await resolveUserId(req)
-  if (!userId) {
-    return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
-  }
+export const GET = cachedGet(
+  (req) => {
+    // Namespace encodes the filter so `?goal_id=X` and the unfiltered
+    // list cache independently.
+    const goalId = new URL(req.url).searchParams.get('goal_id') ?? '_all'
+    const limit = new URL(req.url).searchParams.get('limit') ?? '500'
+    return `sources:${goalId}:${limit}`
+  },
+  async (userId, req) => {
+    const { searchParams } = new URL(req.url)
+    const goalId = searchParams.get('goal_id') ?? undefined
+    const limit = Math.min(Number(searchParams.get('limit') ?? 500), 500)
 
-  const { searchParams } = new URL(req.url)
-  const goalId = searchParams.get('goal_id') ?? undefined
-  const limit = Math.min(Number(searchParams.get('limit') ?? 500), 500)
+    const conditions = [eq(sources.userId, userId), eq(sources.isDeleted, false)]
+    if (goalId) {
+      conditions.push(eq(sources.goalId, goalId))
+    }
 
-  const conditions = [eq(sources.userId, userId), eq(sources.isDeleted, false)]
-  if (goalId) {
-    conditions.push(eq(sources.goalId, goalId))
-  }
+    const rows = await db
+      .select({
+        id: sources.id,
+        user_id: sources.userId,
+        goal_id: sources.goalId,
+        goal_title: sources.goalTitle,
+        kind: sources.kind,
+        storage_path: sources.storagePath,
+        original_filename: sources.originalFilename,
+        content_type: sources.contentType,
+        size: sources.size,
+        url: sources.url,
+        is_deleted: sources.isDeleted,
+        created_at: sources.createdAt,
+      })
+      .from(sources)
+      .where(and(...conditions))
+      .orderBy(desc(sources.createdAt))
+      .limit(limit)
 
-  const rows = await db
-    .select({
-      id: sources.id,
-      user_id: sources.userId,
-      goal_id: sources.goalId,
-      goal_title: sources.goalTitle,
-      kind: sources.kind,
-      storage_path: sources.storagePath,
-      original_filename: sources.originalFilename,
-      content_type: sources.contentType,
-      size: sources.size,
-      url: sources.url,
-      is_deleted: sources.isDeleted,
-      created_at: sources.createdAt,
-    })
-    .from(sources)
-    .where(and(...conditions))
-    .orderBy(desc(sources.createdAt))
-    .limit(limit)
-
-  const data = rows.map((r) => ({
-    id: r.id,
-    user_id: r.user_id,
-    goal_id: r.goal_id ?? '',
-    goal_title: r.goal_title,
-    kind: r.kind,
-    storage_path: r.storage_path,
-    original_filename: r.original_filename,
-    content_type: r.content_type,
-    size: r.size,
-    url: r.url,
-    is_deleted: r.is_deleted,
-    created_at: r.created_at.toISOString(),
-  }))
-
-  return NextResponse.json(data)
-}
+    return rows.map((r) => ({
+      id: r.id,
+      user_id: r.user_id,
+      goal_id: r.goal_id ?? '',
+      goal_title: r.goal_title,
+      kind: r.kind,
+      storage_path: r.storage_path,
+      original_filename: r.original_filename,
+      content_type: r.content_type,
+      size: r.size,
+      url: r.url,
+      is_deleted: r.is_deleted,
+      created_at: r.created_at.toISOString(),
+    }))
+  },
+  // Adapter: this route's auth returns string|null, not the wrapper's
+  // { userId } | { error } shape. The wrapper handles `null` itself.
+  async (req) => {
+    const userId = await resolveUserId(req)
+    return userId ? { userId } : null
+  },
+)

@@ -27,6 +27,7 @@
 
 import { and, asc, desc, eq } from 'drizzle-orm'
 
+import { cacheKey, readThrough } from '@/lib/cache'
 import { db } from '@/lib/db'
 import {
   blockers,
@@ -119,12 +120,40 @@ export interface ChatHistoryMessage {
 /* loadState — Postgres/Drizzle port of server.py:209-255 (load_state).     */
 /* -------------------------------------------------------------------------- */
 
+/** Cache namespace for the `loadState` read model (see lib/cache.ts). */
+export const COACH_STATE_NS = 'coach_state'
+
+/**
+ * Public entry point — READ-THROUGH CACHED.
+ *
+ * Every consumer (dashboard `GET /api/state`, the chat context builder,
+ * `tools/confirm`'s response) shares one entry per user. It is refreshed
+ * write-through by `refreshDashboardState()` after any state-affecting
+ * mutation, and expires after `DEFAULT_TTL_MS` as the cross-instance safety
+ * net. Call `loadStateCore()` when you deliberately need an uncached read.
+ */
 export async function loadState(userId: string): Promise<CoachState> {
+  return readThrough(cacheKey(userId, COACH_STATE_NS), () =>
+    loadStateCore(userId),
+  )
+}
+
+/**
+ * Uncached body of `loadState`.
+ *
+ * The five table reads are independent and now run CONCURRENTLY: against
+ * the remote Supabase pooler each one is a full round trip, and running
+ * them back-to-back made this the single most expensive call in the app
+ * (measured 1.4–2.6s for a dashboard load before caching). The variables
+ * are declared in the original sequential order — mocks that discriminate
+ * tables by `.from()` arrival order depend on it.
+ */
+export async function loadStateCore(userId: string): Promise<CoachState> {
   // goals — sort by created_at ASC, limit 500. Same shape as Mongo's
   // `.find({...}, {"_id": 0}).sort("created_at", 1).to_list(500)` —
   // Drizzle doesn't project out `_id` because Postgres tables don't
   // have one, so we just select the columns we need.
-  const goalsRows = await db
+  const qGoals = db
     .select({
       id: goals.id,
       title: goals.title,
@@ -138,7 +167,7 @@ export async function loadState(userId: string): Promise<CoachState> {
     .orderBy(asc(goals.createdAt))
     .limit(500)
 
-  const commitmentsRows = await db
+  const qCommitments = db
     .select({
       id: commitments.id,
       text: commitments.text,
@@ -151,7 +180,7 @@ export async function loadState(userId: string): Promise<CoachState> {
     .orderBy(asc(commitments.createdAt))
     .limit(1000)
 
-  const milestonesRows = await db
+  const qMilestones = db
     .select({
       id: milestones.id,
       title: milestones.title,
@@ -164,7 +193,7 @@ export async function loadState(userId: string): Promise<CoachState> {
     .orderBy(asc(milestones.targetDate))
     .limit(1000)
 
-  const blockersRows = await db
+  const qBlockers = db
     .select({
       id: blockers.id,
       title: blockers.title,
@@ -182,7 +211,7 @@ export async function loadState(userId: string): Promise<CoachState> {
   // render in `buildContext` reads `goal.sources`, although the current
   // build_context body in server.py doesn't actually render sources —
   // we keep it for future chat-side source citation without a migration).
-  const sourcesRows = await db
+  const qSources = db
     .select({
       id: sources.id,
       goalId: sources.goalId,
@@ -200,6 +229,24 @@ export async function loadState(userId: string): Promise<CoachState> {
     )
     .orderBy(desc(sources.createdAt))
     .limit(500)
+
+  // Join all five: Promise.all resolves them in one wall-clock round trip
+  // instead of five. The query objects are built in the original order
+  // above, so table-arrival-order mocks still see
+  // goals → commitments → milestones → blockers → sources.
+  const [
+    goalsRows,
+    commitmentsRows,
+    milestonesRows,
+    blockersRows,
+    sourcesRows,
+  ] = await Promise.all([
+    qGoals,
+    qCommitments,
+    qMilestones,
+    qBlockers,
+    qSources,
+  ])
 
   const byGoal = new Map<string, StateSource[]>()
   const sourcesList: StateSource[] = []

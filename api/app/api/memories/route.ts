@@ -21,6 +21,7 @@ import { sql, eq, desc, and } from 'drizzle-orm'
 
 import { type NextRequest, NextResponse } from 'next/server'
 
+import { cachedGet } from '@/lib/cache'
 import { db } from '@/lib/db'
 import { memories, goals } from '@/db/schema'
 import { resolveRequestUser } from '@/lib/request-user'
@@ -49,39 +50,38 @@ function extractInstagramShortcode(url: string): string | null {
   }
 }
 
-export async function GET(req: NextRequest) {
-  const caller = await resolveRequestUser(req)
-  if (!caller) {
-    return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
-  }
-  const userId = caller.userId
-  const rows = await db
-    .select()
-    .from(memories)
-    .where(eq(memories.userId, userId))
-    .orderBy(desc(memories.createdAt))
-    .limit(200)
-  return NextResponse.json({
-    memories: rows.map((m) => ({
-      id: m.id,
-      kind: m.kind,
-      caption: m.caption,
-      goal_id: m.goalId,
-      goal_title: m.goalTitle,
-      source_id: m.sourceId,
-      external_url: m.externalUrl,
-      instagram_shortcode: m.instagramShortcode,
-      width: m.width,
-      height: m.height,
-      mime_type: m.mimeType,
-      size_bytes: m.sizeBytes,
-      created_at:
-        m.createdAt instanceof Date
-          ? m.createdAt.toISOString()
-          : String(m.createdAt),
-    })),
-  })
-}
+export const GET = cachedGet(
+  'memories',
+  async (userId) => {
+    const rows = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.userId, userId))
+      .orderBy(desc(memories.createdAt))
+      .limit(200)
+    return {
+      memories: rows.map((m) => ({
+        id: m.id,
+        kind: m.kind,
+        caption: m.caption,
+        goal_id: m.goalId,
+        goal_title: m.goalTitle,
+        source_id: m.sourceId,
+        external_url: m.externalUrl,
+        instagram_shortcode: m.instagramShortcode,
+        width: m.width,
+        height: m.height,
+        mime_type: m.mimeType,
+        size_bytes: m.sizeBytes,
+        created_at:
+          m.createdAt instanceof Date
+            ? m.createdAt.toISOString()
+            : String(m.createdAt),
+      })),
+    }
+  },
+  resolveRequestUser,
+)
 
 export async function POST(req: NextRequest) {
   const caller = await resolveRequestUser(req)

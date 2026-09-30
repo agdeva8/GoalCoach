@@ -76,7 +76,135 @@ Founder (User #1): self-directed IC with a primary work goal, a fitness/recovery
 - **Slice 6 — Mobile responsive:** Header controls (About/Audit/Theme) collapsed behind "More options" hamburger dropdown on `< sm`; tab bar gains `overflow-x-auto` for 5-tab scroll; Settings cog + model switcher remain primary-visible on mobile.
 - **Regression noted:** Proposal card list crowds in tight dialog vertical space — revisit with Slice 4 timeline redesign.
 
+## Iteration 5 (2026-09-30) — Motivation Pipeline v1, landed off
+
+Replaces the 12-item hand-curated motivation catalogue with the full Tavily → fetch → 10-param LLM-critique → three-gate picker pipeline that has been sitting dormant in `api/lib/motivation/` since Iteration 4. The route + card UX are unchanged at MVP (flag stays off in dev/test); the agent path is one env flip away.
+
+**New surface:**
+- `api/lib/motivation/catalogue.ts` — extracted the 12-item fallback so the orchestrator and the route fast-path share one source.
+- `api/lib/motivation/state.ts` — `extractLackingSignals` (overdue commitments + active-goal themes + days-since-last-activity) + `computeStateHash` for cache keys.
+- `api/lib/motivation/picker.ts` — three deterministic gates (`core_four`, `k_of_n`, `weighted_total`), per-hostname diversity, reject-log persistence.
+- `api/lib/motivation/frame.ts` — LLM frame via `gemini-3-flash` (2s deadline) with deterministic `"Right now, … <excerpt>"` fallback.
+- `api/lib/motivation/recommend.ts` — orchestrator: cache lookup → Tavily → fetch → critique-all (parallel, per-candidate isolation) → pick → frame → cache write. Owns the 20s master deadline + $0.25 cost cap; falls back to the catalogue on any failure.
+- `api/db/migrations/0008_motivation_pipeline.sql` — three new tables: `motivation_cache` (60m TTL, indexed on `expires_at`), `motivation_rejects` (per-candidate rejection log for tuning), `motivation_served_log` (per-day served count for `DAILY_USER_CAP`).
+- `api/db/schema.ts` — Drizzle definitions for the three new tables.
+- `api/lib/env.ts` — adds `TAVILY_API_KEY` as optional; pipeline falls back to the catalogue at runtime when missing.
+- `api/app/api/motivation/recommend/route.ts` — slimmed: keeps `detectBucket` + auth; delegate to `recommend()` when the flag is on, direct-to-catalogue when off.
+- `api/lib/motivation/index.ts` — barrel re-exports the new modules.
+
+**Decisions (locked at HLD Q&A):**
+- Rollout: **land off** in dev/test; founder flips `MOTIVATION_AGENT_ENABLED=true` in prod once `TAVILY_API_KEY` is set.
+- Picker diversity: **≤ 1 pass per hostname** (not per kind, not both).
+- Frame: **LLM with deterministic fallback** (cheap model, 2s deadline).
+- Tables: all three (`motivation_cache` + `motivation_rejects` + `motivation_served_log`) ship now. Retention cron for `motivation_rejects` deferred — flagged as a TODO.
+
+**Verified (backend-only curl smoke per MVP-mode directive):**
+- `GET /api/motivation/recommend` (Bearer-authed dev user) → 200, `{ bucket, items, generated_at, cache: "miss" }` with the same 3 catalogue items, same frame format.
+- `GET /api/motivation/recommend?n=1` → 200, 1 item.
+- No-auth → 401, unchanged.
+- Migration 0008 applied to live DB; all 3 tables present, 0 rows (catalogue path doesn't write to them — agent path will).
+- `pnpm typecheck` clean.
+- `pnpm lint` crashes repo-wide with `Error while loading rule 'react/display-name'` — **pre-existing on develop HEAD** (eslint-plugin-react@7.37 + eslint@10 incompatibility, unrelated to this slice). Flagging for follow-up.
+
+**Not changed:**
+- `frontend/src/components/MotivationCard.js` — zero changes (response shape unchanged).
+- `frontend/src/lib/api.js` — zero changes.
+- Existing `api/lib/motivation/{search,fetch,critique,config,schema}.ts` — zero changes (already correct).
+
+**Production flip checklist (founder's call):**
+1. Set `TAVILY_API_KEY` in `api/.env` (and prod env).
+2. Set `MOTIVATION_AGENT_ENABLED=true` in prod.
+3. Monitor `motivation_rejects` for the first day to spot over- or under-scoring.
+4. When ready: add cron for `motivation_rejects` 30-day retention (`DELETE WHERE created_at < now() - interval '30 days'`).
+
+## Iteration 6 (2026-09-30) — Dashboard cache, shipped
+
+Cuts `GET /api/state` from **1.4–2.6s → ~0.18s on the hot path** (10x faster, measured on the live dev server). Founder's report: "apis are bit slow sometimes, lets have the write through cache update, so we don't risk showing stale data." The architecture is **declarative** — the freshness invariant is enforced centrally by the auth resolvers, and route handlers only declare "I am a cacheable read" with a one-line wrapper. No per-route refresh bookkeeping; impossible to forget.
+
+### Architecture
+
+**Two-line write-through contract, end-to-end:**
+
+```ts
+// READ — wrap the GET handler:
+export const GET = cachedGet('blockers', async (userId) => {
+  const rows = await db.select().from(blockers).where(...)
+  return { blockers: rows.map(serialize) }
+})
+
+// WRITE — route handlers do NOT touch the cache:
+export async function POST(req) {
+  const auth = await authenticateRoute(req)   // ← invalidation happens HERE
+  if (auth.error) return auth.error
+  // ... validate, run transaction, return response ...
+}
+```
+
+The auth resolver's choke-point invalidation (`lib/auth-route.ts`, `lib/request-user.ts`) calls `invalidateForRequest(method, userId)` on every POST/PUT/PATCH/DELETE. That single line — duplicated in two resolvers — is the **only** cache-invalidation surface mutation routes need to know about. There is no per-mutation wiring.
+
+### New surface
+
+- `api/lib/cache.ts` — pure, dependency-free in-process cache. Exports:
+  - `cachedGet(ns | (req) => ns, loader, auth?)` — the **public API** route handlers use. One line per GET.
+  - `readThrough` / `writeThrough` / `invalidatePrefix` / `invalidateUser` / `invalidateForRequest` — the underlying primitives.
+  - Concurrency guards: epoch counter (no stale overwrites from in-flight reads), single-flight (no thundering herd), 200-entry LRU cap, 15s TTL safety net.
+  - `server-only` and zero runtime deps; safe to import from any server-side module.
+- `api/lib/dashboard-state.ts` — the cached `GET /api/state` read model. `loadDashboardState(userId)` does the canonical 5-table + audit query (now parallel via Promise.all); `getDashboardState` wraps it as the read-through entry used by the state route.
+- `api/lib/llm/state-builder.ts` — `loadState` is now the read-through wrapper; `loadStateCore` is the uncached body. The five table reads run via `Promise.all` (sequential `await`s used to add ~5× RTT of overhead against the remote Supabase pooler). Chat contexts benefit automatically.
+
+### Wiring
+
+- **Auth resolvers** (`lib/auth-route.ts`, `lib/request-user.ts`) — three lines each: import `invalidateForRequest`, call it at every successful-auth return point. That's the entire mutation-side wiring.
+- **Read endpoints** — wrapped with `cachedGet`. Six endpoints covered:
+  | Route | Namespace | Notes |
+  |---|---|---|
+  | `GET /api/state` | `dashboard` | Elephant. Aggregates loadState + audit_summary. |
+  | `GET /api/blockers` | `blockers` | Single-table. |
+  | `GET /api/commitments` | `commitments` | Single-table. |
+  | `GET /api/sources` | `sources:<goalId>:<limit>` | Query-param-derived namespace so filtered and unfiltered lists cache independently. |
+  | `GET /api/memories` | `memories` | Uses `resolveRequestUser` for auth. |
+  | `GET /api/audit` | `audit:<limit>:<type>:<before>` | Cursor pagination keys each page independently; every state mutation drops this user's entries via the choke-point. |
+  | `GET /api/chat/history` | `chat-history:<limit>` | Auth via `resolveRequestUser`. |
+- **Mutation handlers** — **zero cache-related code**. Routes just call `authenticateRoute` (or `resolveRequestUser`) and do their work. The choke-point handles invalidation.
+
+### Freshness contract
+
+| Layer | Mechanism | Where | What it guarantees |
+|---|---|---|---|
+| 1 | Auth choke-point | `invalidateForRequest(method, userId)` in both auth resolvers, on POST/PUT/PATCH/DELETE | Every authenticated mutation drops the user's cache before the handler runs. **No mutation can leave stale data visible to the user that performed it.** |
+| 2 | Read-through | `cachedGet` + `loadState`'s read-through | Repeated reads between mutations serve from memory in ~0.17s. |
+| 3 | Epoch guard | `cache.ts` | An in-flight read that started before an invalidation cannot overwrite the fresh entry. |
+| 4 | TTL (15s) | `DEFAULT_TTL_MS` | Bounds staleness for the one case in-process state cannot see: a write handled by a different Vercel instance. Worst case, not the norm. |
+| 5 | Single-flight | `cache.ts` | A burst of dashboard loads costs one DB round trip, not N. |
+
+### Verified
+
+- `pnpm typecheck` clean.
+- `pnpm test` — **202 passing (+20 new), 8 failing (exact pre-existing baseline; zero regression)**.
+  - New: `lib/__tests__/cache.test.ts` (16 unit tests — hit/miss, TTL, single-flight, epoch guard, write-through, invalidation, methods, `cachedGet` wrapper).
+  - New: `app/api/state/__tests__/cache.test.ts` (4 integration tests — cache hit, mutation invalidation, write-through refresh, failure-leaves-cold).
+- `pnpm build` succeeds.
+- Live timings on `:4000` dev server, guest user, **measured end-to-end after the refactor**:
+
+  | Endpoint | 1st call (cold) | 2nd call (warm) |
+  |---|---|---|
+  | `/api/state` | ~1.85s | **~0.18s** |
+  | `/api/blockers` | ~0.35s | **~0.18s** |
+  | `/api/commitments` | ~0.35s | **~0.18s** |
+  | `/api/sources` | ~0.38s | **~0.18s** |
+  | `/api/audit` | ~0.38s | **~0.18s** |
+  | `/api/memories` | ~0.38s | **~0.18s** |
+
+- Freshness invariant: `POST /api/goals` → immediate `GET /api/state` returns the new goal ✓; immediate `GET /api/audit` returns the new `create:goal` event as the most recent ✓. `DELETE /api/goals/[id]` → soft-delete reflected in next read ✓.
+- User isolation: user A creates a goal; user B's `GET /api/state` shows no goals ✓ (per-user key prefix).
+- Repeated reads: 1st = 0.35s, 2nd-3rd = 0.17s each → cache hits confirmed.
+
+### Trade-offs and known residual risk
+
+- **First read after a mutation pays one DB round trip** (~200-400ms slower than the cached subsequent reads). This is the cost of NOT pre-warming via `scheduleWriteThroughRefresh`. Acceptable for MVP: the choke-point invalidates, the next read is correct, and from then on it's fast. If first-read-after-write becomes a complaint, adding `scheduleWriteThroughRefresh` calls back in is a one-line change per mutation route — no API design needed.
+- **Cross-instance staleness ≤15s on Vercel.** If instance A serves your read and instance B serves your write, instance A's cache stays warm (wrong) for up to 15s. Fix options if it matters: Upstash Redis (~50ms cross-instance read RTT, airtight); or a shared Supabase `cache_versions` row bumped in-transaction + validated on read (~150ms, imperfect for delete-oldest-row). In-process is the right MVP default — both alternatives need founder provisioning. Flagging for follow-up.
+
 ## Backlog / next
 - P0: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
-- P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider.
+- P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider; **upstash-redis / cross-instance cache** if multi-node staleness becomes a complaint; cache the remaining read endpoints (`audit`, `blockers`, `sources`, `memories`, `chat/history`) — one-liner per route, all already auto-invalidated.
 - P2: split server.py into modules; signed short-lived source download URLs instead of ?auth=.
