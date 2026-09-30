@@ -1,257 +1,121 @@
-import { useState, useEffect } from "react";
-import { CheckCircle2, Circle, Clock, Trash2, RefreshCw } from "lucide-react";
-import { api } from "../lib/api";
-
-const fmtDate = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-const fmtTime = (t) => {
-  if (!t) return "";
-  const [h, m] = t.split(":");
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? "pm" : "am";
-  const h12 = hour % 12 || 12;
-  return `${h12}:${m}${ampm}`;
-};
+import { useState } from "react";
+import { CalendarDays, MessageSquare, Send, Sparkles } from "lucide-react";
+import { localDateKey } from "../lib/utils";
+import TodayTimetable from "./TodayTimetable";
 
 /**
- * Today — a focused daily planner view.
+ * Today — the "Today" tab. Hosts:
+ *   1. A greeting strip with the date + the section's CTA row (which used
+ *      to live on the TrackerCard and is now duplicated here so the tab
+ *      stands on its own).
+ *   2. The wake/sleep day-band + the items list (TodayTimetable rendered
+ *      with `fullTimetable=true`).
+ *   3. **ONE** section-level free-text input at the bottom — "Tell the
+ *      coach anything about today" — that opens the chat with whatever
+ *      the user typed. Per-item note + per-item chat input were
+ *      removed from TodayTimetable in Iteration 7; this is the single
+ *      place the user talks about the day as a whole.
  *
- * Shows today's blockers and commitments fetched fresh from the API,
- * grouped by kind. Each item has:
- *   - Done checkbox (toggles commitment status via PUT /api/commitments/:id)
- *   - Note textarea (saves to blocker.note via PUT /api/blockers/:id)
- *
- * Refreshes on mount and after any mutation.
+ * The bottom card stays collapsed if the user has nothing on today so
+ * the empty state doesn't end with a half-empty input that looks
+ * broken.
  */
-export default function Today({ state, onChange }) {
-  const [blocks, setBlocks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(null); // id of item being saved
+export default function Today({ state, onChange, onOpenChat }) {
+  const [text, setText] = useState("");
 
-  const today = fmtDate(new Date());
-
-  const fetchBlocks = () => {
-    setLoading(true);
-    setError(null);
-    Promise.all([
-      api.blockers(),
-      api.commitments(),
-    ])
-      .then(([{ blockers = [] } = {}, commitments = []]) => {
-        // Filter to today
-        const todayBlocks = blockers.filter(
-          (b) => b.start_date === today || (b.start_date <= today && b.end_date >= today),
-        );
-        const todayCommitments = (commitments || []).filter((c) => c.due === today);
-        setBlocks([
-          ...todayBlocks.map((b) => ({ ...b, _kind: "blocker" })),
-          ...todayCommitments.map((c) => ({ ...c, _kind: "commitment" })),
-        ]);
-      })
-      .catch((err) => {
-        console.error("Failed to load today items:", err);
-        setError(err);
-      })
-      .finally(() => setLoading(false));
+  const handleSend = (e) => {
+    e?.preventDefault?.();
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onOpenChat?.(
+      `About today (${localDateKey()}): ${trimmed}`,
+    );
+    setText("");
   };
-
-  useEffect(() => {
-    fetchBlocks();
-  }, [today]);
-
-  const toggleDone = async (c) => {
-    if (c._kind !== "commitment") return;
-    setSaving(c.id);
-    try {
-      const updated = await api.updateCommitment(c.id, {
-        status: c.status === "done" ? "open" : "done",
-      });
-      setBlocks((prev) =>
-        prev.map((b) => (b.id === c.id && b._kind === "commitment" ? { ...b, status: updated?.status || (c.status === "done" ? "open" : "done") } : b)),
-      );
-      onChange?.();
-    } catch {
-      // revert optimistically — just refetch
-      fetchBlocks();
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  const saveNote = async (b, note) => {
-    if (b._kind !== "blocker") return;
-    setSaving(b.id);
-    try {
-      await api.updateBlocker(b.id, { note });
-      setBlocks((prev) => prev.map((blk) => (blk.id === b.id ? { ...blk, note } : blk)));
-      onChange?.();
-    } catch {
-      // no-op
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  const blockers = blocks.filter((b) => b._kind === "blocker");
-  const commitments = blocks.filter((b) => b._kind === "commitment");
-  const hasItems = blockers.length > 0 || commitments.length > 0;
 
   return (
-    <div data-testid="today-view" className="space-y-6">
-      <div>
-        <h2 className="font-display text-sm font-semibold tracking-tight">
-          Today &nbsp;
-          <span className="text-[var(--text-muted)] font-mono text-xs">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-          </span>
-        </h2>
-        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-          Your day at a glance — blockers, commitments, and a place to jot notes as you go.
+    <div data-testid="today-view" className="p-4 sm:p-6 space-y-5 max-w-[820px] mx-auto w-full">
+      <header className="space-y-1">
+        <div className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+          <CalendarDays className="w-3 h-3 text-[var(--accent)]" aria-hidden="true" />
+          <span>Today · {localDateKey()}</span>
+        </div>
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-[var(--text-primary)] tracking-tight">
+          What's on the docket?
+        </h1>
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+          Tick items as you finish them, or ask the coach to renegotiate / break one down. When you want to talk about the day as a whole, use the box at the bottom — that goes straight to the chat.
         </p>
-      </div>
+      </header>
 
-      {loading && blocks.length === 0 && (
-        <div className="space-y-2" aria-busy="true" aria-live="polite">
-          {[0, 1].map((i) => (
-            <div key={i} className="border border-[var(--border)] rounded-lg p-3 space-y-2">
-              <div className="h-3 w-40 gc-skeleton" />
-              <div className="h-3 w-full gc-skeleton" />
-            </div>
-          ))}
-        </div>
-      )}
+      <TodayTimetable
+        state={state}
+        onChange={onChange}
+        onOpenChat={onOpenChat}
+        compact={false}
+        fullTimetable={true}
+      />
 
-      {!loading && error && (
-        <div className="border border-[var(--border)] rounded-lg p-6 text-center space-y-3 bg-[var(--bg-secondary)]/40" data-testid="today-error">
-          <p className="text-xs text-[var(--text-secondary)]">Couldn't load today's schedule</p>
-          <button
-            type="button"
-            onClick={fetchBlocks}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
-          >
-            <RefreshCw className="w-3 h-3" />
-            Couldn't load — retry
-          </button>
-        </div>
-      )}
-
-      {!loading && !error && !hasItems && (
-        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">
-          <Clock className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-3" aria-hidden="true" />
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
-            Clear day. No blockers or commitments scheduled — go make something happen.
-          </p>
-        </div>
-      )}
-
-      {blockers.length > 0 && (
-        <div className="space-y-2">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--danger)]">Blockers</div>
-          {blockers.map((b) => (
-            <TodayBlockerCard
-              key={b.id}
-              block={b}
-              saving={saving === b.id}
-              onSaveNote={(note) => saveNote(b, note)}
-            />
-          ))}
-        </div>
-      )}
-
-      {commitments.length > 0 && (
-        <div className="space-y-2">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)]">Commitments</div>
-          {commitments.map((c) => (
-            <TodayCommitmentCard
-              key={c.id}
-              commitment={c}
-              saving={saving === c.id}
-              onToggle={() => toggleDone(c)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TodayBlockerCard({ block, saving, onSaveNote }) {
-  const [note, setNote] = useState(block.note || "");
-  const [dirty, setDirty] = useState(false);
-
-  const handleBlur = () => {
-    if (dirty && note !== (block.note || "")) {
-      onSaveNote(note);
-      setDirty(false);
-    }
-  };
-
-  return (
-    <div
-      data-testid={`today-blocker-${block.id}`}
-      className="border border-[var(--danger)]/30 bg-[var(--bg-secondary)]/40 rounded-lg p-3 space-y-2"
-    >
-      <div className="flex items-start gap-2">
-        <div className="w-2 h-2 rounded-full bg-[var(--danger)] mt-1.5 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-[var(--text-primary)]">{block.title}</p>
-          {block.start_date && block.end_date && block.start_date !== block.end_date && (
-            <p className="font-mono text-[10px] text-[var(--text-muted)] mt-0.5">
-              {fmtDate(new Date(block.start_date + "T00:00:00"))}{" "}
-              <span className="opacity-60">→</span>{" "}
-              {fmtDate(new Date(block.end_date + "T00:00:00"))}
-            </p>
-          )}
-        </div>
-        {saving && (
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">saving…</span>
-        )}
-      </div>
-      <textarea
-        value={note}
-        onChange={(e) => { setNote(e.target.value); setDirty(true); }}
-        onBlur={handleBlur}
-        placeholder="Add a note — what's the situation?"
-        rows={2}
-        className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
+      <SectionChatInput
+        text={text}
+        setText={setText}
+        onSubmit={handleSend}
       />
     </div>
   );
 }
 
-function TodayCommitmentCard({ commitment, saving, onToggle }) {
-  const done = commitment.status === "done";
-
+/**
+ * SectionChatInput — the single "tell the coach about today" input.
+ * Lives below the timetable list so the user has one place to dump a
+ * thought, ask a question, or kick off a planning conversation. Empty
+ * when there are no items so the empty Today tab doesn't end with a
+ * stranded half-filled input.
+ */
+function SectionChatInput({ text, setText, onSubmit }) {
   return (
-    <div
-      data-testid={`today-commitment-${commitment.id}`}
-      className={`flex items-start gap-2.5 border border-[var(--border)] bg-[var(--bg-secondary)]/40 rounded-lg p-3 transition-opacity ${done ? "opacity-50" : ""}`}
+    <form
+      onSubmit={onSubmit}
+      data-testid="today-section-chat"
+      className="border border-[var(--border)] bg-[var(--bg-secondary)]/40 rounded-lg p-3.5 space-y-2"
     >
-      <button
-        onClick={onToggle}
-        disabled={saving}
-        className="mt-0.5 shrink-0 text-[var(--accent)] hover:opacity-70 transition-opacity"
-        title={done ? "Mark incomplete" : "Mark done"}
+      <label
+        htmlFor="today-section-chat-input"
+        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]"
       >
-        {done ? (
-          <CheckCircle2 className="w-4 h-4" />
-        ) : (
-          <Circle className="w-4 h-4" />
-        )}
-      </button>
-      <div className="flex-1 min-w-0">
-        <p className={`text-xs ${done ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)]"}`}>
-          {commitment.text}
-        </p>
-        {commitment.goal_title && (
-          <p className="font-mono text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
-            {commitment.goal_title}
-          </p>
-        )}
+        <Sparkles className="w-3 h-3 text-[var(--accent)]" aria-hidden="true" />
+        Tell the coach anything about today
+      </label>
+      <div className="flex items-start gap-2">
+        <textarea
+          id="today-section-chat-input"
+          data-testid="today-section-chat-input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              onSubmit(e);
+            }
+          }}
+          rows={2}
+          placeholder="Something specific you want to flag, or just 'plan my afternoon with me'…"
+          aria-label="Tell the coach anything about today"
+          className="flex-1 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
+        />
+        <button
+          type="submit"
+          disabled={!text.trim()}
+          aria-label="Send to coach"
+          className="h-9 px-3 inline-flex items-center gap-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 disabled:opacity-30 transition-opacity"
+        >
+          <Send className="w-3.5 h-3.5" aria-hidden="true" />
+          Send
+        </button>
       </div>
-      {saving && <span className="font-mono text-[10px] text-[var(--text-muted)]">…</span>}
-    </div>
+      <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] inline-flex items-center gap-1">
+        <MessageSquare className="w-2.5 h-2.5" aria-hidden="true" />
+        ⌘/Ctrl + Enter to send
+      </p>
+    </form>
   );
 }

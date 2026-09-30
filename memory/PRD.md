@@ -204,6 +204,30 @@ The auth resolver's choke-point invalidation (`lib/auth-route.ts`, `lib/request-
 - **First read after a mutation pays one DB round trip** (~200-400ms slower than the cached subsequent reads). This is the cost of NOT pre-warming via `scheduleWriteThroughRefresh`. Acceptable for MVP: the choke-point invalidates, the next read is correct, and from then on it's fast. If first-read-after-write becomes a complaint, adding `scheduleWriteThroughRefresh` calls back in is a one-line change per mutation route — no API design needed.
 - **Cross-instance staleness ≤15s on Vercel.** If instance A serves your read and instance B serves your write, instance A's cache stays warm (wrong) for up to 15s. Fix options if it matters: Upstash Redis (~50ms cross-instance read RTT, airtight); or a shared Supabase `cache_versions` row bumped in-transaction + validated on read (~150ms, imperfect for delete-oldest-row). In-process is the right MVP default — both alternatives need founder provisioning. Flagging for follow-up.
 
+## Iteration 7 (2026-09-30) — Today tab, Timeline zoom parity, Sources view dialog, shipped
+
+Founder's four asks, all verified inline against Storybook (`localhost:6006`, MVP-mode directive — main agent verified its own slice; no sub-agent fleet dispatched).
+
+**1. Real "Today" tab in the navbar (2nd after Goals).**
+- `frontend/src/pages/Coach.js` — new `panel-tab-today` button (`CalendarDays` icon) wired to `panelView === "today"`; default view is now **Goals on every fresh load**. The `gc_panel_view` localStorage read **and** write were removed entirely — landing state no longer sticks to the last-viewed panel.
+- `frontend/src/components/Today.jsx` (new) + `Today.stories.js` (new) — Today tab: full timetable (`fullTimetable=true`) plus **one section-level free-text** ("Tell the coach anything about today") for the whole "Today · tasks" block.
+- `frontend/src/pages/Coach.js` passes `onOpenToday` → `TrackingDashboard` → `TrackerCard`.
+
+**2. Per-item chat/note inputs removed from the timetable.**
+- `frontend/src/components/TodayTimetable.jsx` — dropped `InlineNote`, `TileChatInput`, and `saveNote`. Rows now carry only: checkbox + "I can't do this" + "Break it down with coach". All free-text feedback consolidated into the single `SectionChatInput` on Today.
+
+**3. TrackerCard slimmed (timetable no longer duplicated there).**
+- `frontend/src/components/TrackerCard.js` — Col 2 timetable removed; new Col1(8)/Col2(4) grid with an **"Open today"** CTA that opens the Today tab. Props are now `{ state, onOpenChat, onOpenToday }` (`onChange` dropped).
+- `frontend/src/components/TrackingDashboard.js` — threads `onOpenToday` through.
+
+**4. Timeline: 3-Months and Year brought up to Month/week parity.**
+- `frontend/src/components/Timeline.js` — Year view rewritten to a **4 quarter-column × ~13 week-row lane grid** using the same lane-per-week pattern as Quarter (dead `monthCols`/`useGrid` removed). Month/week bar coloring unified onto the `barPaint()` recipe (tinted body + saturated leading edge); blockers layer their diagonal-stripe `backgroundImage` over the tint; ≤2-day items and single-day milestones keep solid fill. `CalendarTile` now calls `barPaint(item, "var(--bg-primary)")` for both the general and blocker branches.
+
+**5. Sources: View = in-app dialog, Download = direct.**
+- `frontend/src/components/Sources.jsx` — `SourceCard` gained `onView`; **View** is now a `<button>` opening `SourceViewerDialog` (full-screen iframe preview, ESC/backdrop close, Download + X chrome) instead of a new tab. **Download** anchor unchanged (`download` attr, no `target`).
+
+**Verified:** all affected Storybook stories (Today, TodayTimetable, Timeline, Sources, TrackerCard, TrackingDashboard) render with zero console errors; 63 stories registered; screenshots confirmed via `agent-browser` (CDP `:9223`). Sources View shows "Not Found" inside Storybook only because the story mocks `/sources/1/download` — expected; real app streams the file.
+
 ## Backlog / next
 - P0: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
 - P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider; **upstash-redis / cross-instance cache** if multi-node staleness becomes a complaint; cache the remaining read endpoints (`audit`, `blockers`, `sources`, `memories`, `chat/history`) — one-liner per route, all already auto-invalidated.

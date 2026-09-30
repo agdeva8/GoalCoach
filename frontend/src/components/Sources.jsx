@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Eye,
   Download,
+  X,
 } from "lucide-react";
 import { api, API } from "../lib/api";
 
@@ -28,6 +29,7 @@ export default function Sources({ state, onChange }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(null); // id of source being deleted
+  const [viewingSource, setViewingSource] = useState(null); // Iteration 7 — View dialog
 
   const refresh = () => {
     setLoading(true);
@@ -136,15 +138,21 @@ export default function Sources({ state, onChange }) {
               goalTitle={goalTitle(s.goal_id)}
               onDelete={() => deleteSource(s.id)}
               deleting={deleting === s.id}
+              onView={(src) => setViewingSource(src)}
             />
           ))}
         </div>
       )}
+
+      <SourceViewerDialog
+        source={viewingSource}
+        onClose={() => setViewingSource(null)}
+      />
     </div>
   );
 }
 
-function SourceCard({ source, goalTitle, onDelete, deleting }) {
+function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
   const isFile = source.kind === "file";
   const isLink = source.kind === "link";
 
@@ -238,20 +246,21 @@ function SourceCard({ source, goalTitle, onDelete, deleting }) {
         )}
         {isFile && downloadUrl && (
           <>
-            {/* View opens the stored file inline in a new tab (the browser
-                renders images and PDFs natively). Download saves it with
-                the original filename via the same endpoint's
-                Content-Disposition header. */}
-            <a
-              href={downloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* Iteration 7 (Ask 4) — View now opens an in-app preview
+                dialog (like Memories' lightbox) instead of a new tab.
+                Clicking the file inline keeps the user's place in the
+                grid; only the explicit Download anchor goes to a new
+                nav (and even then, only because the browser handles
+                Content-Disposition / file-save). */}
+            <button
+              type="button"
+              onClick={() => onView?.(source)}
               data-testid={`source-view-${source.id}`}
-              className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+              className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
             >
               <Eye className="w-3 h-3" />
               View file
-            </a>
+            </button>
             <a
               href={downloadUrl}
               download
@@ -281,6 +290,111 @@ function SourceCard({ source, goalTitle, onDelete, deleting }) {
           Delete
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * SourceViewerDialog — inline preview for a file source.
+ *
+ * Mirrors the Memories lightbox pattern (Iteration 5) so the user
+ * doesn't leave the Sources tab to look at a file. Renders the file
+ * inside an <iframe> pointed at the same authenticated download URL
+ * the browser uses for the explicit Download anchor — cookies ride
+ * along, so the file streams in. For image kinds the browser shows
+ * them natively; for PDFs the iframe gets the default PDF viewer;
+ * for text/JSON the iframe shows the raw text.
+ *
+ * The dialog is opened by passing `source` via the parent state and
+ * closed by setting it back to null. ESC + backdrop click both close
+ * (matching the rest of the app's dialog conventions).
+ */
+function SourceViewerDialog({ source, onClose }) {
+  useEffect(() => {
+    if (!source) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [source, onClose]);
+
+  if (!source) return null;
+  const isFile = source.kind === "file";
+  const url = isFile ? `${API}/sources/${source.id}/download` : source.url;
+  const name =
+    source.original_filename || source.name || source.url || "Source";
+
+  const handleBackdrop = (e) => {
+    if (e.target === e.currentTarget) onClose?.();
+  };
+
+  return (
+    <div
+      data-testid="source-viewer-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Preview: ${name}`}
+      onClick={handleBackdrop}
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col p-4 sm:p-8"
+    >
+      {/* Header chrome — name + actions */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex items-start gap-3 mb-3"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="text-sm text-white/90 line-clamp-2">{name}</div>
+          <div className="mt-0.5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-white/60">
+            <span>{isFile ? "file" : "link"}</span>
+            {source.created_at && (
+              <span>
+                {new Date(source.created_at).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+            )}
+          </div>
+        </div>
+        {isFile && (
+          <a
+            href={url}
+            download
+            data-testid="source-viewer-download"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Download file"
+            title="Download the original file"
+            className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <Download className="w-4 h-4" aria-hidden="true" />
+          </a>
+        )}
+        <button
+          type="button"
+          data-testid="source-viewer-close"
+          onClick={onClose}
+          aria-label="Close preview"
+          className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          <X className="w-5 h-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* Body — iframe works for images, PDFs, and text-based files.
+          max-h keeps it inside the viewport so the chrome stays visible. */}
+      <iframe
+        title={`Preview: ${name}`}
+        src={url}
+        className="flex-1 w-full bg-white rounded shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
     </div>
   );
 }

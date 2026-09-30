@@ -1749,30 +1749,9 @@ function CalendarView({
 
   /* For week/month/quarter: render spanning tiles in a grid (lanes per week).
      For day: render a vertical list of items for that single day.
-     For year: render month columns. */
-  const useGrid = span !== "day" && span !== "year";
-
+     For year: render the same lane-per-week grid laid out as 4
+     quarter-columns (Iteration 7 — was a separate bar-chart). */
   const year = anchor.getFullYear();
-
-  const monthCols = useMemo(() => {
-    const cols = [];
-    for (let m = 0; m < 12; m++) {
-      const start = new Date(year, m, 1);
-      const end = new Date(year, m + 1, 1);
-      const colItems = allItems.filter((it) => {
-        if (!it) return false;
-        const rawStart = it.start || it.date;
-        const rawEnd = it.end || it.date;
-        if (!rawStart && !rawEnd) return false;
-        const s = startOfDay(rawStart || rawEnd);
-        const e = startOfDay(rawEnd || rawStart);
-        if (!s || !e || isNaN(s.getTime()) || isNaN(e.getTime())) return false;
-        return e >= start && s < end;
-      });
-      cols.push({ start, end, items: colItems });
-    }
-    return cols;
-  }, [allItems, year]);
 
   const weeks = useMemo(() => {
     const w = [];
@@ -1848,126 +1827,168 @@ function CalendarView({
     return <CalendarEmptyState onAsk={openChat || onPrefill} />;
   }
 
-  /* === Year view ===
-   * One column per month, blocks bottom-anchored inside a fixed-height
-   * plot. The previous version gave every block a height derived from the
-   * month's item count but then stacked up to 12 of them inside a 40px
-   * box — so busy months overflowed straight out of the container and
-   * over their neighbours ("messy"). Here the slot height is derived from
-   * how many items the month has, so the stack always fits the plot by
-   * construction and blocks stay readable: a quiet month gets one tall
-   * block, a busy month gets many short ones.
+  /* === Year view (Iteration 7 — Ask 3) ===
+   * Same lane-per-week pattern as Quarter, laid out as 4 quarter-columns
+   * side by side for ~52 weeks. The previous bar-chart (one column per
+   * month, stacked blocks in a 220px plot) read nothing like the
+   * Month/Week/3-month views — different shape, different density, the
+   * items-as-cells metaphor broke. Here every item renders the same way
+   * regardless of span: a status-coloured bar with a left/right position
+   * derived from its actual day-of-week span within the row.
+   *
+   * Layout:
+   *   - 4 quarter-columns × 13 week-rows ≈ 52 rows
+   *   - Each row is its own 7-day cell grid; bar's offset/width = its
+   *     Mon..Sun position
+   *   - Today row is accent-highlighted (matches Quarter's accent ring)
    */
   if (span === "year") {
-    const PLOT_H = 220;   // plot area height in px
-    const MAX_SLOT = 46;  // tallest a single block may grow to
-    const MIN_SLOT = 10;  // floor so a crowded month stays legible
-    const MAX_VISIBLE = 18;
+    const yearStart = new Date(anchor.getFullYear(), 0, 1);
+    const yearEnd = new Date(anchor.getFullYear() + 1, 0, 1);
+    const quarters = [
+      { label: "Q1 · Jan – Mar", start: new Date(anchor.getFullYear(), 0, 1) },
+      { label: "Q2 · Apr – Jun", start: new Date(anchor.getFullYear(), 3, 1) },
+      { label: "Q3 · Jul – Sep", start: new Date(anchor.getFullYear(), 6, 1) },
+      { label: "Q4 · Oct – Dec", start: new Date(anchor.getFullYear(), 9, 1) },
+    ];
+
+    const buildQuarterRows = (qStart) => {
+      const rows = [];
+      let cursor = startOfWeek(qStart);
+      let i = 0;
+      // 14 weeks covers the 13 it could land in for the latest quarter
+      while (cursor < yearEnd && i < 14) {
+        const rowEnd = addDays(cursor, 7);
+        if (cursor >= qStart && cursor < addDays(qStart, 92)) {
+          const overlaps = allItems.filter((it) => {
+            if (!it) return false;
+            const s = startOfDay(it.start || it.date);
+            const e = startOfDay(it.end || it.date);
+            if (!s || !e || isNaN(s.getTime()) || isNaN(e.getTime())) return false;
+            return e >= cursor && s < rowEnd;
+          });
+          rows.push({ start: cursor, end: addDays(cursor, 6), items: overlaps });
+        }
+        cursor = rowEnd;
+        i++;
+      }
+      return rows;
+    };
+
+    const rowHeight = 26;
     return (
       <div className="space-y-3">
         <div
-          className="rounded-lg border border-[var(--border-accent)] p-3 overflow-hidden"
-          style={{ background: "var(--bg-secondary)" }}
+          className="rounded-lg border border-[var(--border-accent)] overflow-hidden"
+          style={{ background: "var(--bg-primary)" }}
         >
-          {/* Plot area — fixed height, so nothing can escape the card. */}
           <div
-            className="grid grid-cols-12 gap-1 items-end"
-            style={{ height: `${PLOT_H}px` }}
+            role="row"
+            className="grid grid-cols-4 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[var(--bg-secondary)]/40"
           >
-            {monthCols.map((col) => {
-              const m = col.start.getMonth();
-              const count = col.items.length;
-              const visible = col.items.slice(0, MAX_VISIBLE);
-              const hidden = count - visible.length;
-              const slot =
-                count === 0
-                  ? 0
-                  : clamp(Math.floor((PLOT_H - 8) / count), MIN_SLOT, MAX_SLOT);
-              return (
-                <div
-                  key={m}
-                  data-testid={`timeline-cal-year-month-${m}`}
-                  aria-label={`${MONTHS[m]}: ${count} item${count === 1 ? "" : "s"}`}
-                  className="flex flex-col justify-end h-full min-w-0"
-                >
-                  {count === 0 ? (
-                    <span
-                      aria-hidden="true"
-                      className="block h-px w-full bg-[var(--border)]"
-                    />
-                  ) : (
-                    <div className="flex flex-col gap-1 min-h-0">
-                      {hidden > 0 && (
-                        <span className="font-mono text-[12px] text-[var(--text-muted)] text-center leading-none">
-                          +{hidden}
-                        </span>
-                      )}
-                      {visible.map((it) => {
-                        const paint = barPaint(it, "var(--bg-secondary)");
-                        return (
-                          <button
-                            key={`${it.kind}-${it.id}`}
-                            type="button"
-                            data-testid={`timeline-cal-year-item-${it.kind}-${it.id}`}
-                            onClick={() => openChat("", scopeForItem(it))}
-                            title={`${it.kind}: ${it.title}`}
-                            aria-label={`${it.kind}: ${it.title}`}
-                            className="block w-full rounded-[2px] transition-all hover:brightness-110 hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-secondary)]"
-                            style={{
-                              height: `${slot}px`,
-                              background: paint.background,
-                              boxShadow: paint.boxShadow,
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {quarters.map((q, qi) => (
+              <div key={qi} role="columnheader" className="px-2 py-2 text-center select-none border-r last:border-r-0 border-[var(--border-accent)]">
+                {q.label}
+              </div>
+            ))}
           </div>
-
-          {/* Month labels live below the plot, never behind the blocks. */}
-          <div className="grid grid-cols-12 gap-1 mt-2 pt-2 border-t border-[var(--border)]">
-            {monthCols.map((col) => {
-              const m = col.start.getMonth();
-              const count = col.items.length;
+          <div
+            className="grid grid-cols-4 divide-x divide-[var(--border-accent)]"
+            role="rowgroup"
+          >
+            {quarters.map((q, qi) => {
+              const rows = buildQuarterRows(q.start);
               return (
-                <div key={m} className="flex flex-col items-center gap-0.5 min-w-0">
-                  <span className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
-                    {MONTHS_SHORT[m]}
-                  </span>
-                  <span
-                    className={`font-mono text-[12px] tabular-nums ${
-                      count > 0
-                        ? "text-[var(--text-secondary)]"
-                        : "text-[var(--text-muted)] opacity-50"
-                    }`}
-                  >
-                    {count}
-                  </span>
+                <div key={qi} role="rowgroup" data-testid={`timeline-cal-year-col-${qi}`}>
+                  {rows.map((r, ri) => {
+                    const isToday = today >= r.start && today < addDays(r.start, 7);
+                    const wkLabel = `${MONTHS_SHORT[r.start.getMonth()]} ${r.start.getDate()}`;
+                    return (
+                      <div
+                        key={ri}
+                        role="row"
+                        data-testid={`timeline-cal-year-row-${qi}-${ri}`}
+                        className="grid grid-cols-[44px_1fr] border-b last:border-b-0 border-[var(--border)]"
+                        style={{ minHeight: `${rowHeight}px`, background: isToday ? "color-mix(in srgb, var(--accent) 8%, var(--bg-primary))" : undefined }}
+                      >
+                        <div className={`px-1.5 py-1 font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] flex items-center ${isToday ? "text-[var(--accent)] font-semibold" : ""}`}>
+                          {wkLabel}
+                        </div>
+                        <div className="relative px-1 py-0.5" style={{ minHeight: `${rowHeight}px` }}>
+                          <div className="grid grid-cols-7 h-full pointer-events-none absolute inset-0">
+                            {Array.from({ length: 7 }).map((_, idx) => (
+                              <div
+                                key={idx}
+                                className={`${idx === 0 ? "" : "border-l border-[var(--border)]"}`}
+                                aria-hidden="true"
+                              />
+                            ))}
+                          </div>
+                          <div className="relative space-y-0.5">
+                            {r.items.length === 0 ? null : (
+                              r.items.slice(0, 2).map((it) => {
+                                const s = startOfDay(it.start || it.date);
+                                const e = startOfDay(it.end || it.date);
+                                const segStart = s < r.start ? r.start : s;
+                                const segEnd = e > r.end ? r.end : e;
+                                const offset = (segStart.getTime() - r.start.getTime()) / (7 * DAY_MS);
+                                const width = Math.max(
+                                  0.05,
+                                  (segEnd.getTime() - segStart.getTime() + DAY_MS) / (7 * DAY_MS),
+                                );
+                                const paint = barPaint(it, "var(--bg-primary)");
+                                const scoped = scopeForItem(it);
+                                return (
+                                  <button
+                                    key={`${it.kind}-${it.id}`}
+                                    type="button"
+                                    data-testid={`timeline-cal-year-bar-${it.kind}-${it.id}`}
+                                    onClick={() => openChat("", scoped)}
+                                    title={it.title}
+                                    aria-label={`${it.kind}: ${it.title}`}
+                                    className="group block h-3.5 rounded-[2px] text-left text-[10px] px-1 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                                    style={{
+                                      marginLeft: `${offset * 100}%`,
+                                      width: `${width * 100}%`,
+                                      background: paint.background,
+                                      boxShadow: paint.boxShadow,
+                                      color: paint.color,
+                                      paddingLeft: paint.stripe ? 8 : undefined,
+                                    }}
+                                  >
+                                    {it.title}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
           <span>
             <span className="text-[var(--text-secondary)]">← →</span> year ·{" "}
             <span className="text-[var(--text-secondary)]">T</span> today ·{" "}
             <span className="text-[var(--text-secondary)]">1–5</span> change span
           </span>
-          {/* Legend mirrors the actual encoding: hue = status, and the
-              filled vs tinted chip is the span treatment itself. */}
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <BarLegendSwatch hue="var(--success)" label="on track" />
             <BarLegendSwatch hue="var(--warning)" label="in progress" />
             <BarLegendSwatch hue="var(--danger)" label="overdue" />
-            <span className="inline-block h-3 w-4 rounded-[2px] bg-[var(--warning)]" aria-hidden="true" />
-            <span>single day</span>
-            <span className="opacity-70">· click a block to chat</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="inline-block h-3 w-4 rounded-[2px] bg-[var(--warning)]"
+              />
+              <span>single day</span>
+            </span>
           </span>
         </div>
       </div>
@@ -2299,6 +2320,17 @@ function CalendarTile({ item, today, openChat }) {
   // title + kind + id pinned in the conversation.
   const onActivate = () => openChat("", scopeForItem(item));
 
+  // Iteration 7 (consistency fix) — Month/Week now use the same
+  // barPaint() recipe as 3-Months/Year. Previously CalendarTile
+  // painted solid-saturated backgrounds for multi-day bars, while
+  // the 3-Months/Year path used the tinted-body-with-leading-edge
+  // treatment — same item, different look across spans, which
+  // read as a bug ("is this a different goal?"). barPaint handles
+  // the span logic: ≤2-day items get the solid single-day fill
+  // (unchanged), longer items get the tinted body + saturated
+  // leading edge.
+  const paint = barPaint(item, "var(--bg-primary)");
+
   if (item.kind === "blocker") {
     return (
       <button
@@ -2307,11 +2339,19 @@ function CalendarTile({ item, today, openChat }) {
         onClick={onActivate}
         title={tip}
         aria-label={tip}
-        className="h-full w-full rounded-[3px] flex items-center gap-1.5 px-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--bg-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
+        className="h-full w-full rounded-[3px] flex items-center gap-1.5 px-1.5 font-mono text-[10px] uppercase tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
         style={{
-          background: `repeating-linear-gradient(45deg, ${color}, ${color} 4px, color-mix(in srgb, ${color} 60%, var(--bg-primary)) 4px, color-mix(in srgb, ${color} 60%, var(--bg-primary)) 8px)`,
+          background: paint.background,
+          // Keep the diagonal-stripe treatment that flags blockers as
+          // "active constraint" — the leading-edge stripe alone reads
+          // like a milestone. Combines the tint base with a repeating
+          // stripe pattern on top.
+          backgroundImage: `repeating-linear-gradient(45deg, ${color}, ${color} 4px, color-mix(in srgb, ${color} 60%, var(--bg-primary)) 4px, color-mix(in srgb, ${color} 60%, var(--bg-primary)) 8px)`,
+          color: paint.color,
           opacity: isPast ? 0.85 : 1,
           fontWeight: 500,
+          // Pad the label off the leading-edge stripe (if any).
+          paddingLeft: paint.stripe ? 10 : undefined,
         }}
       >
         <AlertOctagon size={10} aria-hidden="true" />
@@ -2344,11 +2384,15 @@ function CalendarTile({ item, today, openChat }) {
       onClick={onActivate}
       title={tip}
       aria-label={tip}
-      className="group h-full w-full text-left rounded-[3px] px-1.5 truncate font-mono text-[10px] uppercase tracking-widest text-[var(--bg-primary)] transition-all hover:brightness-110 hover:z-10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)]"
+      className="group h-full w-full text-left rounded-[3px] px-1.5 truncate font-mono text-[10px] uppercase tracking-widest transition-all hover:brightness-110 hover:z-10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)]"
       style={{
-        background: color,
+        background: paint.background,
+        boxShadow: paint.boxShadow,
+        color: paint.color,
         opacity: isDone ? 0.55 : isPast ? 0.85 : 1,
         fontWeight: 500,
+        // Pad the label off the leading-edge stripe (if any).
+        paddingLeft: paint.stripe ? 10 : undefined,
       }}
     >
       <span className="block truncate">

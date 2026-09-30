@@ -1,21 +1,28 @@
-import { useState, useEffect, useRef } from "react";
-import { Calendar, CheckCircle2, Circle, Loader2, MessageSquareWarning, MessageSquarePlus, RefreshCw, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Calendar, CheckCircle2, Circle, Loader2, MessageSquareWarning, MessageSquarePlus, RefreshCw } from "lucide-react";
 import { api } from "../lib/api";
 import { localDateKey } from "../lib/utils";
 
 /**
- * TodayTimetable — interactive card for today's commitments, blockers,
- * and intentions. Each item:
+ * TodayTimetable — interactive list of today's commitments and blockers.
  *
+ * Per-item controls:
  *   - Clickable circle checkbox → mark done (PATCH /api/commitments/:id)
- *   - Free-text "what you did" note (blur-saves to the commitment)
  *   - Two CTA buttons that open the chat with a prefill:
  *       · "I can't do this"   → asks the coach to renegotiate
- *       · "Add to plan"        → asks the coach to break it down / slot it
+ *       · "Break it down with coach" → asks the coach to break it down
  *
- * Designed for the Goals tab dashboard so the user can triage today
- * without leaving the page. Also rendered inside the Today tab if
- * `compact` is true (just the list, no header).
+ * Per-item "what you did" note + per-item free-text chat input were
+ * removed in Iteration 7 (Ask 1) — they cluttered every row and the
+ * user only needs ONE place to talk about the day as a whole. The
+ * section-level "Tell the coach anything about today" input now lives
+ * inside the new Today tab (`frontend/src/components/Today.jsx`),
+ * which renders this component and adds the section-level input
+ * below.
+ *
+ * Designed to be rendered standalone on the Today tab. Also rendered
+ * inside the TrackerCard with `compact=true` (list only, no header)
+ * — kept for the Goals-tab quick glance until that path is folded in.
  */
 export default function TodayTimetable({ state, onChange, onOpenChat, compact = false, fullTimetable = false }) {
   const [items, setItems] = useState([]);
@@ -94,15 +101,6 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
     } finally {
       setSaving(null);
     }
-  };
-
-  const saveNote = async (item, note) => {
-    if (item._kind !== "commitment") return;
-    setSaving(item.id);
-    try {
-      await api.updateCommitment(item.id, { note });
-      onChange?.();
-    } catch { /* ignore */ } finally { setSaving(null); }
   };
 
   const cantDoThis = (item) => {
@@ -277,7 +275,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
                 </div>
               </div>
 
-              {/* Action buttons — open chat with a prefill (rendered above the note per Ask 3) */}
+              {/* Action buttons — open chat with a prefill */}
               {!done && (
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
@@ -300,29 +298,6 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
                   </button>
                 </div>
               )}
-
-              {/* Free-text "what you did" — commitments only (now below the actions per Ask 3) */}
-              {isCommitment && (
-                <InlineNote item={item} onSave={saveNote} saving={saving === item.id} />
-              )}
-
-              {/* Generic per-tile chat input (Ask 4) — single-line box that
-                  opens the chat with a bare-intent prefill scoped to this item. */}
-              {!done && (
-                <TileChatInput
-                  item={item}
-                  onSend={(text) =>
-                    onOpenChat?.(text, {
-                      scope: item._kind === "blocker" ? "blocker" : "commitment",
-                      refId: item.id,
-                      kind: "plan_day",
-                      title: item.text || item.title,
-                      helperText:
-                        "Say what's on your mind about this — the coach has the context already.",
-                    })
-                  }
-                />
-              )}
             </li>
           );
         })}
@@ -331,89 +306,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
   );
 }
 
-function InlineNote({ item, onSave, saving }) {
-  const [note, setNote] = useState(item.note || "");
-  const [dirty, setDirty] = useState(false);
-  const timerRef = useRef(null);
-
-  // Blur-save
-  const handleBlur = () => {
-    if (dirty && note !== (item.note || "")) {
-      onSave(note);
-      setDirty(false);
-    }
-  };
-
-  // Debounced auto-save 1.5s after last keystroke
-  useEffect(() => {
-    if (!dirty) return;
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      if (note !== (item.note || "")) {
-        onSave(note);
-        setDirty(false);
-      }
-    }, 1500);
-    return () => clearTimeout(timerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note, dirty]);
-
-  return (
-    <textarea
-      data-testid={`timetable-note-${item.id}`}
-      value={note}
-      onChange={(e) => { setNote(e.target.value); setDirty(true); }}
-      onBlur={handleBlur}
-      rows={2}
-      placeholder="What did you do? Or what's blocking you? (saves on blur)"
-      aria-label={`Notes for "${item.text || item.title}"`}
-      className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
-    />
-  );
-}
-
-/**
- * TileChatInput — single-line input + send button at the bottom of each
- * timetable tile. Opens the chat with a bare-intent prefill ("Talk about:
- * "<title>": <typed text>") plus scoped chat context so the modal title
- * reads "About: <title>".
- *
- * Distinct from the two CTA buttons above (which use hardcoded long
- * prefills). This is the user-driven escape hatch for "I have something
- * specific to say that doesn't fit either of the preset intents."
- */
-function TileChatInput({ item, onSend }) {
-  const [text, setText] = useState("");
-  const handleSubmit = (e) => {
-    e?.preventDefault?.()
-    const trimmed = text.trim()
-    if (!trimmed) return
-    const title = item.text || item.title || "this"
-    onSend(`Talk about "${title}": ${trimmed}`)
-    setText("")
-  }
-  return (
-    <form
-      onSubmit={handleSubmit}
-      data-testid={`timetable-chat-input-${item.id}`}
-      className="flex items-center gap-1.5"
-    >
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={`Ask about "${item.text || item.title}"…`}
-        aria-label={`Ask the coach about "${item.text || item.title}"`}
-        className="flex-1 h-9 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
-      />
-      <button
-        type="submit"
-        disabled={!text.trim()}
-        aria-label="Send to coach"
-        className="h-9 w-9 inline-flex items-center justify-center rounded bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-30 transition-opacity"
-      >
-        <Send className="w-3.5 h-3.5" aria-hidden="true" />
-      </button>
-    </form>
-  )
-}
+/* Iteration 7 (Ask 1) — per-tile free-text note + per-tile chat input
+ * were removed. The single section-level "Tell the coach anything about
+ * today" input now lives in `frontend/src/components/Today.jsx` and is
+ * rendered once for the whole "Today · tasks" section. */

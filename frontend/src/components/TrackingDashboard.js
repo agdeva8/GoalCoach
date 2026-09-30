@@ -242,6 +242,7 @@ export default function TrackingDashboard({
   onCreated = () => {},
   onOpenChat = () => {},
   onOpenChatWith = () => {},
+  onOpenToday = () => {},
   autoAnswer = false,
   grillMe = false,
   isGuest = false,
@@ -318,7 +319,7 @@ export default function TrackingDashboard({
 
       <OverCommitmentIndicator oc={state.over_commitment} />
 
-      <TrackerCard state={state} onChange={onCreated} onOpenChat={onOpenChatWith} />
+      <TrackerCard state={state} onOpenChat={onOpenChatWith} onOpenToday={onOpenToday} />
 
       {visibleGoals.length === 0 ? (
         <div data-testid="empty-state" className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[var(--bg-secondary)]/40">

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import TodayTimetable from "./TodayTimetable";
 import { localDateKey } from "../lib/utils";
 import {
   CheckCircle2,
@@ -15,31 +14,21 @@ import {
 /**
  * TrackerCard — the hero accountability surface on the Goals tab.
  *
- * The user logged in and asked for: 'these goals you have to do
- * today / today timetable / how's the things going, what all
- * completed / some kind of main dialogue box that holds the user
- * accountable and gives direction right'.
+ * Iteration 7: this used to host the TodayTimetable in Col 2; that
+ * has moved to a dedicated Today tab (`frontend/src/components/Today.jsx`).
+ * This card now shows the greeting + accountability CTAs (Col 1) and
+ * the streak + this-week-milestones sidebar (Col 3). Col 1 carries an
+ * "Open today →" jump button so the user can still reach the timetable
+ * in one click from here.
  *
- * This card does all four:
- *   1. "Today's commitments" — open commitments that are due today
- *      or earlier, with overdue items in danger colour and done
- *      items struck through + a checked circle.
- *   2. "Today timetable" — the dated agenda in chronological
- *      order so the user can scan their day at a glance.
- *   3. "How's the things going" — three stat tiles: open count,
+ * What's left:
+ *   1. "How's the things going" — three stat tiles: open count,
  *      completed-today count, overdue count.
- *   4. "Direction dialogue" — a CTA that opens the chat with the
- *      pre-filled prompt 'Hold me accountable for today: walk me
- *      through what I committed to and where I'm slipping.' Surfaces
- *      the coach as the user-facing accountability partner.
- *
- * Layout: a single horizontal card with three columns on `lg`,
- * stacking on smaller screens. No new state — pure derived views
- * from the existing `state` prop. An `onOpenChat(prompt)` callback
- * surfaces the "ask the coach" handoff so the card never tries to
- * own chat state itself.
+ *   2. "Direction dialogue" — CTAs that open the chat with a pre-filled
+ *      prompt ("Hold me accountable for today" + "Plan my day").
+ *   3. Streak + next 7 days of milestones.
  */
-export default function TrackerCard({ state, onChange, onOpenChat }) {
+export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
   const data = useMemo(() => {
     const todayIso = localDateKey()
     const todayCommits = (state?.commitments || []).filter(
@@ -94,8 +83,8 @@ export default function TrackerCard({ state, onChange, onOpenChat }) {
       className="border border-[var(--border)] bg-[var(--bg-secondary)]/60 rounded-xl overflow-hidden"
     >
       <div className="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Col 1 — greeting + stats */}
-        <div className="lg:col-span-4 space-y-4">
+        {/* Col 1 — greeting + stats + CTAs */}
+        <div className="lg:col-span-8 space-y-4">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
               Today
@@ -126,91 +115,87 @@ export default function TrackerCard({ state, onChange, onOpenChat }) {
             </p>
           </div>
 
-          {/* Progress ring (CSS-only) */}
-          <CompletionRing
-            pct={data.completionPct}
-            done={data.doneToday.length}
-            total={data.todayCommits.length || 0}
-          />
-
-          {/* Stat tiles */}
-          <div className="grid grid-cols-3 gap-2">
-            <StatTile
-              icon={Target}
-              value={data.allOpen.length}
-              label="Open"
-              tone="var(--accent)"
+          <div className="flex items-center gap-3 flex-wrap">
+            <CompletionRing
+              pct={data.completionPct}
+              done={data.doneToday.length}
+              total={data.todayCommits.length || 0}
             />
-            <StatTile
-              icon={CheckCircle2}
-              value={data.doneToday.length}
-              label="Done today"
-              tone="var(--success)"
-            />
-            <StatTile
-              icon={Clock}
-              value={data.overdue.length}
-              label="Overdue"
-              tone="var(--danger)"
-            />
+            {/* Stat tiles */}
+            <div className="grid grid-cols-3 gap-2 flex-1 min-w-[180px]">
+              <StatTile
+                icon={Target}
+                value={data.allOpen.length}
+                label="Open"
+                tone="var(--accent)"
+              />
+              <StatTile
+                icon={CheckCircle2}
+                value={data.doneToday.length}
+                label="Done today"
+                tone="var(--success)"
+              />
+              <StatTile
+                icon={Clock}
+                value={data.overdue.length}
+                label="Overdue"
+                tone="var(--danger)"
+              />
+            </div>
           </div>
 
-          {/* Primary CTA — opens the chat with an accountability prompt */}
-          <button
-            data-testid="tracker-coach-cta"
-            onClick={() =>
-              onOpenChat?.(
-                "Hold me accountable for today. Walk me through what I committed to, what's slipping, and where I should be spending the next hour. If anything looks off, propose what to drop or postpone.",
-              )
-            }
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
-          >
-            <MessageSquare className="w-4 h-4" />
-            Ask the coach for today's read
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* Jump to the Today tab (Iteration 7 — Col 2 used to host the
+                timetable here; that lives on its own tab now). */}
+            <button
+              data-testid="tracker-open-today-cta"
+              onClick={() => onOpenToday?.()}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
+            >
+              <CalendarDays className="w-4 h-4" />
+              Open today
+            </button>
+            {/* Primary CTA — opens the chat with an accountability prompt */}
+            <button
+              data-testid="tracker-coach-cta"
+              onClick={() =>
+                onOpenChat?.(
+                  "Hold me accountable for today. Walk me through what I committed to, what's slipping, and where I should be spending the next hour. If anything looks off, propose what to drop or postpone.",
+                )
+              }
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Ask the coach for today's read
+            </button>
 
-          {/* Plan my day — opens the chat in interview mode. The coach
-              then walks the user wake-time → bedtime, slotting
-              commitments into specific hours as it goes. */}
-          <button
-            data-testid="tracker-plan-day-cta"
-            onClick={() => {
-              const today = localDateKey()
-              onOpenChat?.(
-                `Plan my day with me. Today is ${today}. ` +
-                  `Walk me through it hour by hour, from when I wake up to when I sleep. ` +
-                  `Ask one question at a time. After each answer, propose concrete ` +
-                  `add_commitment + add_milestone entries so the day lands in the system. ` +
-                  `When we're done, I'll have a real timetable I can put on screen. ` +
-                  `Let's start: what time are you actually getting out of bed tomorrow?`,
-              )
-            }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
-          >
-            <CalendarDays className="w-4 h-4" />
-            Plan my day with the coach
-          </button>
-        </div>
-
-        {/* Col 2 — today's timetable */}
-        <div className="lg:col-span-5">
-          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">
-            <CalendarDays className="w-3 h-3" />
-            Today timetable
+            {/* Plan my day — opens the chat in interview mode. The coach
+                then walks the user wake-time → bedtime, slotting
+                commitments into specific hours as it goes. */}
+            <button
+              data-testid="tracker-plan-day-cta"
+              onClick={() => {
+                const today = localDateKey()
+                onOpenChat?.(
+                  `Plan my day with me. Today is ${today}. ` +
+                    `Walk me through it hour by hour, from when I wake up to when I sleep. ` +
+                    `Ask one question at a time. After each answer, propose concrete ` +
+                    `add_commitment + add_milestone entries so the day lands in the system. ` +
+                    `When we're done, I'll have a real timetable I can put on screen. ` +
+                    `Let's start: what time are you actually getting out of bed tomorrow?`,
+                )
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Plan my day
+            </button>
           </div>
-          {data.todayCommits.length === 0 ? (
-            <div className="px-3 py-4 border border-dashed border-[var(--border)] rounded-md text-xs text-[var(--text-muted)] leading-relaxed">
-              Nothing on the docket today. Ask the coach to plan tomorrow, or pick a goal and add a milestone.
-            </div>
-          ) : (
-            <div className="max-h-72 overflow-y-auto pr-1">
-              <TodayTimetable state={state} onChange={onChange} onOpenChat={onOpenChat} compact={true} />
-            </div>
-          )}
         </div>
 
-        {/* Col 3 — week + flame */}
-        <div className="lg:col-span-3 space-y-4">
+        {/* Col 2 — week + flame (Col 2 used to be the timetable; that
+            moved to the Today tab in Iteration 7) */}
+        <div className="lg:col-span-4 space-y-4">
           <div className="border border-[var(--border)] bg-[var(--bg-primary)]/40 rounded-md p-3">
             <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
               <Flame className="w-3 h-3" />

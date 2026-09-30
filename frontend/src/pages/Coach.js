@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Plus, CalendarClock, LayoutDashboard, Image as ImageIcon, FileText, Sparkles } from "lucide-react";
+import { MessageSquare, Plus, CalendarClock, CalendarDays, LayoutDashboard, Image as ImageIcon, FileText, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import Header from "../components/Header";
@@ -8,6 +8,7 @@ import TrackingDashboard from "../components/TrackingDashboard";
 import Timeline from "../components/Timeline";
 import Memories from "../components/Memories";
 import Sources from "../components/Sources";
+import Today from "../components/Today";
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
@@ -246,22 +247,12 @@ export default function Coach() {
     setSourceDialogSource(null);
   };
 
-  const [panelView, setPanelView] = useState(() => {
-    // Iteration 5 — default to Goals (the most actionable entry); returning
-    // users land where they left off.
-    try {
-      return localStorage.getItem("gc_panel_view") || "state";
-    } catch {
-      return "state";
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem("gc_panel_view", panelView);
-    } catch {
-      /* ignore */
-    }
-  }, [panelView]);
+  // Iteration 7 — the landing tab is always Goals. Earlier iterations
+  // remembered the last-used tab in localStorage, but the founder
+  // reported landing on Timeline every time and wanted Goals to be the
+  // canonical landing tab on every fresh page load. The localStorage
+  // save and read have both been removed.
+  const [panelView, setPanelView] = useState("state");
 
   return (
     <div className="h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
@@ -311,6 +302,17 @@ export default function Coach() {
             <LayoutDashboard className="w-3.5 h-3.5" /> Goals
           </button>
           <button
+            data-testid="panel-tab-today"
+            onClick={() => setPanelView("today")}
+            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+              panelView === "today"
+                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5" /> Today
+          </button>
+          <button
             data-testid="panel-tab-timeline"
             onClick={() => setPanelView("timeline")}
             className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
@@ -356,10 +358,13 @@ export default function Coach() {
               onCreated={refreshState}
               onOpenChat={() => setChatOpen(true)}
               onOpenChatWith={openChatWith}
+              onOpenToday={() => setPanelView("today")}
               autoAnswer={autoAnswer}
               grillMe={grillMe}
               isGuest={isGuest}
             />
+          ) : panelView === "today" ? (
+            <Today state={state} onChange={refreshState} onOpenChat={openChatWith} />
           ) : panelView === "timeline" ? (
             <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChatWith={openChatWith} />
           ) : panelView === "sources" ? (
