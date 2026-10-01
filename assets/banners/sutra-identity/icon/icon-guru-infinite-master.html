@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra App Icon - Master (Guru & Infinite Thread)</title>
+<style>
+  :root {
+    --cream: #F7F2E7;
+    --saffron: #C97B3F;
+    --ink: #1F1B16;
+    --gold: #F2C795;
+    --deep-saffron: #8E4E22;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--cream); width: 100%; height: 100%; }
+  .stage { width: 1024px; height: 1024px; display: grid; place-items: center; }
+  .icon-canvas {
+    width: 820px;
+    height: 820px;
+    border-radius: 240px;
+    background: radial-gradient(circle at 32% 28%, #2A241E 0%, var(--ink) 60%, #0D0A08 100%);
+    display: grid;
+    place-items: center;
+    position: relative;
+    box-shadow: 0 45px 110px -25px rgba(10, 8, 6, 0.65), 0 0 0 1px rgba(242, 199, 149, 0.12) inset;
+    overflow: hidden;
+  }
+  /* Subtle ambient warmth from behind */
+  .icon-canvas::before {
+    content: "";
+    position: absolute;
+    width: 520px;
+    height: 520px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(201, 123, 63, 0.28) 0%, rgba(201, 123, 63, 0) 70%);
+    top: 15%;
+    left: 18%;
+  }
+  svg {
+    width: 600px;
+    height: 600px;
+    position: relative;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="icon-canvas">
+    <svg viewBox="0 0 200 200" fill="none">
+      <!-- Glow & Aura behind head -->
+      <circle cx="100" cy="58" r="28" fill="url(#haloGlow)" opacity="0.6"/>
+      <circle cx="100" cy="58" r="16" fill="#F2C795" opacity="0.18"/>
+
+      <!-- Guru Head & Topknot -->
+      <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+      <circle cx="100" cy="46" r="5.2" fill="#F7F2E7"/>
+
+      <!-- Serene closed eyes -->
+      <path d="M 94.5 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <path d="M 101.9 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <circle cx="100" cy="55" r="1.1" fill="#C97B3F"/>
+
+      <!-- Robe / Seated Torso in Meditation -->
+      <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+      <!-- Folded legs (lotus base) -->
+      <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+
+      <!-- Hands in mudra resting and channeling the golden thread -->
+      <path d="M 78 86 C 68 102, 64 116, 76 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+      <path d="M 122 86 C 132 102, 136 116, 124 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="76" cy="118" r="3.2" fill="#F2C795"/>
+      <circle cx="124" cy="118" r="3.2" fill="#F2C795"/>
+
+      <!-- The Infinite Thread (Lemniscate / Figure-8) woven through hands -->
+      <!-- Back half of thread with soft depth -->
+      <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+            stroke="url(#threadGrad)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Inner luminous core of the thread -->
+      <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+            stroke="#FFF8EE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <defs>
+        <radialGradient id="haloGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#F2C795" stop-opacity="0.8"/>
+          <stop offset="100%" stop-color="#C97B3F" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="threadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#F2C795"/>
+          <stop offset="50%" stop-color="#C97B3F"/>
+          <stop offset="100%" stop-color="#F2C795"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+</div>
+</body>
+</html>

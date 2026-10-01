@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra Hero - Tagline First</title>
+<style>
+  :root {
+    --cream: #F7F2E7;
+    --saffron: #C97B3F;
+    --ink: #1F1B16;
+    --muted: #8B7E6B;
+  }
+  html, body { margin: 0; padding: 0; background: var(--cream); }
+  .stage { width: 1500px; height: 500px; display: grid; place-items: center; position: relative; overflow: hidden; }
+  .stage::before { content: ""; position: absolute; right: -160px; top: -120px; width: 700px; height: 700px; border-radius: 50%; background: radial-gradient(circle at 30% 28%, #F2C795 0%, var(--saffron) 55%, #8E4E22 100%); opacity: 0.95; }
+  .stage::after { content: ""; position: absolute; left: -180px; bottom: -200px; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle at 70% 70%, #F2C795 0%, var(--saffron) 55%, #8E4E22 100%); opacity: 0.18; }
+  .inner { position: relative; z-index: 1; text-align: center; padding: 0 60px; }
+  .tag { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; font-weight: 400; font-size: 38px; color: var(--muted); letter-spacing: 0.4px; margin-bottom: 18px; }
+  .word { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-weight: 500; font-size: 220px; letter-spacing: -6px; color: var(--ink); line-height: 0.95; }
+  .underline { width: 120px; height: 4px; background: var(--saffron); border-radius: 2px; margin: 26px auto 0; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="inner">
+    <div class="tag">let's sort your life - together.</div>
+    <div class="word">Sutra</div>
+    <div class="underline"></div>
+  </div>
+</div>
+</body>
+</html>

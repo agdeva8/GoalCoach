@@ -1,0 +1,15 @@
+[     208ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   83237ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4000/api/goals:0
+[  221927ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  224034ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  228089ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  236146ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  584944ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed:  @ http://localhost:7200/static/js/bundle.js:37623
+[  586025ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  588033ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[  592124ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[ 1887120ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed:  @ http://localhost:7200/static/js/bundle.js:37623
+[ 1888212ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[ 1890288ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[ 1894319ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623
+[ 1902332ms] [ERROR] WebSocket connection to 'ws://localhost:7200/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:7200/static/js/bundle.js:37623

@@ -1,0 +1,44 @@
+{
+  "name": "sutra",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@sentry/cli"
+    ],
+    "overrides": {
+      "@supabase/supabase-js": "^2.116.0"
+    }
+  },
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:api": "pnpm -C api exec next dev -p 4000",
+    "dev:web": "node frontend/node_modules/@craco/craco/dist/scripts/start.js",
+    "dev:all": "node scripts/dev.js",
+    "build": "REACT_APP_BACKEND_URL= yarn --cwd frontend build && rm -rf api/public && cp -R frontend/build api/public && touch api/public/.gitkeep && pnpm -C api build",
+    "build:web": "REACT_APP_BACKEND_URL= yarn --cwd frontend build",
+    "build:api": "pnpm -C api build",
+    "start:api": "pnpm -C api exec next start -p 4000",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "verify": "node scripts/verify.js",
+    "verify:baseline": "node scripts/verify.js --baseline",
+    "verify:diff": "node scripts/verify.js --diff",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install --with-deps chromium firefox webkit",
+    "test:e2e:smoke": "playwright test tests/e2e/_browser_check.spec.ts",
+    "test:e2e:a11y": "playwright test tests/e2e/_a11y.spec.ts",
+    "test:e2e:full": "playwright test tests/e2e/_browser_check.spec.ts tests/e2e/0*.spec.ts tests/e2e/_a11y.spec.ts tests/e2e/guest-auth.spec.ts tests/e2e/smoke.spec.ts",
+    "test:e2e:report": "playwright show-report",
+    "test:ship": "pnpm test && pnpm test:e2e:full"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.49.1",
+    "playwright": "^1.49.1"
+  }
+}

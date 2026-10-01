@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra - Twitter / X Header Banner (1500x500)</title>
+<style>
+  :root {
+    --cream: #F7F2E7;
+    --saffron: #C97B3F;
+    --ink: #1F1B16;
+    --muted: #8B7E6B;
+    --gold: #F2C795;
+    --deep: #0D0A08;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 1500px; height: 500px;
+    background: radial-gradient(circle at 75% 50%, #2D251D 0%, var(--ink) 55%, var(--deep) 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--cream);
+    overflow: hidden;
+    position: relative;
+  }
+  .banner-wrap {
+    width: 1500px;
+    height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 100px;
+    position: relative;
+    z-index: 1;
+  }
+  .bg-glow {
+    position: absolute;
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(201, 123, 63, 0.22) 0%, rgba(201, 123, 63, 0) 70%);
+    right: 60px;
+    top: -100px;
+    z-index: 0;
+  }
+  .content {
+    max-width: 780px;
+    z-index: 2;
+  }
+  .brand-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .brand-tag::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--saffron);
+  }
+  h1 {
+    font-family: 'Iowan Old Style', 'Palatino', Georgia, serif;
+    font-size: 82px;
+    line-height: 1.0;
+    margin: 0 0 16px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #FFFDF9;
+  }
+  .tagline {
+    font-size: 26px;
+    line-height: 1.35;
+    color: var(--gold);
+    font-weight: 400;
+    margin: 0 0 20px;
+  }
+  .subtext {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 640px;
+    margin: 0;
+  }
+  .visual {
+    width: 360px;
+    height: 360px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    z-index: 2;
+  }
+  .visual svg {
+    width: 360px;
+    height: 360px;
+  }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="banner-wrap">
+  <div class="content">
+    <div class="brand-tag">Intelligent Life Tracking & Alignment</div>
+    <h1>Sutra</h1>
+    <div class="tagline">let's sort your life - together.</div>
+    <p class="subtext">
+      The proactive coach that tracks your progress, keeps you accountable, and recalibrates your plans in real-time when life changes.
+    </p>
+  </div>
+  <div class="visual">
+    <svg viewBox="0 0 200 200" fill="none">
+      <circle cx="100" cy="58" r="28" fill="url(#haloGlow)" opacity="0.65"/>
+      <circle cx="100" cy="58" r="16" fill="#F2C795" opacity="0.22"/>
+      <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+      <circle cx="100" cy="46" r="5.2" fill="#F7F2E7"/>
+      <path d="M 94.5 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <path d="M 101.9 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      <circle cx="100" cy="55" r="1.1" fill="#C97B3F"/>
+      <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+      <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+      <path d="M 78 86 C 68 102, 64 116, 76 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+      <path d="M 122 86 C 132 102, 136 116, 124 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="76" cy="118" r="3.2" fill="#F2C795"/>
+      <circle cx="124" cy="118" r="3.2" fill="#F2C795"/>
+      <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+            stroke="url(#threadGrad)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+            stroke="#FFF8EE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs>
+        <radialGradient id="haloGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#F2C795" stop-opacity="0.8"/>
+          <stop offset="100%" stop-color="#C97B3F" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="threadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#F2C795"/>
+          <stop offset="50%" stop-color="#C97B3F"/>
+          <stop offset="100%" stop-color="#F2C795"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+- generic [ref=f4e3]:
+  - generic [ref=f4e4]:
+    - banner [ref=f4e5]:
+      - generic: GoalCoach
+      - generic [ref=f4e20]:
+        - button "Chat" [ref=f4e21] [cursor=pointer]
+        - button "Gemini" [ref=f4e32] [cursor=pointer]
+        - button "About GoalCoach, privacy & the founder" [ref=f4e37] [cursor=pointer]
+        - button "Every change the coach made — timestamped and exportable" [ref=f4e93] [cursor=pointer]
+        - button "Switch to light" [ref=f4e46] [cursor=pointer]
+    - generic [ref=f4e54]:
+      - generic [ref=f4e55]:
+        - button "Goals" [ref=f4e56] [cursor=pointer]
+        - button "Timeline" [ref=f4e62] [cursor=pointer]
+        - button "Memories" [ref=f4e67] [cursor=pointer]
+      - generic [ref=f4e102]:
+        - generic [ref=f4e103]:
+          - generic [ref=f4e104]:
+            - heading "Memories" [level=2] [ref=f4e105]
+            - paragraph [ref=f4e106]: Photos and posts that anchor your goals — what's the why, what does it look like?
+          - button "Add memory" [ref=f4e107] [cursor=pointer]
+        - paragraph [ref=f4e114]: Pin the things that make goals real — a photo of where you want to be, the post that got you started.
+    - button "Chat with your coach" [ref=f4e74] [cursor=pointer]
+    - dialog "Chat with your coach" [ref=f4e115]:
+      - generic [active] [ref=f4e117]:
+        - generic [ref=f4e118]:
+          - generic [ref=f4e121]:
+            - heading "Chat with your coach" [level=2] [ref=f4e122]
+            - paragraph [ref=f4e123]: Ask anything. The coach writes to your goals only after you confirm a proposal.
+          - button "Close" [ref=f4e124] [cursor=pointer]
+        - generic [ref=f4e130]:
+          - log "Coaching conversation" [ref=f4e131]:
+            - generic [ref=f4e132]:
+              - generic [ref=f4e133]: start here
+              - paragraph [ref=f4e134]: Tell me everything you're working on across every timeframe — the career move, the body, the side thing, the relationship. Say "I have N goals across different time horizons; help me figure out this week." I'll tell you what deserves attention, what you're over-committing to, and where you've drifted.
+          - generic [ref=f4e135]:
+            - generic [ref=f4e136]:
+              - button "Attach a file (PDF, .md, .txt…) as a source" [ref=f4e137] [cursor=pointer]
+              - button "Add a link as a source" [ref=f4e140] [cursor=pointer]
+              - textbox "Message the coach" [ref=f4e144]:
+                - /placeholder: Think out loud…
+              - button "Dictate with your voice" [ref=f4e145] [cursor=pointer]
+              - button "Send" [disabled] [ref=f4e149]
+            - generic [ref=f4e152]:
+              - button "grill me" [ref=f4e154] [cursor=pointer]
+              - generic [ref=f4e159]: enter to send · shift+enter = newline
+  - region "Notifications alt+T"

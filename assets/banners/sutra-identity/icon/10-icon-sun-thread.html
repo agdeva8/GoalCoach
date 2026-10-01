@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra Icon 10 - Sun + Thread Orb</title>
+<style>
+  :root { --cream:#F7F2E7; --saffron:#C97B3F; --ink:#1F1B16; }
+  html,body{margin:0;padding:0;background:var(--cream);}
+  .stage{width:1024px;height:1024px;display:grid;place-items:center;}
+  .sq{width:820px;height:820px;border-radius:240px;
+      background:radial-gradient(circle at 30% 28%,#F2C795 0%,var(--saffron) 55%,#8E4E22 100%);
+      display:grid;place-items:center;
+      box-shadow:0 40px 100px -30px rgba(143,78,34,0.45);}
+  svg{width:560px;height:560px;}
+</style>
+</head>
+<body>
+<div class="stage"><div class="sq">
+<!-- Sun rays radiating, with a single cream thread spiraling into a center point -->
+<svg viewBox="0 0 200 200" fill="none">
+  <g stroke="#F7F2E7" stroke-width="3" stroke-linecap="round" opacity="0.55">
+    <line x1="100" y1="20"  x2="100" y2="38"/>
+    <line x1="100" y1="180" x2="100" y2="162"/>
+    <line x1="20"  y1="100" x2="38"  y2="100"/>
+    <line x1="180" y1="100" x2="162" y2="100"/>
+    <line x1="42"  y1="42"  x2="55"  y2="55"/>
+    <line x1="158" y1="42"  x2="145" y2="55"/>
+    <line x1="42"  y1="158" x2="55"  y2="145"/>
+    <line x1="158" y1="158" x2="145" y2="145"/>
+  </g>
+  <!-- Thread spiral inward (sorting inwards to clarity) -->
+  <path d="M 100 100 m -42 0 a 42 42 0 1 1 84 0 a 36 36 0 1 1 -72 0 a 30 30 0 1 1 60 0 a 24 24 0 1 1 -48 0 a 18 18 0 1 1 36 0"
+        stroke="#F7F2E7" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Center dot (clarity / sun core) -->
+  <circle cx="100" cy="100" r="5" fill="#F7F2E7"/>
+</svg>
+</div></div>
+</body></html>

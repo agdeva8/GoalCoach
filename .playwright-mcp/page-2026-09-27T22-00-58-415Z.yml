@@ -1,0 +1,87 @@
+- generic [ref=f27e3]:
+  - generic [ref=f27e4]:
+    - banner [ref=f27e5]:
+      - generic [ref=f27e6]:
+        - generic [ref=f27e18]: GoalCoach
+        - generic [ref=f27e19]: let's sort your life — together.
+      - generic [ref=f27e20]:
+        - button "Chat" [ref=f27e21] [cursor=pointer]
+        - button "Scenarios" [ref=f27e26] [cursor=pointer]
+        - button "Gemini 3 Flash" [ref=f27e32] [cursor=pointer]:
+          - generic [ref=f27e34]: Gemini
+          - generic [ref=f27e35]: 3 Flash
+        - button "About GoalCoach, privacy & the founder" [ref=f27e38] [cursor=pointer]
+        - button "Audit" [ref=f27e41] [cursor=pointer]
+        - button "Switch to light" [ref=f27e47] [cursor=pointer]
+        - button "Sofia" [ref=f27e55] [cursor=pointer]
+        - button "S" [ref=f27e61] [cursor=pointer]
+    - generic [ref=f27e63]:
+      - generic [ref=f27e64]:
+        - button "Goals" [ref=f27e65] [cursor=pointer]
+        - button "Timeline" [ref=f27e71] [cursor=pointer]
+        - button "Memories" [active] [ref=f27e76] [cursor=pointer]
+      - generic [ref=f27e347]:
+        - generic [ref=f27e348]:
+          - generic [ref=f27e349]:
+            - heading "Memories" [level=2] [ref=f27e350]
+            - paragraph [ref=f27e351]: Photos and posts that anchor your goals — what's the why, what does it look like?
+          - button "Add memory" [ref=f27e352] [cursor=pointer]
+        - generic [ref=f27e354]:
+          - generic [ref=f27e355]:
+            - button "Delete" [ref=f27e363] [cursor=pointer]
+            - generic [ref=f27e367]:
+              - generic [ref=f27e368]: Tokyo neighbourhood to visit.
+              - generic [ref=f27e369]:
+                - generic [ref=f27e370]: 27 Sept
+                - generic [ref=f27e371]: ·
+                - link "Save for the Japan trip" [ref=f27e372] [cursor=pointer]:
+                  - /url: "#goals"
+          - generic [ref=f27e373]:
+            - generic [ref=f27e374]:
+              - iframe [ref=f27e375]:
+                - generic [ref=f28e3]:
+                  - link "Instagram" [ref=f28e5] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/CExampleB/?utm_source=ig_embed&utm_campaign=invalid&ig_rid=ANzlpO2ntEf4prMDvjLbB-M
+                  - link "Instagram" [ref=f28e9] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/CExampleB/?utm_source=ig_embed&utm_campaign=invalid&ig_rid=ANzlpO2ntEf4prMDvjLbB-M
+                  - generic [ref=f28e12]: The link to this photo or video may be broken, or the post may have been removed.
+                  - link "Visit Instagram" [ref=f28e13] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/CExampleB/?utm_source=ig_embed&utm_campaign=invalid&ig_rid=ANzlpO2ntEf4prMDvjLbB-M
+              - button "Delete" [ref=f27e377] [cursor=pointer]
+            - generic [ref=f27e381]:
+              - generic [ref=f27e382]: Saved the miso-eggplant recipe — trying it tonight.
+              - generic [ref=f27e383]:
+                - generic [ref=f27e384]: 27 Sept
+                - generic [ref=f27e385]: ·
+                - link "Cook one new recipe a week" [ref=f27e386] [cursor=pointer]:
+                  - /url: "#goals"
+          - generic [ref=f27e387]:
+            - button "Delete" [ref=f27e395] [cursor=pointer]
+            - generic [ref=f27e399]:
+              - generic [ref=f27e400]: Race bib pickup, October 2024 — reminder of why.
+              - generic [ref=f27e401]:
+                - generic [ref=f27e402]: 27 Sept
+                - generic [ref=f27e403]: ·
+                - link "Get to a 10km PR" [ref=f27e404] [cursor=pointer]:
+                  - /url: "#goals"
+          - generic [ref=f27e405]:
+            - generic [ref=f27e406]:
+              - iframe [ref=f27e407]:
+                - generic [ref=f29e3]:
+                  - link "Instagram" [ref=f29e5] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/CExampleA/?utm_source=ig_embed&utm_campaign=invalid&ig_rid=Agi2NCBunhsk7NJKLxvpTFt
+                  - link "Instagram" [ref=f29e9] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/CExampleA/?utm_source=ig_embed&utm_campaign=invalid&ig_rid=Agi2NCBunhsk7NJKLxvpTFt
+                  - generic [ref=f29e12]: The link to this photo or video may be broken, or the post may have been removed.
+                  - link "Visit Instagram" [ref=f29e13] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/CExampleA/?utm_source=ig_embed&utm_campaign=invalid&ig_rid=Agi2NCBunhsk7NJKLxvpTFt
+              - button "Delete" [ref=f27e409] [cursor=pointer]
+            - generic [ref=f27e413]:
+              - generic [ref=f27e414]: Sunrise run along the bay — fastest 5km yet.
+              - generic [ref=f27e415]:
+                - generic [ref=f27e416]: 27 Sept
+                - generic [ref=f27e417]: ·
+                - link "Get to a 10km PR" [ref=f27e418] [cursor=pointer]:
+                  - /url: "#goals"
+    - button "Chat with your coach" [ref=f27e83] [cursor=pointer]
+  - region "Notifications alt+T"

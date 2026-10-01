@@ -1,0 +1,15 @@
+-- Commitments note column (Iteration 5, Bug 7).
+--
+-- The Today timetable saves a free-text "what you did / what's blocking
+-- you" note per attachment via api.updateCommitment({ note }). The
+-- Drizzle schema declares the column but the live commitments table on
+-- Supabase never received it — PATCH /api/commitments/:id was returning
+-- 500 (column "note" does not exist) and TodayTimetable's optimistic
+-- note save was silently failing.
+--
+-- Nullable + default '' keeps existing rows valid (NULL) and matches
+-- the Drizzle schema column shape exactly. We do not tighten to NOT
+-- NULL because today's silent-catch path left the field in a mixed
+-- state across the founder's dev seed data.
+--> statement-breakpoint
+ALTER TABLE "commitments" ADD COLUMN IF NOT EXISTS "note" text DEFAULT '';

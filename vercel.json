@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "node -e \"console.error('[vercel] This repo deploys from api/, not the repo root. Set Root Directory = api on the Vercel project, then deploy with:  cd api && vercel deploy --prod'); process.exit(1)\""
+}

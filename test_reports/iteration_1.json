@@ -1,0 +1,29 @@
+{
+  "summary": "First end-to-end test run for GoalCoach. Backend (15 pytest cases) and Frontend (browser automation of /coach) both fully green. Verified: auth gate + redirect, dual-pane, SSE token streaming from Gemini, tool proposals parsing, confirm→dashboard update, reject→no dashboard write, over-commitment computation & role=status, model switcher persistence via PUT /api/preferences, audit log + export (/api/audit/export href), storyboard prefill (multi/one/over), theme toggle (dark→light), Enter/Shift+Enter keyboard handling, chat log role=log aria-live=polite, session persistence across reload (goals + history restored from GET /api/state and GET /api/chat/history).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py: DB_NAME accessed via os.environ['DB_NAME'] without default at import time — will crash the app if the key is missing. Already protected by /app/backend/.env so acceptable, but consider a clear startup error.",
+    "server.py.build_context: history is embedded into the system message on every request. As conversations grow (msgs list is capped at 2000), the system prompt can balloon and hit token limits. Consider summarising or truncating older turns.",
+    "server.py.chat_stream: fetches full history twice (once for insert setup, once as part of context) — minor duplication. Also, if the LLM emits [[TOOLS]] before any prose the streaming logic still works, but a malformed unterminated [[TOOLS]] block will suppress all trailing prose. Consider a fallback to flush the buffer on StreamDone even when in_tools=True.",
+    "find_goal_by_title uses a substring fallback that can match unintended goals (e.g. 'Read' matching 'Read 12 books' AND 'Read Kant'). Acceptable for v1 but risky at scale — prefer strict equality with an explicit disambiguation prompt.",
+    "Coach.js SSE reader (per code review): standard fetch+ReadableStream; ensure network drops don't leave 'streaming' flag stuck (add a finally/abort path). Not observed in tests but worth hardening."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": { "backend": "100% (15/15)", "frontend": "100% (all data-testids verified, all flows completed)" },
+  "test_credentials": "session_token=test_session_founder01, user_id=user_founder01, email=founder@goalcoach.dev (seeded in test_database).",
+  "seed_data_creation": "Pytest cleanup fixture wipes goals/commitments/messages/audit_log for user_founder01 before the run. TestOverCommitment inserts 8 TEST_over_commit_* goals and deletes them at teardown. After UI test one confirmed goal ('Running habit', short-term) and audit entries remain — safe to leave.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend expects Authorization: Bearer <session_token> OR cookie session_token. To re-seed the test session run the mongosh snippet in /app/memory/test_credentials.md. LLM streaming (Gemini 3 Flash) takes ~5-12s per multi-goal cold-start prompt; use timeouts >=30s. Chat stream uses SSE — response contains {type:delta}, {type:tools, message_id, proposals[]}, {type:done}. Model switcher options: gemini, anthropic (claude-sonnet-4-6), openai (gpt-5.4). Storyboards work (multi/one/over/gap/meta/routine). Theme toggle switches html class between '' (dark, default) and 'light'.",
+  "rca of the issue": "N/A — no bugs found."
+}

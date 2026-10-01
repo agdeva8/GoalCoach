@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra Icon - Mark + Wordmark</title>
+<style>
+  :root {
+    --cream: #F7F2E7;
+    --saffron: #C97B3F;
+    --ink: #1F1B16;
+    --muted: #8B7E6B;
+  }
+  html, body { margin: 0; padding: 0; background: var(--cream); }
+  .stage { width: 1024px; height: 1024px; display: grid; place-items: center; }
+  .row { display: flex; align-items: center; gap: 64px; }
+  .mark { width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle at 30% 28%, #F2C795 0%, var(--saffron) 55%, #8E4E22 100%); position: relative; box-shadow: 0 24px 60px -18px rgba(143, 78, 34, 0.35); display: grid; place-items: center; }
+  .mark svg { width: 200px; height: 200px; }
+  .word { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-weight: 500; font-size: 200px; letter-spacing: -4px; color: var(--ink); line-height: 1; }
+  .tag { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; font-weight: 400; font-size: 32px; letter-spacing: 0.5px; color: var(--muted); margin-top: 18px; padding-left: 4px; }
+  .stack { display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="row">
+    <div class="mark">
+      <svg viewBox="0 0 200 200" fill="none" stroke="#F7F2E7" stroke-width="14" stroke-linecap="round">
+        <path d="M100 30 C 160 30, 170 90, 130 110 C 90 130, 50 110, 50 80 C 50 50, 90 40, 110 60 C 130 80, 110 120, 80 140 C 50 160, 30 150, 30 130" />
+      </svg>
+    </div>
+    <div class="stack">
+      <div class="word">Sutra</div>
+      <div class="tag">let's sort your life - together.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

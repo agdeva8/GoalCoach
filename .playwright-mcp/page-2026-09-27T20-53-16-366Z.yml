@@ -1,0 +1,17 @@
+- generic [ref=f51e3]:
+  - generic [ref=f51e4]:
+    - banner [ref=f51e5]:
+      - generic [ref=f51e6]: GoalCoach
+      - generic [ref=f51e19]:
+        - button "Chat" [ref=f51e20] [cursor=pointer]
+        - button "gemini" [ref=f51e25] [cursor=pointer]
+        - button "Every change the coach made — timestamped and exportable" [ref=f51e30] [cursor=pointer]
+        - button "Switch to light" [ref=f51e35] [cursor=pointer]
+    - generic [ref=f51e43]:
+      - generic [ref=f51e44]:
+        - button "Goals" [ref=f51e45] [cursor=pointer]
+        - button "Timeline" [ref=f51e51] [cursor=pointer]
+        - button "Memories" [ref=f51e56] [cursor=pointer]
+      - generic [ref=f51e61]: loading…
+    - button "Chat with your coach" [ref=f51e63] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -1,0 +1,175 @@
+- generic [ref=f51e3]:
+  - generic [ref=f51e4]:
+    - banner [ref=f51e5]:
+      - generic: GoalCoach
+      - generic [ref=f51e19]:
+        - button "Chat" [ref=f51e20] [cursor=pointer]
+        - button "Gemini" [ref=f51e66] [cursor=pointer]
+        - button "Every change the coach made — timestamped and exportable" [ref=f51e30] [cursor=pointer]
+        - button "Switch to light" [ref=f51e35] [cursor=pointer]
+        - button "Switch persona (dev-only)" [ref=f51e68] [cursor=pointer]
+        - button "D" [ref=f51e73] [cursor=pointer]
+    - generic [ref=f51e43]:
+      - generic [ref=f51e44]:
+        - button "Goals" [ref=f51e45] [cursor=pointer]
+        - button "Timeline" [ref=f51e51] [cursor=pointer]
+        - button "Memories" [ref=f51e56] [cursor=pointer]
+      - generic [ref=f51e62]:
+        - generic [ref=f51e75]:
+          - generic [ref=f51e76]:
+            - heading "Your goals" [level=2] [ref=f51e77]
+            - paragraph [ref=f51e78]: Everything the coach is keeping track of for you.
+          - button "Add goal" [ref=f51e79] [cursor=pointer]
+        - status [ref=f51e81]:
+          - generic [ref=f51e82]:
+            - generic [ref=f51e85]: Your week · keep an eye on it
+            - generic [ref=f51e86]: 3 goals · 4 to-do s
+          - paragraph [ref=f51e87]: 3 goals in play. Doable, but only one can lead this week.
+        - generic [ref=f51e89]:
+          - generic [ref=f51e90]:
+            - generic [ref=f51e91]:
+              - generic [ref=f51e92]: Today
+              - heading "You're tracking 3 active goal s" [level=2] [ref=f51e93]
+              - paragraph [ref=f51e94]: 2 commitments on the agenda today.
+            - generic [ref=f51e95]:
+              - img [ref=f51e96]:
+                - generic [ref=f51e99]: "%"
+              - generic [ref=f51e100]:
+                - generic [ref=f51e101]: 2 of 2 done
+                - generic [ref=f51e102]: Today's commitments
+            - generic [ref=f51e103]:
+              - generic [ref=f51e104]:
+                - generic [ref=f51e109]: "4"
+                - generic [ref=f51e110]: Open
+              - generic [ref=f51e111]:
+                - generic [ref=f51e115]: "2"
+                - generic [ref=f51e116]: Done today
+              - generic [ref=f51e117]:
+                - generic [ref=f51e121]: "0"
+                - generic [ref=f51e122]: Overdue
+            - button "Ask the coach for today's read" [ref=f51e123] [cursor=pointer]
+            - button "Plan my day with the coach" [ref=f51e126] [cursor=pointer]
+          - generic [ref=f51e129]:
+            - generic [ref=f51e130]: Today timetable
+            - list [ref=f51e133]:
+              - listitem [ref=f51e134]:
+                - generic [ref=f51e138]:
+                  - generic [ref=f51e139]: Read response-user resolver diff
+                  - generic [ref=f51e140]:
+                    - generic [ref=f51e141]: Ship persona-aware planner UI
+                    - generic [ref=f51e142]: · 2026-09-27
+              - listitem [ref=f51e143]:
+                - generic [ref=f51e147]:
+                  - generic [ref=f51e148]: Track meals in the journal
+                  - generic [ref=f51e149]:
+                    - generic [ref=f51e150]: Get healthier
+                    - generic [ref=f51e151]: · 2026-09-27
+          - generic [ref=f51e152]:
+            - generic [ref=f51e153]:
+              - generic [ref=f51e154]: Streak
+              - generic [ref=f51e157]: On a 2-commit day
+              - generic [ref=f51e158]: Use the momentum — pick the next item.
+            - generic [ref=f51e159]:
+              - generic [ref=f51e160]: This week
+              - list [ref=f51e163]:
+                - listitem [ref=f51e164]:
+                  - generic [ref=f51e165]: Header dropdown shows weights
+                  - generic [ref=f51e166]: Ship persona-aware planner UI · 2026-09-30
+                - listitem [ref=f51e167]:
+                  - generic [ref=f51e168]: Tab key cycles personas
+                  - generic [ref=f51e169]: Ship persona-aware planner UI · 2026-10-04
+        - generic [ref=f51e170]:
+          - generic [ref=f51e171]:
+            - generic [ref=f51e174]:
+              - generic [ref=f51e175]: A nudge for today
+              - generic [ref=f51e176]: Curated · server picked these from your week
+            - button "Refresh" [ref=f51e177] [cursor=pointer]
+            - button "Hide for this view" [ref=f51e183] [cursor=pointer]
+          - list [ref=f51e187]:
+            - listitem [ref=f51e214]:
+              - generic [ref=f51e219]:
+                - link "The Habit Loop — cue, routine, reward" [ref=f51e220] [cursor=pointer]:
+                  - /url: https://charlesduhigg.com/the-power-of-habit/
+                - generic [ref=f51e225]: Charles Duhigg · article · 5 min read
+                - paragraph [ref=f51e226]: Right now, you're in the hard middle. Most habit failures are wired loops that reward the wrong thing. Rewrite the cue.
+            - listitem [ref=f51e188]:
+              - generic [ref=f51e193]:
+                - link "The Pomodoro — 25 minutes is a contract with yourself" [ref=f51e194] [cursor=pointer]:
+                  - /url: https://francescocirillo.com/pages/pomodoro-technique
+                - generic [ref=f51e199]: Francesco Cirillo · article · 3 min read
+                - paragraph [ref=f51e200]: Right now, you're in the hard middle. Time-boxed, interruption-free, twenty-five minute sessions. Start one before you finish this sentence.
+            - listitem [ref=f51e201]:
+              - generic [ref=f51e206]:
+                - link "Mountain vs. Marshmallow — reframing the boring middle" [ref=f51e207] [cursor=pointer]:
+                  - /url: https://www.profgalloway.com/
+                - generic [ref=f51e212]: Scott Galloway · article · 8 min read
+                - paragraph [ref=f51e213]: Right now, you're in the hard middle. Why the middle of a goal feels like failure — even when it isn’t.
+        - generic [ref=f51e227]:
+          - generic [ref=f51e228]: This week
+          - generic [ref=f51e230]:
+            - generic [ref=f51e236]:
+              - generic [ref=f51e237]: Ship persona-aware planner UI
+              - generic [ref=f51e238]: next Wire /api/auth/personas response into the PersonaMenu dropdown.
+              - button "2 milestone s ● 2" [ref=f51e240] [cursor=pointer]:
+                - text: 2 milestone s
+                - generic [ref=f51e243]: ● 2
+              - generic [ref=f51e246]:
+                - button "add source" [ref=f51e247] [cursor=pointer]
+                - button "Attach a file to this goal" [ref=f51e250] [cursor=pointer]
+                - button "Add a link as a source" [ref=f51e252] [cursor=pointer]
+            - generic [ref=f51e256]:
+              - button "Add a step / milestone" [ref=f51e257] [cursor=pointer]
+              - button "Refine or rename this goal" [ref=f51e260] [cursor=pointer]
+              - button "Pause this goal" [ref=f51e264] [cursor=pointer]
+              - button "Drop this goal" [ref=f51e268] [cursor=pointer]
+        - generic [ref=f51e272]:
+          - generic [ref=f51e273]: Short-term · < 3 months
+          - generic [ref=f51e275]:
+            - generic [ref=f51e281]:
+              - generic [ref=f51e282]: Get healthier
+              - generic [ref=f51e283]: next Book a 30-min walk after standup tomorrow.
+              - button "1 milestone ● 1" [ref=f51e285] [cursor=pointer]:
+                - text: 1 milestone
+                - generic [ref=f51e288]: ● 1
+              - generic [ref=f51e291]:
+                - button "add source" [ref=f51e292] [cursor=pointer]
+                - button "Attach a file to this goal" [ref=f51e295] [cursor=pointer]
+                - button "Add a link as a source" [ref=f51e297] [cursor=pointer]
+            - generic [ref=f51e301]:
+              - button "Add a step / milestone" [ref=f51e302] [cursor=pointer]
+              - button "Refine or rename this goal" [ref=f51e305] [cursor=pointer]
+              - button "Pause this goal" [ref=f51e309] [cursor=pointer]
+              - button "Drop this goal" [ref=f51e313] [cursor=pointer]
+        - generic [ref=f51e317]:
+          - generic [ref=f51e318]: Medium-term · 3–12 months
+          - generic [ref=f51e320]:
+            - generic [ref=f51e326]:
+              - generic [ref=f51e327]: Land the Q3 release by Aug 31
+              - generic [ref=f51e328]: next Final review with the QA team this Friday.
+              - button "2 milestone s ● 2" [ref=f51e330] [cursor=pointer]:
+                - text: 2 milestone s
+                - generic [ref=f51e333]: ● 2
+              - generic [ref=f51e336]:
+                - button "add source" [ref=f51e337] [cursor=pointer]
+                - button "Attach a file to this goal" [ref=f51e340] [cursor=pointer]
+                - button "Add a link as a source" [ref=f51e342] [cursor=pointer]
+            - generic [ref=f51e346]:
+              - button "Add a step / milestone" [ref=f51e347] [cursor=pointer]
+              - button "Refine or rename this goal" [ref=f51e350] [cursor=pointer]
+              - button "Pause this goal" [ref=f51e354] [cursor=pointer]
+              - button "Drop this goal" [ref=f51e358] [cursor=pointer]
+        - generic [ref=f51e362]:
+          - generic [ref=f51e363]: Upcoming — headed your way
+          - generic [ref=f51e364]:
+            - generic [ref=f51e365]: Calendar view
+            - generic [ref=f51e366]: Weekly / daily scheduler
+            - generic [ref=f51e367]: Reminders
+            - generic [ref=f51e368]: Trackers
+    - button "Chat with your coach" [ref=f51e63] [cursor=pointer]
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=f51e369]:
+        - button "Close toast" [ref=f51e370] [cursor=pointer]
+        - generic [ref=f51e379]:
+          - generic [ref=f51e380]: Up late, Dev
+          - generic [ref=f51e381]: "You have 4 open commitments today — top of the list: Add fallback for missing persona_key · Smoke-test all six personas in dev · Walk 30 min after standup."

@@ -1,0 +1,283 @@
+[     175ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   43963ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   64014ms] [ERROR] React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element. allowTransparency allowtransparency @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   64519ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   64520ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   64520ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   64519ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   64520ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   64520ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   64564ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[   64564ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[   64564ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[   64807ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790546457, extra: Object, guardList: Array(2), hash: xv0yv1} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[   64826ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790546457, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[23156173ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[28284528ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[33816909ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[39978859ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ap.emergent.sh/flags/?v=2:0
+[48277948ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[48277948ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[48277948ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[48277948ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[48277948ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[48277948ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[48278051ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :0
+[48278051ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage'. @ :0
+[48278051ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'shared-storage-select-url'. @ :0
+[48278869ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790594671, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[48279008ms] [ERROR] ErrorUtils caught an error:
+
+Got unexpected null or undefined
+
+Subsequent non-fatal errors won't be logged; see https://fburl.com/debugjs. {column: 137, clientTime: 1790594671, extra: Object, guardList: Array(2), hash: tlke5z} @ https://static.cdninstagram.com/rsrc.php/v4/yF/r/lio9c5BIn3u.js:83
+[49352081ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[49352104ms] Error: Module build failed (from ./node_modules/babel-loader/lib/index.js):
+SyntaxError: /Users/deva/Documents/Projects/goalcoachv2/frontend/src/components/AddGoalDialog.js: Identifier 'autoAnswer' has already been declared. (107:2)
+
+  105 |   open,
+  106 |   onClose,
+> 107 |   autoAnswer = true,
+      |   ^
+  108 |   grillMe = false,
+  109 | }) {
+  110 |   // Dialog-internal chat state — completely isolated from the parent.
+    at constructor (./node_modules/@babel/parser/lib/index.js:369:19)
+    at FlowParserMixin.raise (./node_modules/@babel/parser/lib/index.js:6622:19)
+    at FlowScopeHandler.checkRedeclarationInScope (./node_modules/@babel/parser/lib/index.js:1623:19)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1606:14)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1690:11)
+    at FlowParserMixin.declareNameFromIdentifier (./node_modules/@babel/parser/lib/index.js:7590:16)
+    at FlowParserMixin.checkIdentifier (./node_modules/@babel/parser/lib/index.js:7586:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7523:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7563:16)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:12165:12)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:3606:11)
+    at FlowParserMixin.<anonymous> (./node_modules/@babel/parser/lib/index.js:12140:14)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13366:48)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseBlock (./node_modules/@babel/parser/lib/index.js:13331:10)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:12134:24)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:2911:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:12120:10)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:2919:18)
+    at ./node_modules/@babel/parser/lib/index.js:13479:12
+    at FlowParserMixin.withSmartMixTopicForbiddingContext (./node_modules/@babel/parser/lib/index.js:12437:14)
+    at FlowParserMixin.parseFunction (./node_modules/@babel/parser/lib/index.js:13478:10)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:13941:19)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:2982:18)
+    at FlowParserMixin.parseExport (./node_modules/@babel/parser/lib/index.js:13862:25)
+    at FlowParserMixin.parseStatementContent (./node_modules/@babel/parser/lib/index.js:12912:27)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:12801:17)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:2934:24)
+    at FlowParserMixin.parseModuleItem (./node_modules/@babel/parser/lib/index.js:12778:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13350:36)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseProgram (./node_modules/@babel/parser/lib/index.js:12656:10)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:12646:25)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:3703:28)
+    at FlowParserMixin.parse (./node_modules/@babel/parser/lib/index.js:14522:25)
+    at parse (./node_modules/@babel/parser/lib/index.js:14556:38)
+    at parser (./node_modules/@babel/core/lib/parser/index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (./node_modules/@babel/core/lib/transformation/normalize-file.js:51:37)
+    at normalizeFile.next (<anonymous>)
+    at run (./node_modules/@babel/core/lib/transformation/index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (./node_modules/@babel/core/lib/transform.js:22:33)
+    at transform.next (<anonymous>)
+    at step (./node_modules/gensync/index.js:261:32)
+    at ./node_modules/gensync/index.js:273:13
+    at async.call.result.err.err (./node_modules/gensync/index.js:223:11)
+    at constructor (./node_modules/@babel/parser/lib/index.js:369:19)
+    at FlowParserMixin.raise (./node_modules/@babel/parser/lib/index.js:6622:19)
+    at FlowScopeHandler.checkRedeclarationInScope (./node_modules/@babel/parser/lib/index.js:1623:19)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1606:14)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1690:11)
+    at FlowParserMixin.declareNameFromIdentifier (./node_modules/@babel/parser/lib/index.js:7590:16)
+    at FlowParserMixin.checkIdentifier (./node_modules/@babel/parser/lib/index.js:7586:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7523:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7563:16)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:12165:12)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:3606:11)
+    at FlowParserMixin.<anonymous> (./node_modules/@babel/parser/lib/index.js:12140:14)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13366:48)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseBlock (./node_modules/@babel/parser/lib/index.js:13331:10)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:12134:24)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:2911:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:12120:10)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:2919:18)
+    at ./node_modules/@babel/parser/lib/index.js:13479:12
+    at FlowParserMixin.withSmartMixTopicForbiddingContext (./node_modules/@babel/parser/lib/index.js:12437:14)
+    at FlowParserMixin.parseFunction (./node_modules/@babel/parser/lib/index.js:13478:10)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:13941:19)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:2982:18)
+    at FlowParserMixin.parseExport (./node_modules/@babel/parser/lib/index.js:13862:25)
+    at FlowParserMixin.parseStatementContent (./node_modules/@babel/parser/lib/index.js:12912:27)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:12801:17)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:2934:24)
+    at FlowParserMixin.parseModuleItem (./node_modules/@babel/parser/lib/index.js:12778:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13350:36)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseProgram (./node_modules/@babel/parser/lib/index.js:12656:10)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:12646:25)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:3703:28)
+    at FlowParserMixin.parse (./node_modules/@babel/parser/lib/index.js:14522:25)
+    at parse (./node_modules/@babel/parser/lib/index.js:14556:38)
+    at parser (./node_modules/@babel/core/lib/parser/index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (./node_modules/@babel/core/lib/transformation/normalize-file.js:51:37)
+    at normalizeFile.next (<anonymous>)
+    at run (./node_modules/@babel/core/lib/transformation/index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (./node_modules/@babel/core/lib/transform.js:22:33)
+    at transform.next (<anonymous>)
+    at step (./node_modules/gensync/index.js:261:32)
+    at ./node_modules/gensync/index.js:273:13
+    at async.call.result.err.err (./node_modules/gensync/index.js:223:11)
+    at ./src/components/AddGoalDialog.js (http://localhost:7200/static/js/bundle.js:863:7)
+    at options.factory (http://localhost:7200/static/js/bundle.js:59928:30)
+    at __webpack_require__ (http://localhost:7200/static/js/bundle.js:59318:32)
+    at fn (http://localhost:7200/static/js/bundle.js:59521:21)
+    at hotRequire (http://localhost:7200/static/js/bundle.js:59911:47)
+    at ./src/components/TrackingDashboard.js (http://localhost:7200/static/js/bundle.js:13177:73)
+    at options.factory (http://localhost:7200/static/js/bundle.js:59928:30)
+    at __webpack_require__ (http://localhost:7200/static/js/bundle.js:59318:32)
+    at fn (http://localhost:7200/static/js/bundle.js:59521:21)
+    at hotRequire (http://localhost:7200/static/js/bundle.js:59911:47)
+[49810197ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[49810389ms] Error: Module build failed (from ./node_modules/babel-loader/lib/index.js):
+SyntaxError: /Users/deva/Documents/Projects/goalcoachv2/frontend/src/components/AddGoalDialog.js: Identifier 'autoAnswer' has already been declared. (107:2)
+
+  105 |   open,
+  106 |   onClose,
+> 107 |   autoAnswer = true,
+      |   ^
+  108 |   grillMe = false,
+  109 | }) {
+  110 |   // Dialog-internal chat state — completely isolated from the parent.
+    at constructor (./node_modules/@babel/parser/lib/index.js:369:19)
+    at FlowParserMixin.raise (./node_modules/@babel/parser/lib/index.js:6622:19)
+    at FlowScopeHandler.checkRedeclarationInScope (./node_modules/@babel/parser/lib/index.js:1623:19)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1606:14)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1690:11)
+    at FlowParserMixin.declareNameFromIdentifier (./node_modules/@babel/parser/lib/index.js:7590:16)
+    at FlowParserMixin.checkIdentifier (./node_modules/@babel/parser/lib/index.js:7586:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7523:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7563:16)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:12165:12)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:3606:11)
+    at FlowParserMixin.<anonymous> (./node_modules/@babel/parser/lib/index.js:12140:14)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13366:48)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseBlock (./node_modules/@babel/parser/lib/index.js:13331:10)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:12134:24)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:2911:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:12120:10)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:2919:18)
+    at ./node_modules/@babel/parser/lib/index.js:13479:12
+    at FlowParserMixin.withSmartMixTopicForbiddingContext (./node_modules/@babel/parser/lib/index.js:12437:14)
+    at FlowParserMixin.parseFunction (./node_modules/@babel/parser/lib/index.js:13478:10)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:13941:19)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:2982:18)
+    at FlowParserMixin.parseExport (./node_modules/@babel/parser/lib/index.js:13862:25)
+    at FlowParserMixin.parseStatementContent (./node_modules/@babel/parser/lib/index.js:12912:27)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:12801:17)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:2934:24)
+    at FlowParserMixin.parseModuleItem (./node_modules/@babel/parser/lib/index.js:12778:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13350:36)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseProgram (./node_modules/@babel/parser/lib/index.js:12656:10)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:12646:25)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:3703:28)
+    at FlowParserMixin.parse (./node_modules/@babel/parser/lib/index.js:14522:25)
+    at parse (./node_modules/@babel/parser/lib/index.js:14556:38)
+    at parser (./node_modules/@babel/core/lib/parser/index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (./node_modules/@babel/core/lib/transformation/normalize-file.js:51:37)
+    at normalizeFile.next (<anonymous>)
+    at run (./node_modules/@babel/core/lib/transformation/index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (./node_modules/@babel/core/lib/transform.js:22:33)
+    at transform.next (<anonymous>)
+    at step (./node_modules/gensync/index.js:261:32)
+    at ./node_modules/gensync/index.js:273:13
+    at async.call.result.err.err (./node_modules/gensync/index.js:223:11)
+    at constructor (./node_modules/@babel/parser/lib/index.js:369:19)
+    at FlowParserMixin.raise (./node_modules/@babel/parser/lib/index.js:6622:19)
+    at FlowScopeHandler.checkRedeclarationInScope (./node_modules/@babel/parser/lib/index.js:1623:19)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1606:14)
+    at FlowScopeHandler.declareName (./node_modules/@babel/parser/lib/index.js:1690:11)
+    at FlowParserMixin.declareNameFromIdentifier (./node_modules/@babel/parser/lib/index.js:7590:16)
+    at FlowParserMixin.checkIdentifier (./node_modules/@babel/parser/lib/index.js:7586:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7523:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7567:12)
+    at FlowParserMixin.checkLVal (./node_modules/@babel/parser/lib/index.js:7563:16)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:12165:12)
+    at FlowParserMixin.checkParams (./node_modules/@babel/parser/lib/index.js:3606:11)
+    at FlowParserMixin.<anonymous> (./node_modules/@babel/parser/lib/index.js:12140:14)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13366:48)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseBlock (./node_modules/@babel/parser/lib/index.js:13331:10)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:12134:24)
+    at FlowParserMixin.parseFunctionBody (./node_modules/@babel/parser/lib/index.js:2911:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:12120:10)
+    at FlowParserMixin.parseFunctionBodyAndFinish (./node_modules/@babel/parser/lib/index.js:2919:18)
+    at ./node_modules/@babel/parser/lib/index.js:13479:12
+    at FlowParserMixin.withSmartMixTopicForbiddingContext (./node_modules/@babel/parser/lib/index.js:12437:14)
+    at FlowParserMixin.parseFunction (./node_modules/@babel/parser/lib/index.js:13478:10)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:13941:19)
+    at FlowParserMixin.parseExportDefaultExpression (./node_modules/@babel/parser/lib/index.js:2982:18)
+    at FlowParserMixin.parseExport (./node_modules/@babel/parser/lib/index.js:13862:25)
+    at FlowParserMixin.parseStatementContent (./node_modules/@babel/parser/lib/index.js:12912:27)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:12801:17)
+    at FlowParserMixin.parseStatementLike (./node_modules/@babel/parser/lib/index.js:2934:24)
+    at FlowParserMixin.parseModuleItem (./node_modules/@babel/parser/lib/index.js:12778:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (./node_modules/@babel/parser/lib/index.js:13350:36)
+    at FlowParserMixin.parseBlockBody (./node_modules/@babel/parser/lib/index.js:13343:10)
+    at FlowParserMixin.parseProgram (./node_modules/@babel/parser/lib/index.js:12656:10)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:12646:25)
+    at FlowParserMixin.parseTopLevel (./node_modules/@babel/parser/lib/index.js:3703:28)
+    at FlowParserMixin.parse (./node_modules/@babel/parser/lib/index.js:14522:25)
+    at parse (./node_modules/@babel/parser/lib/index.js:14556:38)
+    at parser (./node_modules/@babel/core/lib/parser/index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (./node_modules/@babel/core/lib/transformation/normalize-file.js:51:37)
+    at normalizeFile.next (<anonymous>)
+    at run (./node_modules/@babel/core/lib/transformation/index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (./node_modules/@babel/core/lib/transform.js:22:33)
+    at transform.next (<anonymous>)
+    at step (./node_modules/gensync/index.js:261:32)
+    at ./node_modules/gensync/index.js:273:13
+    at async.call.result.err.err (./node_modules/gensync/index.js:223:11)
+    at ./src/components/AddGoalDialog.js (http://localhost:7200/static/js/bundle.js:863:7)
+    at options.factory (http://localhost:7200/static/js/bundle.js:59928:30)
+    at __webpack_require__ (http://localhost:7200/static/js/bundle.js:59318:32)
+    at fn (http://localhost:7200/static/js/bundle.js:59521:21)
+    at hotRequire (http://localhost:7200/static/js/bundle.js:59911:47)
+    at ./src/components/TrackingDashboard.js (http://localhost:7200/static/js/bundle.js:13177:73)
+    at options.factory (http://localhost:7200/static/js/bundle.js:59928:30)
+    at __webpack_require__ (http://localhost:7200/static/js/bundle.js:59318:32)
+    at fn (http://localhost:7200/static/js/bundle.js:59521:21)
+    at hotRequire (http://localhost:7200/static/js/bundle.js:59911:47)

@@ -1,0 +1,34 @@
+[     101ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[     119ms] TypeError: Cannot read properties of undefined (reading 'label')
+    at Header (http://localhost:7200/static/js/bundle.js:4585:27)
+    at react-stack-bottom-frame (http://localhost:7200/static/js/bundle.js:32174:18)
+    at renderWithHooks (http://localhost:7200/static/js/bundle.js:23491:20)
+    at updateFunctionComponent (http://localhost:7200/static/js/bundle.js:24760:17)
+    at beginWork (http://localhost:7200/static/js/bundle.js:25378:16)
+    at runWithFiberInDEV (http://localhost:7200/static/js/bundle.js:20718:14)
+    at performUnitOfWork (http://localhost:7200/static/js/bundle.js:27963:93)
+    at workLoopSync (http://localhost:7200/static/js/bundle.js:27857:38)
+    at renderRootSync (http://localhost:7200/static/js/bundle.js:27841:7)
+    at performWorkOnRoot (http://localhost:7200/static/js/bundle.js:27602:42)
+[     118ms] [WARNING] %s
+
+%s
+ An error occurred in the <Header> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   49173ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   49200ms] TypeError: Cannot read properties of undefined (reading 'label')
+    at Header (http://localhost:7200/static/js/bundle.js:4585:27)
+    at react-stack-bottom-frame (http://localhost:7200/static/js/bundle.js:32174:18)
+    at renderWithHooks (http://localhost:7200/static/js/bundle.js:23491:20)
+    at updateFunctionComponent (http://localhost:7200/static/js/bundle.js:24760:17)
+    at beginWork (http://localhost:7200/static/js/bundle.js:25378:16)
+    at runWithFiberInDEV (http://localhost:7200/static/js/bundle.js:20718:14)
+    at performUnitOfWork (http://localhost:7200/static/js/bundle.js:27963:93)
+    at workLoopSync (http://localhost:7200/static/js/bundle.js:27857:38)
+    at renderRootSync (http://localhost:7200/static/js/bundle.js:27841:7)
+    at performWorkOnRoot (http://localhost:7200/static/js/bundle.js:27602:42)
+[   49196ms] [WARNING] %s
+
+%s
+ An error occurred in the <Header> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ https://assets.emergent.sh/scripts/emergent-main.js:55

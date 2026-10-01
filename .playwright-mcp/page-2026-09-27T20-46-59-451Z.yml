@@ -1,0 +1,14 @@
+- generic [ref=f37e2]:
+  - generic [ref=f37e3]:
+    - generic [ref=f37e6]: Runtime error · 2×
+    - button "✕" [ref=f37e7] [cursor=pointer]
+  - generic [ref=f37e8]:
+    - paragraph [ref=f37e9]: The app hit an error while running
+    - paragraph [ref=f37e10]: _lib_api__WEBPACK_IMPORTED_MODULE_12__.api.models is not a function
+    - paragraph [ref=f37e11]: static/js/bundle.js:4249:48
+    - group [ref=f37e12]:
+      - generic "Stack trace" [ref=f37e13] [cursor=pointer]
+  - generic [ref=f37e14]:
+    - generic [ref=f37e15]: This error was captured by Emergent. Full details also remain in the browser console.
+    - button "Copy details" [ref=f37e16] [cursor=pointer]
+    - button "Reload app" [ref=f37e17] [cursor=pointer]

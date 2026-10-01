@@ -1,0 +1,8 @@
+[     121ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://assets.emergent.sh/scripts/emergent-main.js:55
+[   36057ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:4000/api/goals/goal_founder0go001/commitments:0
+[   36088ms] TypeError: Failed to execute 'text' on 'Response': body stream already read
+    at eval (eval at <anonymous> (eval at evaluate (:367:30)), <anonymous>:1:201)
+    at async eval (eval at <anonymous> (eval at evaluate (:367:30)), <anonymous>:1:170)
+    at async eval (eval at evaluate (:367:30), <anonymous>:4:30)
+    at async <anonymous>:393:30
+[   44626ms] [ERROR] Failed to load resource: the server responded with a status of 405 (Method Not Allowed) @ http://localhost:4000/api/goals:0

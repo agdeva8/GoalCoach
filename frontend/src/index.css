@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #17120E;
+  --bg-secondary: #211A14;
+  --bg-tertiary: #2C231B;
+  --border: #3A2E24;
+  --border-accent: #574636;
+  --text-primary: #F6EEE3;
+  --text-secondary: #C6B5A1;
+  /* Raised from #94806B. --text-muted is the workhorse token (calendar
+   * day numbers, captions, counts, stat labels, footers) and it sits on
+   * --bg-tertiary cards far more often than on --bg-primary, so the
+   * binding surface is bg-tertiary: 4.08 -> 5.01 (still a clear step
+   * below --text-secondary's 7.72 so the hierarchy survives). */
+  --text-muted: #A3907B;
+  --accent: #E8925C;
+  --warning: #E0A458;
+  --danger: #D9705A;
+  --success: #8FB98A;
+  --tool-bg: #241C15;
+  --popover: 27 25% 11%;
+  --popover-foreground: 34 50% 93%;
+}
+
+.light {
+  --bg-primary: #FBF6EF;
+  --bg-secondary: #F3EBDF;
+  --bg-tertiary: #EADFCF;
+  --border: #E0D3C0;
+  --border-accent: #C9B7A0;
+  --text-primary: #2B2118;
+  --text-secondary: #5E4F40;
+  /* Raised from #93806A, which sat at 2.88 on --bg-tertiary. Same warm
+   * sepia ramp, just stepped down the ramp: 4.92 on bg-tertiary, and a
+   * full step lighter than --text-secondary (#5E4F40, 5.98) so the
+   * primary / secondary / muted ladder still reads. */
+  --text-muted: #6E5B45;
+
+  /* Semantic hues do double duty: they are calendar/status BAR FILLS
+   * (with dark ink on top) *and* status text. In light mode the old
+   * values failed both jobs — #C4683A was 2.96 as text on bg-tertiary
+   * and 3.62 under #FBF6EF ink on its own fill.
+   *
+   * Rather than split into fill/on-surface pairs (which would leave
+   * ~140 `text-[var(--accent)]`-style call sites in components this
+   * change does not own pointing at the fill token), these are darkened
+   * to the band that satisfies BOTH at once. The binding constraint is
+   * the lighter of the two requirements, and it is met with headroom:
+   *
+   *   token    as text on bg-tertiary   ink on fill
+   *   accent   4.54                     5.56
+   *   warning  4.65                     5.70
+   *   danger   4.82                     5.89
+   *   success  4.79                     5.86
+   *
+   * So light-mode bars stay saturated and clean instead of going muddy,
+   * and status text clears AA. Dark mode already passed both tests and
+   * is deliberately left alone — it is the default look. */
+  --accent: #9E4C22;
+  --warning: #8C551A;
+  --danger: #A0422E;
+  --success: #3F6A3A;
+  --tool-bg: #F6EFE4;
+  --popover: 36 43% 91%;
+  --popover-foreground: 27 28% 13%;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  margin: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display { font-family: 'Space Grotesk', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+::selection {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 8px; }
+
+/* Focus visibility for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@keyframes gc-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.gc-fade-up { animation: gc-fade-up 0.28s ease-out both; }
+
+@keyframes gc-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.gc-fade-in { animation: gc-fade-in 0.18s ease-out both; }
+
+@keyframes gc-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.gc-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 100%
+  );
+  background-size: 200% 100%;
+  animation: gc-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes gc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.gc-caret { animation: gc-blink 1s step-end infinite; }
+
+/* Safe-area-aware FAB positioning for iOS Safari (home indicator) */
+.gc-safe-bottom {
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+/* Sonner toaster — keep below the modal stack (z-60) so toasts can't
+   intercept clicks on the chat close X or other modal controls. */
+section[aria-label="Notifications alt+T"] {
+  z-index: 50 !important;
+  pointer-events: none;
+}
+section[aria-label="Notifications alt+T"] > * {
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Horizon strip (TimelineVariantB) — hide horizontal scrollbar while
+   preserving native touch/wheel scroll and snap behavior. */
+.gc-strip-body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.gc-strip-body::-webkit-scrollbar {
+  display: none;
+}
