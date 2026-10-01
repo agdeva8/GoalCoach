@@ -32,3 +32,13 @@ export default {
 };
 
 export const Default = {};
+
+// Iteration 9 — the dropdown opened. The Default story only shows the
+// trigger button — the actual list of personas (rows, rename pencil,
+// "new persona" affordance, sign-out row) was invisible to a reviewer
+// walking the gallery. `initialOpen` is a no-op in the running product
+// (always false); it exists so Storybook can render the menu without
+// a click interaction.
+export const Open = {
+  args: { initialOpen: true },
+};

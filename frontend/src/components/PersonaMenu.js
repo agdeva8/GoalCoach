@@ -32,8 +32,8 @@ import { API, api } from "../lib/api";
  * with `user_id=<existing>&name=<new>` — which upserts the user row
  * server-side, so the rename survives across reloads.
  */
-export default function PersonaMenu({ currentName, currentUserId }) {
-  const [open, setOpen] = useState(false);
+export default function PersonaMenu({ currentName, currentUserId, initialOpen = false }) {
+  const [open, setOpen] = useState(initialOpen);
   const [personas, setPersonas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
