@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra Hero - Stacked (Square-Friendly)</title>
+<style>
+  :root {
+    --cream: #F7F2E7;
+    --saffron: #C97B3F;
+    --ink: #1F1B16;
+    --muted: #8B7E6B;
+  }
+  html, body { margin: 0; padding: 0; background: var(--cream); }
+  .stage { width: 1500px; height: 500px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; padding: 0 80px; box-sizing: borderpx; }
+  .left { display: grid; place-items: center; }
+  .mark { width: 320px; height: 320px; border-radius: 80px; background: linear-gradient(155deg, #F2C795 0%, var(--saffron) 60%, #8E4E22 100%); display: grid; place-items: center; box-shadow: 0 30px 80px -25px rgba(143, 78, 34, 0.45); }
+  .mark svg { width: 180px; height: 180px; }
+  .right { padding-left: 40px; }
+  .word { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-weight: 500; font-size: 160px; letter-spacing: -4px; color: var(--ink); line-height: 1; }
+  .rule { width: 80px; height: 3px; background: var(--saffron); margin: 22px 0; }
+  .tag { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; font-weight: 400; font-size: 30px; color: var(--muted); line-height: 1.35; letter-spacing: 0.3px; max-width: 540px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="left">
+    <div class="mark">
+      <svg viewBox="0 0 200 200" fill="none" stroke="#F7F2E7" stroke-width="14" stroke-linecap="round">
+        <path d="M100 30 C 160 30, 170 90, 130 110 C 90 130, 50 110, 50 80 C 50 50, 90 40, 110 60 C 130 80, 110 120, 80 140 C 50 160, 30 150, 30 130" />
+      </svg>
+    </div>
+  </div>
+  <div class="right">
+    <div class="word">Sutra</div>
+    <div class="rule"></div>
+    <div class="tag">let's sort your life - together.</div>
+  </div>
+</div>
+</body>
+</html>

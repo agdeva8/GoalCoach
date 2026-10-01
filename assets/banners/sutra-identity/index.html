@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra - Brand Kit (Guru with Infinite Thread)</title>
+<style>
+  :root {
+    --cream: #F7F2E7;
+    --saffron: #C97B3F;
+    --ink: #1F1B16;
+    --muted: #8B7E6B;
+    --gold: #F2C795;
+    --border: rgba(139, 126, 107, 0.2);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--cream);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+  }
+  .container {
+    max-width: 1400px;
+    margin: 40px auto 80px;
+    padding: 0 32px;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+  }
+  h1 {
+    font-family: 'Iowan Old Style', 'Palatino', Georgia, serif;
+    font-size: 38px;
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  p.sub {
+    font-size: 16px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 36px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .palette {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .swatch {
+    flex: 1;
+    height: 90px;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.1);
+  }
+
+  .grid-assets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .asset-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px -10px rgba(31, 27, 22, 0.08);
+    display: flex;
+    flex-direction: column;
+  }
+  .asset-card h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+  }
+  .asset-meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .preview-box {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background: radial-gradient(circle at 30% 28%, #2A241E 0%, #1F1B16 65%, #0B0907 100%);
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .preview-box svg {
+    width: 75%;
+    height: 75%;
+  }
+  .btn-link {
+    margin-top: 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--saffron);
+    text-decoration: none;
+    align-self: flex-start;
+  }
+  .btn-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Wide Banner Previews */
+  .banner-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px -10px rgba(31, 27, 22, 0.08);
+    margin-bottom: 24px;
+  }
+  .banner-preview-wide {
+    width: 100%;
+    border-radius: 12px;
+    background: radial-gradient(circle at 75% 50%, #2D251D 0%, #1F1B16 55%, #0D0A08 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 32px 50px;
+    color: var(--cream);
+    position: relative;
+    overflow: hidden;
+  }
+  .banner-preview-wide.hero {
+    padding: 50px 70px;
+  }
+  .banner-text h2 {
+    font-family: 'Iowan Old Style', 'Palatino', Georgia, serif;
+    font-size: 42px;
+    margin: 0 0 8px;
+    color: #FFFDF9;
+  }
+  .banner-text .tag {
+    font-size: 18px;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+  .banner-text .desc {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0;
+  }
+  .banner-visual {
+    width: 160px;
+    height: 160px;
+    flex-shrink: 0;
+  }
+  .banner-visual svg {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Sutra - Brand Identity & Banners Kit</h1>
+    <p class="sub">Concept: <strong>Guru & Infinite Thread</strong> · <em>"let's sort your life - together."</em></p>
+  </header>
+
+  <div class="section-title">Core Color Palette</div>
+  <div class="palette">
+    <div class="swatch" style="background: #1F1B16; color: #F7F2E7;">Deep Ink<br><span style="font-size:11px;opacity:0.8;">#1F1B16</span></div>
+    <div class="swatch" style="background: #C97B3F; color: #FFF;">Saffron<br><span style="font-size:11px;opacity:0.8;">#C97B3F</span></div>
+    <div class="swatch" style="background: #F2C795; color: #1F1B16;">Warm Gold<br><span style="font-size:11px;opacity:0.8;">#F2C795</span></div>
+    <div class="swatch" style="background: #F7F2E7; color: #1F1B16; border: 1px solid var(--border);">Silk Cream<br><span style="font-size:11px;opacity:0.8;">#F7F2E7</span></div>
+    <div class="swatch" style="background: #8B7E6B; color: #FFF;">Muted Earth<br><span style="font-size:11px;opacity:0.8;">#8B7E6B</span></div>
+  </div>
+
+  <div class="section-title">Master Assets & App Icons</div>
+  <div class="grid-assets">
+    <!-- Card 1: Master Icon -->
+    <div class="asset-card">
+      <h3>App Icon Master</h3>
+      <div class="asset-meta">1024 × 1024 px · High-resolution square</div>
+      <div class="preview-box">
+        <svg viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="58" r="28" fill="url(#haloGlow)" opacity="0.65"/>
+          <circle cx="100" cy="58" r="16" fill="#F2C795" opacity="0.22"/>
+          <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+          <circle cx="100" cy="46" r="5.2" fill="#F7F2E7"/>
+          <path d="M 94.5 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+          <path d="M 101.9 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+          <circle cx="100" cy="55" r="1.1" fill="#C97B3F"/>
+          <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+          <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+          <path d="M 78 86 C 68 102, 64 116, 76 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+          <path d="M 122 86 C 132 102, 136 116, 124 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="76" cy="118" r="3.2" fill="#F2C795"/>
+          <circle cx="124" cy="118" r="3.2" fill="#F2C795"/>
+          <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                stroke="url(#threadGrad)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                stroke="#FFF8EE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <radialGradient id="haloGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#F2C795" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#C97B3F" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="threadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#F2C795"/>
+              <stop offset="50%" stop-color="#C97B3F"/>
+              <stop offset="100%" stop-color="#F2C795"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <a class="btn-link" href="icon/icon-guru-infinite-master.html" target="_blank">Open Master Icon Page ↗</a>
+    </div>
+
+    <!-- Card 2: Raw SVG Vector -->
+    <div class="asset-card">
+      <h3>Standalone SVG Mark</h3>
+      <div class="asset-meta">Scalable vector asset for apps & web</div>
+      <div class="preview-box">
+        <svg viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="58" r="28" fill="url(#haloGlow2)" opacity="0.65"/>
+          <circle cx="100" cy="58" r="16" fill="#F2C795" opacity="0.22"/>
+          <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+          <circle cx="100" cy="46" r="5.2" fill="#F7F2E7"/>
+          <path d="M 94.5 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+          <path d="M 101.9 60.5 q 1.8 1.2 3.6 0" stroke="#8E4E22" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+          <circle cx="100" cy="55" r="1.1" fill="#C97B3F"/>
+          <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+          <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+          <path d="M 78 86 C 68 102, 64 116, 76 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+          <path d="M 122 86 C 132 102, 136 116, 124 118" stroke="#F7F2E7" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="76" cy="118" r="3.2" fill="#F2C795"/>
+          <circle cx="124" cy="118" r="3.2" fill="#F2C795"/>
+          <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                stroke="url(#threadGrad2)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                stroke="#FFF8EE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <radialGradient id="haloGlow2" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#F2C795" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#C97B3F" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="threadGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#F2C795"/>
+              <stop offset="50%" stop-color="#C97B3F"/>
+              <stop offset="100%" stop-color="#F2C795"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <a class="btn-link" href="icon/sutra-guru-infinite.svg" target="_blank">Open SVG File ↗</a>
+    </div>
+
+    <!-- Card 3: Social Square Post -->
+    <div class="asset-card">
+      <h3>Social Post & OpenGraph</h3>
+      <div class="asset-meta">1080 × 1080 px · Instagram / Meta / Share Card</div>
+      <div class="preview-box" style="flex-direction: column; text-align: center; padding: 24px;">
+        <div style="width: 100px; height: 100px; margin-bottom: 12px;">
+          <svg viewBox="0 0 200 200" fill="none" style="width:100%;height:100%;">
+            <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+            <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+            <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+            <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                  stroke="#F2C795" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div style="font-family:'Iowan Old Style',serif;font-size:24px;font-weight:600;color:#FFFDF9;">Sutra</div>
+        <div style="font-size:12px;color:var(--gold);margin-top:4px;">let's sort your life - together.</div>
+      </div>
+      <a class="btn-link" href="banner-square-1080x1080.html" target="_blank">Open Square Post ↗</a>
+    </div>
+  </div>
+
+  <div class="section-title">Headers & Hero Banners</div>
+
+  <!-- Twitter Banner -->
+  <div class="banner-card">
+    <div class="banner-preview-wide">
+      <div class="banner-text">
+        <div class="tag">Twitter / X Header (1500 × 500)</div>
+        <h2>Sutra</h2>
+        <div class="tag" style="font-size:19px;margin-bottom:12px;">let's sort your life - together.</div>
+        <p class="desc">
+          Untangle messy ambitions, track daily follow-through, and adapt seamlessly when reality shifts.
+        </p>
+      </div>
+      <div class="banner-visual">
+        <svg viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="58" r="28" fill="url(#haloGlow3)" opacity="0.65"/>
+          <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+          <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+          <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+          <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                stroke="url(#threadGrad3)" stroke-width="7" stroke-linecap="round"/>
+          <defs>
+            <radialGradient id="haloGlow3" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#F2C795" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#C97B3F" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="threadGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#F2C795"/>
+              <stop offset="50%" stop-color="#C97B3F"/>
+              <stop offset="100%" stop-color="#F2C795"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+    <a class="btn-link" href="banner-twitter-1500x500.html" target="_blank" style="margin-top:16px;">Open Full Twitter Banner (1500x500) ↗</a>
+  </div>
+
+  <!-- LinkedIn Banner -->
+  <div class="banner-card">
+    <div class="banner-preview-wide">
+      <div class="banner-text">
+        <div class="tag">LinkedIn Cover (1584 × 396)</div>
+        <h2>Sutra</h2>
+        <div class="tag" style="font-size:18px;margin-bottom:12px;">let's sort your life - together.</div>
+        <p class="desc">
+          Continuous tracking, intelligent accountability, and zero-shame recalibration for high-performers.
+        </p>
+      </div>
+      <div class="banner-visual">
+        <svg viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="58" r="28" fill="#F2C795" opacity="0.3"/>
+          <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+          <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+          <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+          <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                stroke="#F2C795" stroke-width="7" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <a class="btn-link" href="banner-linkedin-1584x396.html" target="_blank" style="margin-top:16px;">Open Full LinkedIn Banner (1584x396) ↗</a>
+  </div>
+
+  <!-- Website Hero -->
+  <div class="banner-card">
+    <div class="banner-preview-wide hero">
+      <div class="banner-text">
+        <div class="tag">Website Hero Section (1920 × 800)</div>
+        <h2 style="font-size: 52px;">Sutra</h2>
+        <div class="tag" style="font-size:22px;margin-bottom:16px;">let's sort your life - together.</div>
+        <p class="desc" style="font-size:15px;max-width:680px;">
+          Not just setting goals - actively tracking your progress, keeping you on course, and realigning smoothly whenever reality demands it.
+        </p>
+      </div>
+      <div class="banner-visual" style="width: 200px; height: 200px;">
+        <svg viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="58" r="28" fill="#F2C795" opacity="0.3"/>
+          <circle cx="100" cy="60" r="10.5" fill="#F7F2E7"/>
+          <path d="M 76 82 Q 100 74 124 82 L 132 120 Q 100 128 68 120 Z" fill="#F7F2E7"/>
+          <path d="M 48 122 Q 100 138 152 122 L 158 144 Q 100 156 42 144 Z" fill="#F7F2E7"/>
+          <path d="M 100 106 C 75 80, 36 82, 36 110 C 36 138, 75 142, 100 116 C 125 90, 164 82, 164 110 C 164 138, 125 132, 100 106"
+                stroke="#F2C795" stroke-width="7" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <a class="btn-link" href="banner-website-hero-1920x800.html" target="_blank" style="margin-top:16px;">Open Full Website Hero Section ↗</a>
+  </div>
+
+</div>
+</body>
+</html>

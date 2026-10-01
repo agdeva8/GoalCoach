@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sutra Icon - Mark Only</title>
+<style>
+  :root {
+    --cream: #F7F2E7;
+    --saffron: #C97B3F;
+    --ink: #1F1B16;
+    --muted: #8B7E6B;
+  }
+  html, body { margin: 0; padding: 0; background: var(--cream); }
+  .stage { width: 1024px; height: 1024px; display: grid; place-items: center; }
+  .mark { width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle at 30% 28%, #F2C795 0%, var(--saffron) 55%, #8E4E22 100%); position: relative; box-shadow: 0 30px 80px -20px rgba(143, 78, 34, 0.35); }
+  .mark::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 70% 80%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 45%); }
+  .glyph { position: absolute; inset: 0; display: grid; place-items: center; }
+  .glyph svg { width: 320px; height: 320px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="mark">
+    <div class="glyph">
+      <!-- Sutra = thread. A single continuous thread that loops back to itself = sorted life. -->
+      <svg viewBox="0 0 200 200" fill="none" stroke="#F7F2E7" stroke-width="14" stroke-linecap="round">
+        <path d="M100 30 C 160 30, 170 90, 130 110 C 90 130, 50 110, 50 80 C 50 50, 90 40, 110 60 C 130 80, 110 120, 80 140 C 50 160, 30 150, 30 130" />
+      </svg>
+    </div>
+  </div>
+</div>
+</body>
+</html>
