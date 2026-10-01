@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import Logo from "./Logo";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -36,11 +37,18 @@ export default function AuthCallback() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]" data-testid="auth-callback">
-      <div className="text-center">
+      <div className="text-center flex flex-col items-center gap-4">
+        <Logo className="w-10 h-10 text-[var(--accent)]" />
+        {!error && (
+          <div
+            aria-hidden="true"
+            className="h-4 w-4 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin"
+          />
+        )}
         <div className="font-mono text-xs uppercase tracking-widest text-[var(--text-muted)]">
           {error ? "auth failed" : "establishing session"}
         </div>
-        {error && <div className="mt-2 text-sm text-[var(--danger)]">{error}</div>}
+        {error && <div className="mt-1 text-sm text-[var(--danger)] max-w-xs">{error}</div>}
       </div>
     </div>
   );

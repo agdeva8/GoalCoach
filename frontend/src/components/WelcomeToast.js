@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Sun, Moon, Sunset, Coffee, Sparkles, Check } from "lucide-react";
+import { Sun, Moon, Sunset, Coffee, Sparkles, Check, X } from "lucide-react";
 import { localDateKey } from "../lib/utils";
 
 /**
@@ -79,12 +79,22 @@ export default function WelcomeToast({ user, state, signedIn }) {
               {body}
             </div>
           </div>
+          {/* Inline dismiss — Sonner's default closeButton renders
+              outside the toast card on mobile and looks disconnected.
+              Putting it inside the body keeps it visually anchored. */}
+          <button
+            onClick={() => toast.dismiss(t)}
+            aria-label="Dismiss greeting"
+            className="-mr-1 -mt-1 h-7 w-7 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       ),
       {
         id: "gc-welcome",
         duration: 8000,
-        closeButton: true,
+        closeButton: false,
         // Sonner Toaster is configured `position="bottom-right"` on
         // desktop and `bottom-center` on mobile (App.js). That wins
         // over per-toast position. To keep the toast from covering

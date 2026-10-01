@@ -23,6 +23,12 @@ import { X } from "lucide-react";
  *   maxWidth    — Tailwind max-w-* class (default: "max-w-xl")
  *   testId      — data-testid for the root element (default: "centered-dialog")
  *   closeOnBackdrop — when false, overlay clicks are ignored (default: true)
+ *   mobileAnchor    — "sheet" (bottom-anchored on phones, centered on sm+) or
+ *                     "center" (default: "sheet"). Sheet mode rounds the
+ *                     top corners on phones so the dialog reads as native.
+ *   fullHeightMobile — when true and mobileAnchor="sheet", the dialog
+ *                     expands to 92dvh on phones (used by AddGoalDialog
+ *                     step 2 — chat phase). No effect on desktop.
  */
 export default function CenteredDialog({
   open,
@@ -35,6 +41,14 @@ export default function CenteredDialog({
   maxWidth = "max-w-xl",
   testId = "centered-dialog",
   closeOnBackdrop = true,
+  // Mobile anchor: "sheet" (bottom-anchored, slides up) or "center".
+  // Defaults to "sheet" so every dialog feels mobile-native on phones.
+  // Desktop (≥ sm) always centers regardless — the bottom-sheet only
+  // applies below the Tailwind `sm` breakpoint.
+  mobileAnchor = "sheet",
+  // When true and mobileAnchor="sheet", the dialog expands to nearly
+  // full viewport height (used by AddGoalDialog step 2 — chat phase).
+  fullHeightMobile = false,
 }) {
   const dialogRef = useRef(null);
   const lastFocusedRef = useRef(null);
@@ -90,7 +104,9 @@ export default function CenteredDialog({
       role="dialog"
       aria-modal="true"
       aria-label={typeof title === "string" ? title : undefined}
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className={`fixed inset-0 z-[60] flex justify-center p-0 sm:p-4 ${
+        mobileAnchor === "sheet" ? "items-end sm:items-center" : "items-center"
+      }`}
     >
       <div
         data-testid={`${testId}-backdrop`}
@@ -101,7 +117,11 @@ export default function CenteredDialog({
         ref={dialogRef}
         tabIndex={-1}
         data-testid={`${testId}-content`}
-        className={`relative w-full ${maxWidth} bg-[var(--bg-secondary)] border border-[color-mix(in_srgb,var(--border-accent)_30%,transparent)] shadow-2xl gc-fade-up outline-none`}
+        className={`relative w-full ${maxWidth} bg-[var(--bg-secondary)] border border-[color-mix(in_srgb,var(--border-accent)_30%,transparent)] shadow-2xl gc-fade-up outline-none ${
+          mobileAnchor === "sheet"
+            ? `rounded-t-2xl sm:rounded-xl ${fullHeightMobile ? "h-[92dvh] sm:h-auto flex flex-col" : "max-h-[88dvh] sm:max-h-none"}`
+            : "rounded-xl"
+        }`}
       >
         {(title || Icon) && (
           <div className="flex items-start gap-3 px-5 py-4 border-b border-[var(--border)]">
@@ -138,7 +158,11 @@ export default function CenteredDialog({
             <X className="w-4 h-4" />
           </button>
         )}
-        <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
+        <div className={`px-5 py-4 overflow-y-auto ${
+          mobileAnchor === "sheet" && fullHeightMobile
+            ? "sm:max-h-[70vh] flex-1 min-h-0"
+            : "max-h-[70vh]"
+        }`}>{children}</div>
         {footer && (
           <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)]">
             {footer}

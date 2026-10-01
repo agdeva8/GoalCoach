@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FileText,
   Link2,
@@ -10,6 +10,8 @@ import {
   Eye,
   Download,
   X,
+  MoreVertical,
+  AlertTriangle,
 } from "lucide-react";
 import { api, API } from "../lib/api";
 
@@ -179,7 +181,10 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
       data-testid={`source-card-${source.id}`}
       className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-lg p-3 space-y-2 group"
     >
-      {/* Header row: kind icon + name */}
+      {/* Header row: kind icon + name + kebab on the right (mobile only).
+          The kebab collapses the 3-4 inline actions into one tap target
+          on phones where horizontal space is tight. On sm+ the kebab
+          hides and the inline row takes over. */}
       <div className="flex items-start gap-2.5">
         <div
           className={`w-8 h-8 rounded flex items-center justify-center shrink-0 mt-0.5 ${
@@ -206,24 +211,41 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
             )}
           </div>
         </div>
+        <SourceActions
+          source={source}
+          isFile={isFile}
+          isLink={isLink}
+          downloadUrl={downloadUrl}
+          onView={onView}
+          onDelete={onDelete}
+          deleting={deleting}
+        />
       </div>
 
       {/* Goal linkage — sources exist to define a goal's boundary, so an
-          unlinked source should say so rather than showing nothing. */}
+          unlinked source should say so rather than showing nothing. The
+          NOT LINKED chip uses warning color so it scans as actionable
+          rather than reading like a third metadata category. */}
       {goalTitle ? (
         <div className="text-[11px] text-[var(--text-secondary)] pl-0.5">
           <span className="text-[var(--text-muted)] font-mono uppercase tracking-widest text-[9px]">goal</span>{" "}
           {goalTitle}
         </div>
       ) : (
-        <div className="text-[11px] text-[var(--text-muted)] pl-0.5">
-          <span className="font-mono uppercase tracking-widest text-[9px]">not linked</span>{" "}
-          — attach it to a goal so the coach can set that goal&apos;s boundary
+        <div className="flex items-start gap-1.5 pl-0.5 text-[11px]">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] text-[var(--warning)] font-mono uppercase tracking-widest text-[9px] shrink-0 mt-0.5">
+            <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />
+            not linked
+          </span>
+          <span className="text-[var(--text-muted)] leading-snug">
+            attach it to a goal so the coach can set that goal&apos;s boundary
+          </span>
         </div>
       )}
 
-      {/* Actions row */}
-      <div className="flex items-center gap-2 pt-1">
+      {/* Inline actions — only render on sm+ where there's room. Mobile
+          gets the same actions via the kebab above. */}
+      <div className="hidden sm:flex items-center gap-2 pt-1">
         {isLink && source.url && (
           <a
             href={source.url}
@@ -281,6 +303,100 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
           Delete
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * SourceActions — kebab menu (mobile only) that holds the same actions as
+ * the inline row. Sm+ renders nothing here (the inline row takes over).
+ * Closing on outside-click + Esc + item click so the menu never traps.
+ */
+function SourceActions({ source, isFile, isLink, downloadUrl, onView, onDelete, deleting }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // sm+ → no kebab, the inline row handles it.
+  return (
+    <div ref={ref} className="relative sm:hidden shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Actions for ${source.original_filename || source.name || source.url || "source"}`}
+        data-testid={`source-actions-${source.id}`}
+        className="h-8 w-8 -mr-1 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      >
+        <MoreVertical className="w-4 h-4" aria-hidden="true" />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          data-testid={`source-actions-menu-${source.id}`}
+          className="absolute right-0 top-9 z-10 min-w-[160px] border border-[var(--border)] bg-[var(--bg-secondary)] rounded-md shadow-xl py-1 text-xs"
+        >
+          {isFile && downloadUrl && (
+            <>
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => { setOpen(false); onView?.(source); }}
+                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-left"
+              >
+                <Eye className="w-3.5 h-3.5" /> View file
+              </button>
+              <a
+                role="menuitem"
+                href={downloadUrl}
+                download
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </a>
+            </>
+          )}
+          {isLink && source.url && (
+            <a
+              role="menuitem"
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Open link
+            </a>
+          )}
+          <button
+            role="menuitem"
+            type="button"
+            onClick={() => { setOpen(false); onDelete?.(); }}
+            disabled={deleting}
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] text-[var(--danger)] disabled:opacity-50"
+          >
+            {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }

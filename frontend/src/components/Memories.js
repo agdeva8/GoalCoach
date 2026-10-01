@@ -466,7 +466,7 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
               <a
                 href="#goals"
                 onClick={(e) => e.preventDefault()}
-                className="truncate hover:text-[var(--accent)] transition-colors"
+                className="min-w-0 flex-1 truncate hover:text-[var(--accent)] transition-colors"
                 title={`Linked to ${memory.goal_title}`}
               >
                 {memory.goal_title}

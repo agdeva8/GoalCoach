@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Calendar, CheckCircle2, Circle, Loader2, MessageSquareWarning, MessageSquarePlus, RefreshCw } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Calendar, CheckCircle2, Circle, Loader2, MessageSquareWarning, MessageSquarePlus, RefreshCw, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "../lib/api";
 import { localDateKey } from "../lib/utils";
 
@@ -194,6 +194,12 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
         // until timetableBlocks ships a full UI; rendered as a thin
         // day-band so the tab feels like a "full timetable" not just a
         // task list.
+        //
+        // Visual: ROUTINE is the warmest/loudest stripe (morning ritual),
+        // AVAILABLE is the long medium-tone middle (where work + tasks
+        // live), REST is a quiet border-accent tail. The three swatches
+        // in the legend match the bar segments one-to-one so the eye can
+        // scan "what part of my day is what".
         <div
           data-testid="today-dayband"
           className="px-4 py-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_50%,transparent)]"
@@ -202,20 +208,20 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
             <span>07:00 · Wake</span>
             <span>23:00 · Sleep</span>
           </div>
-          <div className="relative h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-            <div className="absolute left-0 top-0 h-full w-[8%] bg-[color-mix(in_srgb,var(--accent)_40%,transparent)]" aria-hidden="true" />
-            <div className="absolute left-[8%] top-0 h-full w-[78%] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]" aria-hidden="true" />
-            <div className="absolute left-[86%] top-0 h-full w-[14%] bg-[color-mix(in_srgb,var(--border-accent)_40%,transparent)]" aria-hidden="true" />
+          <div className="relative h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden" role="img" aria-label="Day shape: routine, available, rest">
+            <div className="absolute left-0 top-0 h-full w-[8%] bg-[var(--accent)]" aria-hidden="true" />
+            <div className="absolute left-[8%] top-0 h-full w-[78%] bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]" aria-hidden="true" />
+            <div className="absolute left-[86%] top-0 h-full w-[14%] bg-[color-mix(in_srgb,var(--border-accent)_60%,transparent)]" aria-hidden="true" />
           </div>
           <div className="mt-2 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest">
             <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--accent)_40%,transparent)]" /> Routine
+              <span className="inline-block h-1.5 w-3 bg-[var(--accent)] rounded-sm" /> Routine
             </span>
             <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]" /> Available
+              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] rounded-sm" /> Available
             </span>
             <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--border-accent)_40%,transparent)]" /> Rest
+              <span className="inline-block h-1.5 w-3 bg-[color-mix(in_srgb,var(--border-accent)_60%,transparent)] rounded-sm" /> Rest
             </span>
           </div>
         </div>
@@ -275,28 +281,16 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
                 </div>
               </div>
 
-              {/* Action buttons — open chat with a prefill */}
+              {/* Action buttons — collapse into a single "Need help?" trigger
+                  on mobile (sm+) shows both options inline; phones tap once
+                  to reveal the two pre-fill chat intents. Same end-state
+                  (opens the chat with the right prefill) just less chrome. */}
               {!done && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => cantDoThis(item)}
-                    data-testid={`timetable-cant-${item.id}`}
-                    className="h-9 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--danger)] hover:text-[var(--danger)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  >
-                    <MessageSquareWarning className="w-3.5 h-3.5" aria-hidden="true" />
-                    I can't do this
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => addToPlan(item)}
-                    data-testid={`timetable-plan-${item.id}`}
-                    className="h-9 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  >
-                    <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden="true" />
-                    Break it down with coach
-                  </button>
-                </div>
+                <NeedHelpActions
+                  item={item}
+                  onCant={cantDoThis}
+                  onAddToPlan={addToPlan}
+                />
               )}
             </li>
           );
@@ -309,4 +303,74 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
 /* Iteration 7 (Ask 1) — per-tile free-text note + per-tile chat input
  * were removed. The single section-level "Tell the coach anything about
  * today" input now lives in `frontend/src/components/Today.jsx` and is
- * rendered once for the whole "Today · tasks" section. */
+ * rendered once for the whole "Today · tasks" section.
+ */
+
+/**
+ * NeedHelpActions — single tap-to-reveal trigger on mobile, both buttons
+ * inline on sm+. Both surfaces drive the same `onCant` / `onAddToPlan`
+ * callbacks; the difference is purely chrome.
+ *
+ * State machine: closed (chevron-down, hint visible) → open (chevron-up,
+ * two buttons revealed). Click-outside + Esc close. Per-item state so
+ * expanding one row doesn't accidentally expand all of them.
+ */
+function NeedHelpActions({ item, onCant, onAddToPlan }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={`need-help-${item._kind}-${item.id}`}
+        data-testid={`timetable-need-help-${item.id}`}
+        className="sm:hidden h-9 self-start inline-flex items-center gap-1.5 px-3 border border-[var(--border)] text-[var(--text-secondary)] text-xs transition-colors rounded hover:border-[var(--accent)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      >
+        {open ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
+        Need help with this?
+      </button>
+      <div
+        id={`need-help-${item._kind}-${item.id}`}
+        className={`${open ? "flex" : "hidden"} sm:flex flex-col sm:flex-row gap-2`}
+      >
+        <button
+          type="button"
+          onClick={() => { setOpen(false); onCant?.(item); }}
+          data-testid={`timetable-cant-${item.id}`}
+          className="h-9 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--danger)] hover:text-[var(--danger)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        >
+          <MessageSquareWarning className="w-3.5 h-3.5" aria-hidden="true" />
+          I can't do this
+        </button>
+        <button
+          type="button"
+          onClick={() => { setOpen(false); onAddToPlan?.(item); }}
+          data-testid={`timetable-plan-${item.id}`}
+          className="h-9 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        >
+          <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden="true" />
+          Break it down with coach
+        </button>
+      </div>
+    </div>
+  );
+}

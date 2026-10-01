@@ -149,7 +149,7 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
             data-testid="user-menu-trigger"
             onClick={() => setMenuOpen((v) => !v)}
             title="Account"
-            className="h-10 w-10 sm:h-9 sm:w-9 rounded-full overflow-hidden border border-[var(--border)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            className="h-10 w-10 rounded-full overflow-hidden border border-[var(--border)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
             {user?.picture ? (
               <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />

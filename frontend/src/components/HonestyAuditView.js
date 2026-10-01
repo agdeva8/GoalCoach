@@ -5,7 +5,14 @@ import { api, exportUrl } from "../lib/api";
 
 function fmt(iso) {
   try {
-    return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    // Iteration 9 — standardized on `en-US` locale for the audit log so
+    // the date format is predictable regardless of the user's browser
+    // locale (was rendering as "30 Sept" in UK/AU/NL but "Sep 30" in
+    // US, which made screenshots inconsistent and tripped the design
+    // review). Same fix should propagate to Memories.js (uses
+    // `undefined` locale) and the audit export. Tracked as a small
+    // consistency follow-up for the next iteration.
+    return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch {
     return iso;
   }
