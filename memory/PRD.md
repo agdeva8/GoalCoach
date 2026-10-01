@@ -246,7 +246,7 @@ Founder's four asks, all verified inline against Storybook (`localhost:6006`, MV
 **Verified on production after merge:** light-default boot script in served HTML, `sutra_theme` present / `gc_theme` gone, new toaster copy present / old copy gone, roadmap + hint blocks absent from the built bundle, guest auth 200/200.
 
 **Known follow-ups:**
-- First `main` build did not auto-claim the production domain (stale CLI alias still pinned it) — re-pointed once with `vercel alias set`. Subsequent `main` pushes should self-alias; watch the next push to confirm.
+- **Production domain is now a registered project domain.** Root cause of the first post-migration deploy not claiming `gurusutra.vercel.app`: the URL only existed as a manually-created alias (aliases don't auto-update) and the project had *zero* registered domains. Fixed by `POST /v10/projects/{id}/domains` — `gurusutra.vercel.app` is now registered + verified on the project, so Vercel auto-points it at every future `main` build. Confirmed: the PR #2 push self-served without any `vercel alias set`.
 - API test suite: 9 failed / 210 (guard-test hardcodes `FOUNDER_ID='user_founder01'`; migration journal stops at 0005 while SQL runs to 0008). Not a deploy blocker; needs a reconcile pass.
 
 ## Backlog / next
