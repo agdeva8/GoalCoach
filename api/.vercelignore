@@ -1,0 +1,14 @@
+# Vercel upload exclusions for this project (Root Directory = api).
+#
+# The Vercel CLI does NOT honour .gitignore, and its built-in ignore list only
+# covers `.env.local` / `.env.*.local` — a plain `.env` would be uploaded. This
+# file is what actually keeps secrets off Vercel.
+.env
+.env.*
+*.local
+
+# Build artifacts Vercel produces itself.
+node_modules
+.next
+coverage
+.vercel

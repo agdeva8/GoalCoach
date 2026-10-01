@@ -1,0 +1,15 @@
+# CLI deploys are launched from the REPO ROOT: the project's Root Directory
+# setting (`api`) then points the build at `api/` inside this uploaded tree —
+# which is also how `../frontend` becomes visible to `api/scripts/vercel-build.sh`.
+#
+# So this file must NOT blank the tree (that broke the build). It only keeps
+# secrets and local state off the wire. Plain `.env` is here because Vercel's
+# built-in ignore list covers only `.env.local` / `.env.*.local`.
+.env
+.env.*
+*.local
+node_modules
+.vercel
+.vercel/*
+*.tsbuildinfo
+next-env.d.ts

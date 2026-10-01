@@ -18,6 +18,10 @@
 # production
 /build
 
+# CRA bundle copied in by scripts/vercel-build.sh (build artifact, never committed)
+/public/*
+!/public/.gitkeep
+
 # misc
 .DS_Store
 *.pem

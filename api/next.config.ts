@@ -1,5 +1,26 @@
 import type { NextConfig } from "next"
 
-const nextConfig: NextConfig = {}
+/**
+ * This Next app is the single deploy origin: the CRA bundle built by
+ * `scripts/vercel-build.sh` lands in `public/`, and `/api/*` is served by the
+ * route handlers under `app/api/`. Same origin means the app's `sameSite:
+ * 'lax'` session/guest cookies stay first-party — a second Vercel project for
+ * the UI would make them cross-site (vercel.app is on the public suffix list)
+ * and break sign-in.
+ *
+ * SPA fallback: `frontend/src/App.js` only has two real routes, `/` and
+ * `/settings`; everything else the app handles client-side with a `<Navigate
+ * to="/">`. Next checks the filesystem first, so `/api/*` route handlers are
+ * never shadowed by these rewrites — only paths that match no handler and no
+ * file reach them.
+ */
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      { source: "/", destination: "/index.html" },
+      { source: "/settings", destination: "/index.html" },
+    ]
+  },
+}
 
 export default nextConfig
