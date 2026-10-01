@@ -55,11 +55,23 @@
       "skillPath": "skills/artifacts-builder/SKILL.md",
       "computedHash": "a3c85c3d275238f86b5ff1556092c990aa492216eb73ce45fd89c848908f99ea"
     },
+    "banner-design": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/banner-design/SKILL.md",
+      "computedHash": "1bb85d0bfec06e23578739a476c181b17c4db694c341da4e603e43183a4b42d3"
+    },
     "brainstorming": {
       "source": "nexu-io/open-design",
       "sourceType": "github",
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "ed42c777fd07bab779d731a08de3d045deeebfe35eb1b7e83fda0321c1c13be7"
+    },
+    "brand": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/brand/SKILL.md",
+      "computedHash": "c5629242f72a17425456f684467a6fb7fb4a03f1fcfe1474e87aabad78ddae65"
     },
     "brand-extract": {
       "source": "nexu-io/open-design",
@@ -157,6 +169,12 @@
       "skillPath": "skills/deck-swiss-international/SKILL.md",
       "computedHash": "1247dd2f4fb4ec3dd2e7543d5f96d3659ebffd520b53add2f3a7ba2f3bd1146e"
     },
+    "design": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/design/SKILL.md",
+      "computedHash": "5323cb84852303e2cbd76c909e3165a3b63f4e4f81a85ab0a549481fc3d5f86f"
+    },
     "design-brief": {
       "source": "nexu-io/open-design",
       "sourceType": "github",
@@ -180,6 +198,12 @@
       "sourceType": "github",
       "skillPath": "skills/design-review/SKILL.md",
       "computedHash": "0aba6e3ac65eef16200e41bca2eb3ac4990e96c114a5860ae205d5d5338b6bc2"
+    },
+    "design-system": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/design-system/SKILL.md",
+      "computedHash": "c50a1a77394e988b2593ed97f95ae28b5167eb8a826385b5996d67e398d15b6a"
     },
     "design-taste-frontend": {
       "source": "nexu-io/open-design",
@@ -824,10 +848,10 @@
       "computedHash": "fdfa4be7b0b10eb54a01e6c534d64184df9a9e9e3d730a3498e8bb211661ff16"
     },
     "slides": {
-      "source": "nexu-io/open-design",
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
-      "skillPath": "skills/slides/SKILL.md",
-      "computedHash": "0966410e23906f5e77e051ce9f7c5a6e11bba35ce433504f90e061c21ea4365a"
+      "skillPath": ".claude/skills/slides/SKILL.md",
+      "computedHash": "9c012d14e94b734b324f859d64da3b47762b8cdee47515ce83bce4366222f885"
     },
     "social-reddit-card": {
       "source": "nexu-io/open-design",
@@ -907,11 +931,17 @@
       "skillPath": "skills/ui-skills/SKILL.md",
       "computedHash": "c752ac5fbc8c9765d4958d8aa5e6d9fe8f76bec965aeb1c7ce2d8d3cd2a4ece0"
     },
-    "ui-ux-pro-max": {
-      "source": "nexu-io/open-design",
+    "ui-styling": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
-      "skillPath": "skills/ui-ux-pro-max/SKILL.md",
-      "computedHash": "257883092dc8a10403cd967c959ceb417f1c4b8438215a8bab5002292d72936b"
+      "skillPath": ".claude/skills/ui-styling/SKILL.md",
+      "computedHash": "39ad392c96adab936d8d057b66d1d632dd9c3d2b2397ec11bfe0e2a7c1fc975a"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "daa1a7be30edc9cda6b31da821c5285a9f421ee3136dd6335ff47e917215d1a5"
     },
     "venice-audio-music": {
       "source": "nexu-io/open-design",
