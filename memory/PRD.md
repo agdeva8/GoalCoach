@@ -228,6 +228,27 @@ Founder's four asks, all verified inline against Storybook (`localhost:6006`, MV
 
 **Verified:** all affected Storybook stories (Today, TodayTimetable, Timeline, Sources, TrackerCard, TrackingDashboard) render with zero console errors; 63 stories registered; screenshots confirmed via `agent-browser` (CDP `:9223`). Sources View shows "Not Found" inside Storybook only because the story mocks `/sources/1/download` — expected; real app streams the file.
 
+## Iteration 8 (2026-10-01) — Production on `gurusutra.vercel.app`, git-based deploys, shipped
+
+**Deploy model flipped from CLI to git.** Vercel GitHub integration connected (`agdeva8/sutra`), `main` set as the production branch, PR #1 (`develop` → `main`) merged. Pushing to `main` now builds and deploys automatically; `develop` builds previews. No more `npx vercel deploy` for releases.
+
+- **Single-Vercel-host architecture:** Root Directory = `api`. Next.js serves the API *and* the CRA bundle from `api/public/` — one origin keeps the `sameSite=lax` session cookie working (no cross-site cookie loss).
+- **Git deploy pipeline:** `api/vercel.json` + `api/scripts/vercel-build.sh` run the CRA build (`REACT_APP_BACKEND_URL=` forced empty → same-origin `/api`) and clean-swap it into `api/public`. `.vercelignore` at both levels is a deny-list (a blanket `*` breaks deploys — Vercel does not read `.gitignore` for the upload set); `api/.gitignore` keeps the copied bundle out of git.
+- **`api/.env.example` now tracked** (`.gitignore` negation) — placeholders only, documents every key the API reads.
+- **Quoted-env 500 fixed at the source:** `scripts/push-vercel-env.mjs` `parseEnv` now strips dotenv-style surrounding quotes. Previously `DATABASE_URL="postgresql://…"` shipped with literal quotes → `new URL(str, 'postgres://base')` parsed hostname `base` → `ENOTFOUND base` → every guest call 500'd in production. Verified live: pg connects to `aws-0-…pooler.supabase.com`, guest flow `POST /api/auth/guest` → 200 + cookie, `GET /api/state` → 200.
+
+**Product changes shipped in the same cut:**
+- **Light mode is the default.** New `sutra_theme` localStorage key (old `gc_theme` was auto-written to `"dark"` on every mount, so it would have shadowed the new default for every existing browser). Pre-paint script in `index.html`, `Coach.js` fallback, and `theme-color` meta (`#FBF6EF`) all updated; a stored choice still wins.
+- **Guest toaster copy** aligned in 4 surfaces (Coach banner, Settings account tab, ChatModal, FocusedTaskChatDialog): *"Log in to persist this session and access all advanced features."* The old *"saved in this browser / keep your goals across devices"* claim was false for guests.
+- **Roadmap UI trimmed:** "On the roadmap" chip block removed from `TrackingDashboard`; "Pick a category / Or skip and describe freely" hint removed from the add-goal tile step (clicking a tile already starts coaching; "Something else" covers free description). `AboutModal`'s "Upcoming" list still exists — intentional (About = roadmap is OK there).
+- **Supabase is the database.** Neon removed from code (`lib/db.ts` + `drizzle.config.ts` pinned to `pg`) and from living docs. Next 16 renamed `middleware.ts` → `proxy.ts`.
+
+**Verified on production after merge:** light-default boot script in served HTML, `sutra_theme` present / `gc_theme` gone, new toaster copy present / old copy gone, roadmap + hint blocks absent from the built bundle, guest auth 200/200.
+
+**Known follow-ups:**
+- First `main` build did not auto-claim the production domain (stale CLI alias still pinned it) — re-pointed once with `vercel alias set`. Subsequent `main` pushes should self-alias; watch the next push to confirm.
+- API test suite: 9 failed / 210 (guard-test hardcodes `FOUNDER_ID='user_founder01'`; migration journal stops at 0005 while SQL runs to 0008). Not a deploy blocker; needs a reconcile pass.
+
 ## Backlog / next
 - P0: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
 - P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider; **upstash-redis / cross-instance cache** if multi-node staleness becomes a complaint; cache the remaining read endpoints (`audit`, `blockers`, `sources`, `memories`, `chat/history`) — one-liner per route, all already auto-invalidated.
