@@ -67,8 +67,7 @@ export default function SignInModal({ open, onClose, reason }) {
     >
       <div className="px-2 py-1">
         <Logo className="w-9 h-9 text-[var(--accent)]" />
-        <h2 className="font-display text-xl font-semibold tracking-tight mt-4">Sign in to keep this</h2>
-        <p className="text-sm leading-relaxed text-[var(--text-secondary)] mt-2">
+        <p className="text-sm leading-relaxed text-[var(--text-secondary)] mt-3">
           {reason || "You've been previewing Sutra. To save this goal, build your timeline, and have the coach remember you next week, sign in."}
           {" "}Nothing you did in preview is stored until you do.
         </p>
