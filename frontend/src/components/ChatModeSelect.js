@@ -20,8 +20,8 @@ const MODES = [
   { id: "grill", label: "grill me", description: "Intense — keeps pushing until specifics land", icon: Zap },
 ];
 
-export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, setGrillMe }) {
-  const [open, setOpen] = useState(false);
+export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, setGrillMe, initialOpen = false }) {
+  const [open, setOpen] = useState(initialOpen);
   const wrapRef = useRef(null);
 
   // Close on outside click / Esc.
@@ -82,6 +82,7 @@ export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, set
         <div
           data-testid="chat-mode-menu"
           role="listbox"
+          aria-label="Chat mode"
           className="absolute bottom-full left-0 mb-1.5 z-10 w-64 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-md shadow-lg overflow-hidden"
         >
           {MODES.map((m) => {
