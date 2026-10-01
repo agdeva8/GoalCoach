@@ -39,9 +39,7 @@ function EmptyState({ scopeLabel, scopeIntent }) {
     <div data-testid="chat-empty-generic" className="h-full flex flex-col justify-center max-w-lg">
       <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--text-muted)] mb-3">start here</div>
       <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-        Tell me everything you're working on across every timeframe — the career move, the body,
-        the side thing, the relationship. Say <span className="text-[var(--text-primary)]">"I have N goals across different time horizons; help me figure out this week."</span> I'll
-        tell you what deserves attention, what you're over-committing to, and where you've drifted.
+        Tell me everything about your goal and let's create milestones together.
       </p>
     </div>
   );

@@ -603,7 +603,7 @@ export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat 
   /* ---------- empty state ---------- */
 
   if (isEmpty) {
-    return <EmptyState onPrefill={onPrefill} />;
+    return <EmptyState onPrefill={onPrefill} onOpenChatWith={onOpenChatWith} />;
   }
 
   return (
@@ -942,7 +942,28 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
  * EmptyState — calmer, more inviting; keeps the prefill CTA.
  * ========================================================================= */
 
-function EmptyState({ onPrefill }) {
+function EmptyState({ onPrefill, onOpenChatWith }) {
+  // Scoped chat context — opens the chat in "About: Build my timeline"
+  // mode with a helper hint, instead of the generic empty state. Without
+  // this the CTA landed the user in the generic coach chat with no
+  // indication of what they were about to talk about.
+  const onBuildTimeline = () => {
+    const helperText =
+      "What does a realistic timeline look like for my goals — proposed target dates and 2-4 milestones each, with buffer for real life.";
+    if (typeof onOpenChatWith === "function") {
+      onOpenChatWith("", {
+        title: "Build my timeline",
+        helperText,
+      });
+      return;
+    }
+    if (typeof onPrefill === "function") {
+      onPrefill(
+        "Map out a realistic timeline for my goals — propose target dates and 2-4 milestones each, with buffer for real life.",
+      );
+    }
+  };
+
   return (
     <div data-testid="timeline-view" className="p-4 sm:p-6">
       <div className="relative overflow-hidden border border-dashed border-[var(--border)] rounded-lg bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] px-6 py-10 sm:py-14 text-center">
@@ -987,14 +1008,10 @@ function EmptyState({ onPrefill }) {
           target dates and a few milestones per goal, with buffer built in.
         </p>
 
-        {onPrefill && (
+        {(onOpenChatWith || onPrefill) && (
           <button
             data-testid="timeline-prefill-button"
-            onClick={() =>
-              onPrefill(
-                "Map out a realistic timeline for my goals — propose target dates and 2-4 milestones each, with buffer for real life.",
-              )
-            }
+            onClick={onBuildTimeline}
             className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
           >
             Ask the coach to build my timeline →
