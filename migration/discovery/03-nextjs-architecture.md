@@ -20,7 +20,7 @@
 - **Auth flow.** Emergent OAuth REST client replaces Auth.js. Emergent redirects to `/api/auth/session?session_id=...&session_secret=...`; the route POSTs to `demobackend.emergentagent.com/auth/v1/env/oauth/session-data` with `X-Session-ID` header. No Google OAuth, no `@auth/drizzle-adapter`, no `AuthCallback.js`.
 - **Object storage.** Emergent Object Storage is **kept** — it is not retired. Sources route (`/api/sources/upload`, etc.) use Emergent's proxy. No Vercel Blob.
 - **LLM streaming.** The `[[TOOLS]]…[[/TOOLS]]` text-block protocol is **kept** (not replaced by AI SDK typed `tool()` calls). `parseProposals` is ported verbatim from `backend/server.py:566-594`. Emergent accepts `provider`/`model` in the request body via `with_model()`.
-- **DB choice.** **Neon** confirmed: native Vercel integration, branching for preview deploys, serverless driver fits edge runtimes. No Supabase Auth or Supabase Storage needed.
+- **DB choice.** **Supabase Postgres** confirmed (decided 2026-09-30 — Neon removed as an option): the same project the pre-migration stack already lives on, so no new provisioning and no new ETL target. Postgres only — Supabase **Auth** and Supabase **Storage** are still not used (auth stays Emergent, storage stays Emergent Object Storage). Driver is `pg` (node-postgres, see `api/lib/db.ts`).
 
 ---
 
@@ -81,7 +81,7 @@ sutra/
       llm.ts                         # Emergent LLM REST client (streamChat)
     guest-token.ts                   # HMAC-SHA256 guest_token sign/verify
     auth.ts                          # session cookie + getAuthenticatedUser()
-    db.ts                            # Drizzle client (Neon serverless + node fallbacks)
+    db.ts                            # Drizzle client (pg Pool + Drizzle, snake_case)
     llm/
       registry.ts                    # MODEL_REGISTRY: providerId → (provider, model) pairs
       prompts.ts                     # SYSTEM_PROMPT (ported from server.py)
@@ -595,9 +595,11 @@ EMERGENT_LLM_KEY=
 # Optional override for Emergent integrations proxy (defaults to https://integrations.emergentagent.com)
 INTEGRATION_PROXY_URL=https://integrations.emergentagent.com
 
-# Database (Neon)
-DATABASE_URL=postgres://user:pass@ep-xxx.neon.tech/neondb?sslmode=require
-DATABASE_URL_UNPOOLED=postgres://user:pass@ep-xxx.neon.tech/neondb?sslmode=require
+# Database (Supabase Postgres)
+# Pooled (Transaction pooler) — runtime, port 6543
+DATABASE_URL=postgresql://postgres:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+# Direct — drizzle-kit migrations + long-running scripts, port 5432
+DATABASE_URL_UNPOOLED=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
 
 # For session_token HMAC signing (7-day cookie) and guest_token HMAC signing (10-min expiry)
 AUTH_SECRET=                                # openssl rand -base64 32
@@ -635,9 +637,9 @@ Next.js 16 has async `cookies()` and `headers()`, updated middleware matcher syn
 > ~6–8 engineer-days total.
 
 1. **[DONE] Confirm Next.js version.** Next.js 16 adopted — `y/` scaffold at 16.3.4 is the target.
-2. **[DONE] Provision Postgres on Neon.** Capture `DATABASE_URL`, configure Vercel integration.
+2. **[DONE] Provision Postgres on Supabase.** Capture `DATABASE_URL` (Transaction pooler :6543) and `DATABASE_URL_UNPOOLED` (Direct :5432) from Dashboard → Project Settings → Database.
 3. **[DONE] Create new Vercel project, point `v2.sutra.com` at it.** Acceptance: `https://v2.sutra.com/` returns the scaffold's "Project ready!" page over HTTPS.
-4. **Initialize Drizzle.** Add `drizzle-orm`, `drizzle-kit`, `drizzle-zod`, `@neondatabase/serverless`. Write `db/schema.ts` per Section 2. Generate + commit first migration.
+4. **Initialize Drizzle.** Add `drizzle-orm`, `drizzle-kit`, `drizzle-zod`, `pg`. Write `db/schema.ts` per Section 2. Generate + commit first migration.
 5. **Write `db/migrate-from-mongo.ts`** (one-shot ETL). Streams `users → goals → commitments → milestones → blockers → messages → proposals (split from embedded array) → audit_log → sources`. Preserves all string IDs.
 6. **Emergent OAuth REST client.** Write `lib/emergent/auth.ts`, `lib/guest-token.ts`, `lib/auth.ts`, `app/api/auth/session/route.ts`. Replace `SignInModal.tsx`'s Emergent URL with `signInWithEmergent()` server action. Delete `AuthCallback.js` and `app/api/auth/[...nextauth]/route.ts`.
 7. **LLM client + model registry.** Write `lib/emergent/llm.ts` (REST client, SSE reader). Write `lib/llm/registry.ts` with 5 provider entries per Section 4. Port `SYSTEM_PROMPT` and `build_context` from `server.py:477-563` to `lib/llm/prompts.ts` and `lib/llm/state-builder.ts`.

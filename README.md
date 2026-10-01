@@ -19,20 +19,43 @@ superseded by `api/`.
 
 ## Quick start
 
-Run the new backend:
+Run both the API and frontend together with the unified launcher:
 
 ```bash
-cd api
-pnpm install
-pnpm dev          # serves on :3001
-pnpm db:migrate   # creates tables
+pnpm dev
+# or
+node scripts/dev.js
 ```
 
-Run the original frontend (in another terminal):
+By default, this launches:
+- **API (Next.js 16)** on `http://localhost:4000`
+- **Frontend (React CRA)** on `http://localhost:3000`
+- Automatically cleans up any previous processes occupying these ports before launch.
+
+### Custom Ports
+You can specify custom ports for either or both services:
 
 ```bash
-cd frontend
-REACT_APP_BACKEND_URL=http://localhost:3001 npm start   # serves on :3000
+# Using CLI flags:
+node scripts/dev.js --api 4002 --web 3002
+# or via pnpm dev:
+pnpm dev -- --api 4002 --web 3002
+
+# Or using environment variables:
+API_PORT=4002 WEB_PORT=3002 pnpm dev
+```
+
+### Running services individually (optional)
+
+Run the backend only:
+```bash
+pnpm dev:api       # serves on :4000 (or pnpm -C api dev -p <port>)
+pnpm db:migrate    # run migrations
+```
+
+Run the frontend only:
+```bash
+pnpm dev:web       # serves on :3000
 ```
 
 Open http://localhost:3000 — original UI, new backend.

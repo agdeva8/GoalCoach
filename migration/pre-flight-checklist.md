@@ -1,7 +1,7 @@
 # Pre-flight Check — 2026-09-24
 
 > Verification pass before shipping `y/` (Next.js 16 + Postgres + Drizzle) to Vercel.
-> Stack: `pnpm` + Next.js App Router + Auth.js + 4 Emergent REST clients + Neon.
+> Stack: `pnpm` + Next.js App Router + Auth.js + 4 Emergent REST clients + Supabase Postgres.
 > Source of truth for env keys: `migration/discovery/03-nextjs-architecture.md` §6.
 
 ---
@@ -13,7 +13,7 @@
   - **125 / 125 tests passing** across **25 test files** (~2.6 s wall clock).
   - Coverage includes: auth (`session`, `me`, `guest`), audit (`route`, `export`), sources (upload, link, list, delete, download), chat (`route`, `history`), milestones/blockers/commitments/goals (CRUD), tools (confirm, reject), preferences, state, and `lib/over-commitment`.
   - Note: exceeds the "121 tests, ~111 passing" baseline — additional fixes have landed since.
-- **Step 5 — env vars documented**: `.env.example` lists every required key (Neon connection strings, Emergent Universal Key, proxy URL, AUTH_SECRET, app URL). No leftover Google / Anthropic / OpenAI / Minimax / Vercel Blob keys from the prior FastAPI / Mongo stack.
+- **Step 5 — env vars documented**: `.env.example` lists every required key (Supabase connection strings, Emergent Universal Key, proxy URL, AUTH_SECRET, app URL). No leftover Google / Anthropic / OpenAI / Minimax / Vercel Blob keys from the prior FastAPI / Mongo stack.
 - **Step 6 — Vercel deploy plumbing**:
   - `y/package.json` declares `"build": "next build"` ✓
   - `y/next.config.ts` exists and is a valid empty `NextConfig` ✓
@@ -132,7 +132,7 @@ Once the blocker above is resolved and the bundle builds locally, ship to Vercel
 - [ ] Re-run `pnpm test --run` to confirm 125 / 125 after the split.
 - [ ] Run `pnpm exec tsx scripts/smoke-model.ts` against a *real* `EMERGENT_LLM_KEY`; confirm each provider returns text within the 10 s budget. (Without the key, the script must exit 2 with the env-error message — this is the desired graceful path.)
 - [ ] Set `VERCEL_TOKEN` env var locally (and in CI secret store for future deploys).
-- [ ] Provision Neon Postgres project; capture both connection strings from the Neon console with the **Pooled** / **Direct** toggle.
+- [ ] Supabase project already provisioned — copy both connection strings from Dashboard → Project Settings → Database: **Transaction pooler** (`:6543`) → `DATABASE_URL`, **Direct connection** (`:5432`) → `DATABASE_URL_UNPOOLED`. No Neon.
 - [ ] Pull `EMERGENT_LLM_KEY` from the Emergent dashboard (must start with `sk-emergent-`).
 - [ ] Run the ETL against a production Mongo dump before the first deploy:
   `pnpm tsx y/db/migrate-from-mongo.ts` (uses `MONGO_URL` and `DATABASE_URL_UNPOOLED`).

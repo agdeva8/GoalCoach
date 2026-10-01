@@ -79,7 +79,7 @@ Only these four items. Do not touch:
 
 ## Stack constraints
 
-- `api/` — Next.js 16 App Router + Drizzle + Postgres (Neon). pnpm.
+- `api/` — Next.js 16 App Router + Drizzle + Postgres (Supabase). pnpm.
 - `frontend/` — React CRA + Tailwind + shadcn/Radix + lucide. yarn.
 - Edit existing files with `search_replace` (search-and-replace); never overwrite.
 - `ALLOW_DEV_LOGIN=true` must stay set in `api/.env` for dev tooling to render.

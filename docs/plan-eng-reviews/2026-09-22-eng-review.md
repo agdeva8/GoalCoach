@@ -64,7 +64,7 @@ These are baked in from `docs/ceo-plans/2026-09-22-sutra-phase1.md` §Founder De
 - **Runtime:** Next.js 15 App Router (RSC for slice-2 cards, route handlers for slice-1/slice-3)
 - **Package manager:** pnpm workspace
 - **DB:** Supabase Postgres (single instance at v1)
-- **ORM/driver:** `drizzle-orm/neon-http` + `@neondatabase/serverless` (Edge-compatible per 2C)
+- **ORM/driver:** ~~`drizzle-orm/neon-http` + `@neondatabase/serverless`~~ → **superseded 2026-09-30: `drizzle-orm/node-postgres` + `pg` against Supabase.** Neon was removed as a DB option; `@neondatabase/serverless` is not installed. The Edge-Runtime rationale (2C) below no longer applies — `/api/chat` runs on the Node runtime.
 - **Hosting:** Vercel
 - **Chat runtime:** Vercel Edge Runtime for `/api/chat` and `/api/chat/stream` (2C — first-token streaming + cold-start budget)
 - **Auth:** Google OAuth (per Q3); no magic-link, no anonymous sessions in v1
@@ -377,7 +377,7 @@ METHOD/CODEPATH          | EXCEPTION CLASS      | RESCUED? | RESCUE ACTION      
 
 ### Performance choices
 
-- **Edge Runtime for `/api/chat`** — Edge eliminates Vercel cold-start > 4s (2C). Tradeoff: limited Node API surface. Driver pinned to `drizzle-orm/neon-http` + `@neondatabase/serverless` because that's the Edge-compatible driver.
+- **Edge Runtime for `/api/chat`** — Edge eliminates Vercel cold-start > 4s (2C). Tradeoff: limited Node API surface. Driver pinned to `drizzle-orm/neon-http` + `@neondatabase/serverless` because that's the Edge-compatible driver. **Superseded 2026-09-30** — DB is Supabase, driver is `pg`, `/api/chat` runs on the Node runtime.
 - **First-token streaming** — the user sees a persona-aware thinking indicator ("thinking about your goals...") during the wait (L2 polish layer).
 - **Indexes cover all card reads** — `goals_user_status (user_id, status, updated_at DESC)` per D10 makes the top-20 active-goals query a single index scan; `insights_user_confidence` partial index covers "what does the coach know" (D10 sibling).
 - **200-msg conversation cap (10A)** — keeps conversation reads bounded. Phase 2 migrates to a separate `messages` table; not deferred silently, marked in code.
@@ -565,7 +565,7 @@ These were left open by the CEO doc's "Open items for /plan-eng-review" section.
 | O2 | Anonymous sessions | ✅ RESOLVED at L1 (Q3) | REMOVED from v1; no collision code path |
 | O3 | Schema entity list | ✅ RESOLVED in this doc | 6 entities (users, areas, goals, plans, insights, conversations/messages) + 3 system tables; L1 doc says "8 entities" in one place and "6" in another; **6 is correct** — flag for L1 doc consistency fix |
 | O4 | Card-page DB read failure: `RESCUED? = N` and `TEST? = N` | ⚠️ PARTIAL | Detection + log is L3 (added to failure-mode table + tests); error UI is L2. **Add a test for detection** (T12 covers). **L2 owns the visible error UI** — flag to L2 reviewer |
-| O5 | Driver choice (`drizzle-orm/neon-http` + `@neondatabase/serverless`) | ✅ RESOLVED | Locked in this doc; matches Edge-Runtime requirement (2C) |
+| O5 | Driver choice (`drizzle-orm/neon-http` + `@neondatabase/serverless`) | ✅ RESOLVED → **SUPERSEDED 2026-09-30** | Was locked to match the Edge-Runtime requirement (2C); DB decision is now **Supabase + `pg` (node-postgres)**, so Neon drivers and the Edge-runtime coupling are retired |
 | O6 | Acceptance-test moments (Q8) | ⏳ DEPENDS on founder | Scaffold unfilled. **Layer-3 cannot proceed past first cut without founder filling at least the rubric-scenario subset** (7 scenarios from L0 rubric). Other 3 are nice-to-have |
 | O7 | L1 doc inconsistency: "8 entities" vs "6 entities" | ⚠️ FLAG | Layer-1 doc revision needed — should say "6 entities" everywhere (per L1 §Vision "Concrete shape") |
 | O8 | Card-page error UI | ✅ RESOLVED at L2 | Layer-2 design review (Pass 2 interaction states + Pass 3 anti-slop tokens + T22 implementation task) spec'd the banner copy "⚠ some data stale — last fetched Xm ago", the `--warn-stale` color, and `role="alert"` aria semantics. Failure detection still L3 (T12); UI is now locked at L2. |

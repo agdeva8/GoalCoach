@@ -1,7 +1,7 @@
 # Auth-Gated App Testing Playbook (Emergent Google OAuth + Postgres)
 
 > **Replaces the legacy mongosh playbook.** The backend is now Next.js 16 +
-> Drizzle + Postgres (Neon). MongoDB collections (`test_database.users`,
+> Drizzle + Postgres (Supabase). MongoDB collections (`test_database.users`,
 > `test_database.user_sessions`) no longer exist — use `psql` against the
 > Postgres URL in `api/.env` instead.
 
