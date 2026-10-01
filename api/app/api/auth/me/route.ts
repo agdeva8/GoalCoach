@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
       image: session.user.image ?? null,
       model_provider: fresh?.modelProvider ?? session.user.modelProvider ?? 'gemini',
       is_guest: session.user.isGuest ?? false,
-      persona_key: fresh?.personaKey ?? session.user.personaKey ?? null,
+      persona_key: fresh?.personaKey ?? (session.user as any).personaKey ?? null,
     })
   }
 

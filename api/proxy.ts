@@ -27,7 +27,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { GUEST_TOKEN_COOKIE, verifyGuestToken } from '@/lib/guest-token'
 
-export const runtime = 'nodejs'
 
 const PUBLIC_PREFIXES = [
   '/api/auth', // Emergent + legacy guest route

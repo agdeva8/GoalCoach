@@ -42,18 +42,22 @@ export const dynamic = 'force-dynamic'
 
 const STATUSES = ['open', 'done'] as const
 
-const PatchCommitmentBody = z
-  .object({
-    text: z.string().trim().min(1).optional(),
-    due: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .nullable()
-      .optional(),
-    status: z.enum(STATUSES).optional(),
-    goal_id: z.string().nullable().optional(),
-  })
-  .strict()
+const PatchCommitmentBody = z.object({
+  text: z.string().trim().min(1).optional(),
+  due: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  status: z.enum(STATUSES).optional(),
+  goal_id: z.string().nullable().optional(),
+  // Free-text "what you did" note from the Today timetable. Persists
+  // on the row alongside `text` and is rendered back in the tile.
+  note: z.string().max(2000).optional(),
+})
+
+// Note: NOT `.strict()` — zod default already ignores unknown keys,
+  // and clients (TodayTimetable) send `note` for blur-save.
 
 /* -------------------------------------------------------------------------- */
 /* PATCH                                                                      */
@@ -117,6 +121,7 @@ export async function PATCH(
   if (input.text !== undefined) updates.text = input.text
   if (input.due !== undefined) updates.due = input.due
   if (input.status !== undefined) updates.status = input.status
+  if (input.note !== undefined) updates.note = input.note
   if (input.goal_id !== undefined) {
     updates.goalId = input.goal_id
     updates.goalTitle = goalTitleUpdate ?? ''
@@ -192,6 +197,7 @@ function serialize(row: any) {
     goal_id: row.goalId,
     goal_title: row.goalTitle,
     text: row.text,
+    note: row.note ?? '',
     due: row.due,
     status: row.status,
     created_at:

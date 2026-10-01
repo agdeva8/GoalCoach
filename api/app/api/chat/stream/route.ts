@@ -71,7 +71,36 @@ interface ChatRequestBody {
   grill_me?: unknown
   proactive_propose?: unknown
   provider?: unknown
+  // Scoped-chat context (Iteration 5) — a chat opened from a Timeline
+  // tile, a Today-timetable item, a milestone, a blocker, etc. tags the
+  // conversation so the title bar can show "About: <subject>" instead
+  // of an anonymous "Let's sort your life — together." header.
+  //   - scope   semantic bucket ('goal' | 'commitment' | 'blocker' |
+  //             'milestone' | 'generic'); informs title + helper text.
+  //   - refId   id of the entity in question (goal_id, commitment_id, …).
+  //   - kind    maps to `conversations.kind` enum; falls back from scope.
+  //   - title   override for the chat modal title (else derived from scope).
+  //   - helperText  override for the faded helper line below the title.
+  scope?: unknown
+  refId?: unknown
+  kind?: unknown
+  title?: unknown
+  helperText?: unknown
 }
+
+// Conversations.kind enum mirrors `db/schema.ts:conversations.kind`. A
+// few scopes collapse to the same conversation kind — `commitment`
+// and `milestone` share `plan_day` since both are day-level planning.
+const SCOPE_TO_KIND: Record<string, 'general' | 'add_goal' | 'plan_day' | 'review_progress' | 'edit_goal' | 'drop_goal'> = {
+  goal: 'add_goal',
+  commitment: 'plan_day',
+  milestone: 'plan_day',
+  blocker: 'plan_day',
+  generic: 'general',
+}
+
+const CONV_KINDS = ['general', 'add_goal', 'plan_day', 'review_progress', 'edit_goal', 'drop_goal'] as const
+type ConvKind = (typeof CONV_KINDS)[number]
 
 export async function POST(req: NextRequest) {
   const caller = await resolveRequestUser(req)
@@ -154,15 +183,37 @@ export async function POST(req: NextRequest) {
   // seeds `conv_general_<user_id>` for any existing user, but a brand-new
   // guest posting their first message has no row yet. Idempotent INSERT
   // ON CONFLICT DO NOTHING handles both cases.
-  const conversationId = `conv_general_${caller.userId}`
+  //
+  // Iteration 5 — scoped chat: when the client provides a `scope` /
+  // `refId`, mint a per-entity conversation (`conv_<kind>_<refId>`) so
+  // later messages keep the title + context. Falls back to the user's
+  // general bucket when no scope is provided.
+  const clientScope = typeof body.scope === 'string' ? body.scope : null
+  const clientRefId = typeof body.refId === 'string' ? body.refId : null
+  const clientKindRaw = typeof body.kind === 'string' ? body.kind : null
+  const clientKind: ConvKind | null =
+    clientKindRaw && (CONV_KINDS as readonly string[]).includes(clientKindRaw)
+      ? (clientKindRaw as ConvKind)
+      : null
+  const scopedKind: ConvKind =
+    clientKind ?? (clientScope ? SCOPE_TO_KIND[clientScope] ?? 'general' : 'general')
+  const conversationId =
+    clientScope && clientRefId
+      ? `conv_${scopedKind}_${clientRefId}`
+      : `conv_general_${caller.userId}`
+  const convTitle =
+    typeof body.title === 'string' && body.title.trim().length > 0
+      ? body.title.trim().slice(0, 200)
+      : ''
   await db
     .insert(conversations)
     .values({
       id: conversationId,
       userId: caller.userId,
-      kind: 'general',
-      title: '',
+      kind: scopedKind,
+      title: convTitle,
       status: 'open',
+      goalId: clientScope === 'goal' && clientRefId ? clientRefId : null,
     })
     .onConflictDoNothing({ target: conversations.id })
 
