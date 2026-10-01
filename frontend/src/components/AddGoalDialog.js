@@ -345,66 +345,78 @@ export default function AddGoalDialog({
       }
       maxWidth="max-w-3xl"
       testId="add-goal-dialog"
+      // On mobile the dialog morphs:
+      //   step 1 (tiles) — half-height sheet pinned to bottom
+      //   step 2 (chat)  — full-height sheet so the composer gets the
+      //                    screen real-estate + keyboard safe-area it
+      //                    needs. On desktop this prop is ignored.
+      fullHeightMobile={step === "chat"}
     >
-      {/* Tiles — always visible, clickable to change selection or
-          return to step 1 from step 2.
-          Each card is a gradient hero with a category-themed icon glyph,
-          not a plain text tile. Hovering slightly raises the glow;
-          active state shows an accent ring + a tinted gradient. */}
-      <div
-        data-testid="add-goal-categories"
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-4"
-      >
-        {CATEGORIES.map((cat) => {
-          const isActive = activeCategory === cat.id;
-          const { Icon, gradient, ring, glow } = cat;
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              data-testid={`add-goal-category-${cat.id}`}
-              onClick={() => pickCategory(cat)}
-              aria-pressed={isActive}
-              className={`relative flex flex-col items-start justify-between text-left rounded-xl border min-h-[112px] p-3.5 overflow-hidden transition-all group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-                isActive
-                  ? `border-transparent ring-1 ${ring} bg-gradient-to-br ${gradient}`
-                  : `border-[var(--border)] bg-[var(--bg-primary)] hover:border-[var(--border-accent)] hover:-translate-y-0.5`
-              }`}
-            >
-              {/* Gradient wash — only visible on active state, fades to
-                  subtle on hover. */}
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} ${
-                  isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-                } transition-opacity`}
-              />
-              {/* Soft glow halo at the top-left, intensifies on active. */}
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none absolute -top-6 -left-6 h-20 w-20 rounded-full blur-2xl ${glow} ${
-                  isActive ? "opacity-80" : "opacity-30 group-hover:opacity-50"
-                } transition-opacity`}
-              />
-              <Icon
-                className={`relative w-6 h-6 ${
-                  isActive ? "text-[var(--text-primary)]" : "text-[var(--accent)] group-hover:text-[var(--text-primary)]"
-                } transition-colors`}
-                strokeWidth={1.6}
-              />
-              <span
-                className={`relative text-sm font-semibold leading-tight tracking-tight ${
-                  isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
-                } transition-colors`}
+      {/* Step 1: tiles. Step 2: a slim "change category" pill row + the
+          ChatConsole. The same tiles collapse into a chip strip at the
+          top of the chat — keeps the category visible without giving
+          it a whole grid. */}
+      {step === "tiles" ? (
+        <div
+          data-testid="add-goal-categories"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-4"
+        >
+          {CATEGORIES.map((cat) => {
+            const isActive = activeCategory === cat.id;
+            const { Icon, gradient, ring, glow } = cat;
+            // "Something else" (custom) is the 7th tile in a 2-col mobile
+            // grid — without this span it lands alone in row 4 looking
+            // orphaned. Spanning both columns makes it the explicit
+            // meta/catch-all it already is.
+            const spanFullOnMobile = cat.id === "custom";
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                data-testid={`add-goal-category-${cat.id}`}
+                onClick={() => pickCategory(cat)}
+                aria-pressed={isActive}
+                className={`relative flex flex-col items-start justify-between text-left rounded-xl border min-h-[112px] p-3.5 overflow-hidden transition-all group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                  spanFullOnMobile ? "col-span-2 sm:col-span-1" : ""
+                } ${
+                  isActive
+                    ? `border-transparent ring-1 ${ring} bg-gradient-to-br ${gradient}`
+                    : `border-[var(--border)] bg-[var(--bg-primary)] hover:border-[var(--border-accent)] hover:-translate-y-0.5`
+                }`}
               >
-                {cat.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {step === "tiles" ? null : (
+                {/* Gradient wash — only visible on active state, fades to
+                    subtle on hover. */}
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} ${
+                    isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+                  } transition-opacity`}
+                />
+                {/* Soft glow halo at the top-left, intensifies on active. */}
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute -top-6 -left-6 h-20 w-20 rounded-full blur-2xl ${glow} ${
+                    isActive ? "opacity-80" : "opacity-30 group-hover:opacity-50"
+                  } transition-opacity`}
+                />
+                <Icon
+                  className={`relative w-6 h-6 ${
+                    isActive ? "text-[var(--text-primary)]" : "text-[var(--accent)] group-hover:text-[var(--text-primary)]"
+                  } transition-colors`}
+                  strokeWidth={1.6}
+                />
+                <span
+                  className={`relative text-sm font-semibold leading-tight tracking-tight ${
+                    isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                  } transition-colors`}
+                >
+                  {cat.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
         <>
           <div className="flex items-center justify-between mb-2">
             <button
@@ -423,7 +435,7 @@ export default function AddGoalDialog({
               showSources={false} hides the attach / link buttons —
               sources don't apply to a goal-add chat, and the no-op
               stubs were surfacing as a confusing dead UI. */}
-          <div className="h-[55vh] min-h-[420px] -mx-5 -mb-5 border-t border-[var(--border)]">
+          <div className="h-[55vh] min-h-[420px] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)]">
             <ChatConsole
               key={focusToken}
               messages={messages}
