@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Sparkles, ExternalLink, Loader2, RefreshCw, X, BookOpen, Headphones, Video, FileText } from "lucide-react";
 import { api } from "../lib/api";
 import { localDateKey } from "../lib/utils";
@@ -17,6 +17,14 @@ import { localDateKey } from "../lib/utils";
  *   4. Each item carries a server-side frame that puts the item in
  *      the user's current moment (overdue vs. dormant vs. stuck).
  *
+ * Stale-while-revalidate (SWR) poll — the server returns the
+ * catalogue instantly on a cold cache and kicks the LLM pipeline
+ * off in the background. We poll every 5s while we know a refresh
+ * is in flight (`cache: 'miss'` / `'stale'`); once the server hands
+ * us `cache: 'hit'` we know the fresh LLM-curated row landed and
+ * we stop polling. Same response shape either way, so the swap is
+ * invisible to the user — just one item quietly changes.
+ *
  * UX rules:
  *   - Skips itself silently when nothing interesting is happening
  *     (no overdue, no goals) — never nags the user.
@@ -24,11 +32,21 @@ import { localDateKey } from "../lib/utils";
  *     the session (per component mount).
  *   - Refresh button re-rolls items from the same bucket.
  */
+const POLL_INTERVAL_MS = 5_000
+
 export default function MotivationCard({ state }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [dismissed, setDismissed] = useState(false)
+  // True while the server told us the cache is `miss` / `stale` —
+  // i.e. a background refresh is in flight that we should poll
+  // for. Stays false on `hit` and on hard errors (so we don't
+  // hammer the route when the LLM is broken).
+  const [awaitingFresh, setAwaitingFresh] = useState(false)
+  // Ref to the poll interval so we can clear it on unmount and on
+  // transitions out of `awaitingFresh`.
+  const pollRef = useRef(null)
 
   const overdueCount = (state?.commitments || []).filter(
     (c) =>
@@ -40,15 +58,56 @@ export default function MotivationCard({ state }) {
 
   const shouldShow = overdueCount > 0 || activeGoals > 0
 
+  const stopPolling = () => {
+    if (pollRef.current !== null) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
+  const startPolling = () => {
+    stopPolling()
+    pollRef.current = setInterval(() => {
+      api
+        .motivation()
+        .then((d) => {
+          setItems(d.items || [])
+          if (d.cache === "hit") {
+            // Fresh LLM-curated row landed — swap and stop polling.
+            setAwaitingFresh(false)
+            stopPolling()
+          }
+          // If still 'miss' / 'stale', keep polling.
+        })
+        .catch(() => {
+          // Background poll failure is non-fatal — keep trying until
+          // we either get a hit or the user dismisses the card.
+        })
+    }, POLL_INTERVAL_MS)
+  }
+
   const fetchRecommendations = () => {
     setLoading(true)
     setError(null)
     api
       .motivation()
-      .then((d) => setItems(d.items || []))
+      .then((d) => {
+        setItems(d.items || [])
+        if (d.cache === "hit") {
+          setAwaitingFresh(false)
+          stopPolling()
+        } else {
+          // 'miss' or 'stale' — server kicked off a background
+          // refresh; start (or continue) polling until it lands.
+          setAwaitingFresh(true)
+          startPolling()
+        }
+      })
       .catch((err) => {
         console.error("Failed to load motivation recommendations:", err)
         setError(err)
+        setAwaitingFresh(false)
+        stopPolling()
       })
       .finally(() => setLoading(false))
   }
@@ -58,6 +117,12 @@ export default function MotivationCard({ state }) {
     fetchRecommendations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldShow, dismissed])
+
+  // Always tear down the poll on unmount — otherwise the interval
+  // would keep firing against a state we'd never see.
+  useEffect(() => {
+    return () => stopPolling()
+  }, [])
 
   if (!shouldShow || dismissed) return null
   if (items.length === 0 && !loading && !error) return null
@@ -91,6 +156,15 @@ export default function MotivationCard({ state }) {
             <RefreshCw className="w-3.5 h-3.5" />
           )}
         </button>
+        {awaitingFresh && (
+          <span
+            data-testid="motivation-refreshing"
+            className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)] inline-flex items-center gap-1"
+            title="Curating fresh picks — this view will update shortly"
+          >
+            <Loader2 className="w-3 h-3 animate-spin" /> refreshing
+          </span>
+        )}
         <button
           data-testid="motivation-dismiss"
           type="button"

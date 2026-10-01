@@ -4,6 +4,50 @@ import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 import ChatModeSelect from "./ChatModeSelect";
 
 /**
+ * EmptyState — the prompt shown when there are no messages yet.
+ *
+ * Two shapes:
+ *   - Scoped (e.g. "About: Miso-eggplant dinner"): a one-line intent
+ *     that says what this chat is for and what the coach will help
+ *     the user do here. Mirrors AddGoalDialog's per-category
+ *     subtitle — the user lands on a specific surface, not the
+ *     generic "what are you working on" onboarding.
+ *   - Unscoped (the header bar chat, no subject): the original
+ *     generic onboarding, kept verbatim so the global chat still
+ *     onboards first-time users.
+ */
+function EmptyState({ scopeLabel, scopeIntent }) {
+  if (scopeLabel && scopeIntent) {
+    return (
+      <div data-testid="chat-empty-scoped" className="h-full flex flex-col justify-center max-w-lg">
+        <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--text-muted)] mb-3">
+          about this
+        </div>
+        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+          {scopeIntent}{" "}
+          <span className="text-[var(--text-primary)]">
+            Anything you propose lands only after I confirm — keep, shrink, or drop it.
+          </span>
+        </p>
+        <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
+          Chatting about <span className="text-[var(--text-secondary)]">{scopeLabel}</span>.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div data-testid="chat-empty-generic" className="h-full flex flex-col justify-center max-w-lg">
+      <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--text-muted)] mb-3">start here</div>
+      <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+        Tell me everything you're working on across every timeframe — the career move, the body,
+        the side thing, the relationship. Say <span className="text-[var(--text-primary)]">"I have N goals across different time horizons; help me figure out this week."</span> I'll
+        tell you what deserves attention, what you're over-committing to, and where you've drifted.
+      </p>
+    </div>
+  );
+}
+
+/**
  * SpeechWave — animated audio feedback rendered above the chat input
  * while the user is dictating. Each bar has a randomized height that
  * updates on a short interval so the visualization actually moves while
@@ -83,7 +127,7 @@ function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "" }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -99,6 +143,20 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
+
+  // When focusOnMount is true (set by the parent when this console
+  // mounts inside an open modal), move focus into the textarea after
+  // the modal has settled. Skip if voice is already listening — the
+  // mic owns the focus at that point.
+  useEffect(() => {
+    if (!focusOnMount) return;
+    const t = setTimeout(() => {
+      if (!voiceListening && taRef.current) taRef.current.focus();
+    }, 80);
+    return () => clearTimeout(t);
+    // voiceListening intentionally omitted — we only fire on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusOnMount]);
 
   // Voice input via Web Speech API. We feature-detect on mount so we
   // can hide the mic button on browsers that don't support it
@@ -207,14 +265,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6 space-y-6"
       >
         {messages.length === 0 && (
-          <div className="h-full flex flex-col justify-center max-w-lg">
-            <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--text-muted)] mb-3">start here</div>
-            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-              Tell me everything you're working on across every timeframe — the career move, the body,
-              the side thing, the relationship. Say <span className="text-[var(--text-primary)]">"I have N goals across different time horizons; help me figure out this week."</span> I'll
-              tell you what deserves attention, what you're over-committing to, and where you've drifted.
-            </p>
-          </div>
+          <EmptyState scopeLabel={scopeLabel} scopeIntent={scopeIntent} />
         )}
         {messages.map((m) => (
           <Message key={m.id} m={m} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} busyProposal={busyProposal} />

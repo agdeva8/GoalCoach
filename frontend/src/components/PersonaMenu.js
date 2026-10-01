@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { UserRound, Plus, RefreshCw, Pencil, Check, X } from "lucide-react";
+import { UserRound, Plus, RefreshCw, Pencil, Check, X, Trash2 } from "lucide-react";
 import { API, api } from "../lib/api";
 
 /**
@@ -85,6 +85,22 @@ export default function PersonaMenu({ currentName, currentUserId }) {
     })
     if (!res.ok) return
     window.location.reload()
+  }
+
+  const deletePersona = async (userId) => {
+    try {
+      const res = await fetch(`${API}/auth/personas/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.detail || `${res.status}`)
+      }
+      setPersonas((prev) => prev.filter((p) => p.user_id !== userId))
+    } catch (e) {
+      setError(e?.message || "Couldn't delete persona")
+    }
   }
 
   const createPersona = async (rawName) => {
@@ -256,15 +272,32 @@ export default function PersonaMenu({ currentName, currentUserId }) {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => { setRenameId(p.user_id); setRenameValue(p.name || "") }}
-                            className="text-[var(--text-muted)] hover:text-[var(--accent)] shrink-0"
-                            title="Rename persona"
-                            data-testid={`persona-rename-trigger-${p.user_id}`}
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => { setRenameId(p.user_id); setRenameValue(p.name || "") }}
+                              className="text-[var(--text-muted)] hover:text-[var(--accent)]"
+                              title="Rename persona"
+                              data-testid={`persona-rename-trigger-${p.user_id}`}
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            {!p.persona_key && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`Delete persona "${p.name || "Guest"}"? Their goals, memories, and history will be removed.`)) {
+                                    deletePersona(p.user_id)
+                                  }
+                                }}
+                                className="text-[var(--text-muted)] hover:text-[var(--danger)]"
+                                title="Delete persona"
+                                data-testid={`persona-delete-trigger-${p.user_id}`}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </li>

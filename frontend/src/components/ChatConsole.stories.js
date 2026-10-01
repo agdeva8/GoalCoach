@@ -64,3 +64,27 @@ export default {
 };
 
 export const Default = {};
+
+// Empty state — scoped (the case from the screenshot: user opened
+// chat from a "Miso-eggplant dinner" commitment, no messages yet).
+// Verifies the empty body says *what this chat is for*, not the
+// generic "Tell me everything..." onboarding.
+export const EmptyScoped = {
+  args: {
+    messages: [],
+    scopeLabel: "Miso-eggplant dinner",
+    scopeIntent:
+      "What part feels off? Be specific — the coach will suggest a keep / shrink / drop.",
+  },
+};
+
+// Empty state — global header bar chat. Generic onboarding, kept
+// verbatim so first-time users still land on the "what are you
+// working on" prompt.
+export const EmptyGeneric = {
+  args: {
+    messages: [],
+    scopeLabel: "",
+    scopeIntent: "",
+  },
+};

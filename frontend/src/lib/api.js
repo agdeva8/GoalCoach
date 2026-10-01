@@ -2,10 +2,14 @@ import { withTimeout, TimeoutError } from "./fetch-with-timeout";
 
 export { TimeoutError };
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// `frontend/.env` is gitignored, so a Vercel git build has this unset. It must
+// fall back to "" (relative `/api` on this origin), otherwise the template
+// produces the literal URL "undefined/api" and every request 404s. Only set a
+// full URL when the API genuinely lives on another origin (local dev).
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 export const API = `${BACKEND_URL}/api`;
 
-const DEFAULT_TIMEOUT_MS = 10000;
+const DEFAULT_TIMEOUT_MS = 30000;
 
 async function req(path, opts = {}) {
   const { quiet, timeout = DEFAULT_TIMEOUT_MS, ...fetchOpts } = opts;

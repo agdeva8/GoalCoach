@@ -1,15 +1,12 @@
 /**
- * Logo — Sutra brand mark.
+ * Logo — Sutra brand mark (Option 17: Guru with Infinite Thread).
  *
- * Concept: a meditating guru. A seated figure with crossed legs and
- * hands resting on the knees, a "third-eye" dot at the brow, and a
- * silent ring of warmth above the head — life-coach / mentor iconography
- * without sitting on lotus clip-art. Designed in the same warm-accent
- * SVG idiom as the rest of the app: a single 32x32 viewBox, single
- * currentColor stroke + fill, no external deps.
+ * Concept: A meditating guru silhouette channeling a continuous golden figure-8
+ * (lemniscate) thread through mudra hands. Untangling life's chaotic threads
+ * into an infinite, balanced continuum — "let's sort your life - together."
  *
- * The mark is intentionally simple so it reads at the 16px size used
- * in the header and at the 9px size used inside chips.
+ * Designed as a single 32x32 viewBox using currentColor so it adapts cleanly
+ * to Tailwind accent and text colors across light and dark modes.
  */
 export default function Logo({ className = "w-6 h-6" }) {
   return (
@@ -20,54 +17,64 @@ export default function Logo({ className = "w-6 h-6" }) {
       aria-hidden="true"
       data-testid="logo-guru"
     >
-      {/* Halo / aura — the bigger semi-circle behind the figure */}
+      {/* Halo / wisdom aura */}
       <circle
         cx="16"
-        cy="20"
-        r="11.5"
+        cy="9.5"
+        r="6.5"
         stroke="currentColor"
-        strokeWidth="1.1"
-        opacity="0.18"
+        strokeWidth="0.85"
+        opacity="0.22"
       />
-      {/* Aura inner — concentric warmth */}
       <circle
         cx="16"
-        cy="20"
-        r="8.5"
+        cy="9.5"
+        r="4.2"
         stroke="currentColor"
-        strokeWidth="1.1"
-        opacity="0.32"
+        strokeWidth="0.8"
+        opacity="0.35"
       />
 
-      {/* Head — small circle near the top */}
-      <circle cx="16" cy="9.5" r="3.2" fill="currentColor" opacity="0.95" />
+      {/* Head & topknot */}
+      <circle cx="16" cy="9.6" r="2.2" fill="currentColor" />
+      <circle cx="16" cy="6.6" r="1.1" fill="currentColor" />
 
-      {/* Third-eye dot — accent at the brow */}
-      <circle cx="16" cy="9" r="0.85" fill="currentColor" />
-      <circle cx="16" cy="9" r="2.4" stroke="currentColor" strokeWidth="0.6" opacity="0.5" />
-
-      {/* Shoulders + torso — a single curve from shoulder to crossed legs */}
+      {/* Seated torso & mudra arms */}
       <path
-        d="M9.4 17.5 C 11 14.5, 13 13, 16 13 C 19 13, 21 14.5, 22.6 17.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        fill="none"
-      />
-
-      {/* Crossed legs — lotus base. One wide M-shape from knee to knee. */}
-      <path
-        d="M6 22.6 L 11.5 17.5 L 16 22 L 20.5 17.5 L 26 22.6 C 24 25, 19 26, 16 26 C 13 26, 8 25, 6 22.6 Z"
+        d="M 12 14.5 C 13.5 13, 18.5 13, 20 14.5 L 21 19.5 C 18 20.5, 14 20.5, 11 19.5 Z"
         fill="currentColor"
-        opacity="0.85"
+        opacity="0.9"
+      />
+      <path
+        d="M 12 14.5 C 10.5 16.5, 9.8 18.5, 11.5 19"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 20 14.5 C 21.5 16.5, 22.2 18.5, 20.5 19"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="11.5" cy="19" r="0.75" fill="currentColor" />
+      <circle cx="20.5" cy="19" r="0.75" fill="currentColor" />
+
+      {/* Lotus base (folded meditation legs) */}
+      <path
+        d="M 6.8 23.2 C 11 25.2, 21 25.2, 25.2 23.2 C 23.5 26.2, 8.5 26.2, 6.8 23.2 Z"
+        fill="currentColor"
+        opacity="0.8"
       />
 
-      {/* Hands on knees — two small circles */}
-      <circle cx="11.5" cy="22.6" r="1.2" fill="currentColor" />
-      <circle cx="20.5" cy="22.6" r="1.2" fill="currentColor" />
-
-      {/* A single warm pulse above the head — "the wisdom" */}
-      <circle cx="16" cy="2.5" r="1.05" fill="currentColor" opacity="0.9" />
+      {/* The Infinite Thread (Lemniscate Figure-8 Loop) */}
+      <path
+        d="M 16 17.5 C 12.5 14, 6 14.5, 6 18.5 C 6 22.5, 12.5 23, 16 19.5 C 19.5 16, 26 15, 26 18.5 C 26 22, 19.5 22, 16 17.5 Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

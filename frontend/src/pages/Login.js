@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ArrowUpRight } from "lucide-react";
+import Logo from "../components/Logo";
 
 export default function Login() {
   const { user, loading } = useAuth();
@@ -20,7 +21,10 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col">
       <header className="border-b border-[var(--border)] px-6 sm:px-10 h-16 flex items-center">
-        <span className="font-display font-bold tracking-tight text-lg">Sutra</span>
+        <div className="flex items-center gap-2.5">
+          <Logo className="w-7 h-7 text-[var(--accent)] shrink-0" />
+          <span className="font-display font-bold tracking-tight text-lg">Sutra</span>
+        </div>
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">v1 · founder build</span>
       </header>
 

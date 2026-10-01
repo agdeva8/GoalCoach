@@ -177,29 +177,33 @@ export default function SourceActionDialog({
     body = (
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <input
-            data-testid="source-link-input"
-            autoFocus
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                if (url.trim()) runPreview(url.trim())
-              }
-            }}
-            placeholder="https://…"
-            className="flex-1 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
-          />
+          <label className="flex-1">
+            <span className="sr-only">Link URL</span>
+            <input
+              data-testid="source-link-input"
+              autoFocus
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  if (url.trim()) runPreview(url.trim())
+                }
+              }}
+              placeholder="https://…"
+              aria-label="Link URL"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+            />
+          </label>
           <button
             type="button"
             data-testid="source-link-preview-btn"
             onClick={() => runPreview(url.trim())}
             disabled={!url.trim() || previewing}
-            className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] hover:text-[var(--text-primary)] rounded transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 h-11 px-3 text-xs border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] hover:text-[var(--text-primary)] rounded transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
-            {previewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />}
+            {previewing ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <Link2 className="w-3 h-3" aria-hidden="true" />}
             Preview
           </button>
         </div>

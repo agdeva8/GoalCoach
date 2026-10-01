@@ -37,6 +37,7 @@ export default function CenteredDialog({
   closeOnBackdrop = true,
 }) {
   const dialogRef = useRef(null);
+  const lastFocusedRef = useRef(null);
 
   // Esc-to-close — handled here (not via shadcn) so we can layer this
   // on top of whatever primitive the body uses.
@@ -59,12 +60,24 @@ export default function CenteredDialog({
   }, [open]);
 
   // Focus the dialog on open so screen readers announce it and Tab
-  // cycles within the body.
+  // cycles within the body. When the dialog closes, restore focus to
+  // the element that opened it so keyboard users don't lose their place.
   useEffect(() => {
     if (open) {
+      lastFocusedRef.current = document.activeElement;
       // Defer to next tick — shadcn uses Radix which mounts in a portal
       // on the same frame, so waiting one tick guarantees the ref is live.
       const t = setTimeout(() => dialogRef.current?.focus(), 0);
+      return () => clearTimeout(t);
+    } else {
+      // Restore focus on close. Use a microtask so any close-time
+      // re-renders settle first.
+      const t = setTimeout(() => {
+        const last = lastFocusedRef.current;
+        if (last && typeof last.focus === "function" && document.contains(last)) {
+          last.focus();
+        }
+      }, 0);
       return () => clearTimeout(t);
     }
   }, [open]);
@@ -108,7 +121,7 @@ export default function CenteredDialog({
               data-testid={`${testId}-close`}
               title="Close"
               aria-label="Close"
-              className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0"
+              className="h-10 w-10 -mr-2 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
             >
               <X className="w-4 h-4" />
             </button>
@@ -120,7 +133,7 @@ export default function CenteredDialog({
             data-testid={`${testId}-close`}
             title="Close"
             aria-label="Close"
-            className="absolute top-3 right-3 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10"
+            className="absolute top-2 right-2 h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
           >
             <X className="w-4 h-4" />
           </button>

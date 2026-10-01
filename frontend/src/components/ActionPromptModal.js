@@ -65,30 +65,34 @@ export default function ActionPromptModal({ action, onClose, onSend }) {
       testId="action-prompt-modal"
       footer={open ? (
         <>
-          <button onClick={onClose} data-testid="action-modal-cancel" className="text-xs px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+          <button onClick={onClose} data-testid="action-modal-cancel" className="h-11 px-4 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
             Cancel
           </button>
           <button
             data-testid="action-modal-send"
             onClick={submit}
             disabled={!text.trim()}
-            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
+            className="h-11 flex items-center gap-1.5 px-4 rounded bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
             <Send className="w-3 h-3" /> {frame.cta}
           </button>
         </>
       ) : null}
     >
-      <textarea
-        data-testid="action-modal-input"
-        autoFocus
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-        rows={4}
-        placeholder={frame?.ph || ""}
-        className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
-      />
+      <label className="block">
+        <span className="sr-only">Reason</span>
+        <textarea
+          data-testid="action-modal-input"
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+          rows={4}
+          placeholder={frame?.ph || ""}
+          aria-label="Reason for this action"
+          className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
+        />
+      </label>
     </CenteredDialog>
   );
 }
