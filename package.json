@@ -12,11 +12,12 @@
     }
   },
   "scripts": {
-    "dev": "pnpm -C api exec next dev -p 4000",
-    "dev:web": "pnpm -C frontend start",
-    "dev:all": "pnpm dev & pnpm dev:web & wait",
-    "build": "pnpm -C frontend build && pnpm -C api build",
-    "build:web": "pnpm -C frontend build",
+    "dev": "node scripts/dev.js",
+    "dev:api": "pnpm -C api exec next dev -p 4000",
+    "dev:web": "node frontend/node_modules/@craco/craco/dist/scripts/start.js",
+    "dev:all": "node scripts/dev.js",
+    "build": "REACT_APP_BACKEND_URL= yarn --cwd frontend build && rm -rf api/public && cp -R frontend/build api/public && touch api/public/.gitkeep && pnpm -C api build",
+    "build:web": "REACT_APP_BACKEND_URL= yarn --cwd frontend build",
     "build:api": "pnpm -C api build",
     "start:api": "pnpm -C api exec next start -p 4000",
     "test": "pnpm -r test",
