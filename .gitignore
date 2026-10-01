@@ -106,3 +106,15 @@ frontend/package-lock.json
 /blob-report/
 /playwright/.last-run.json
 tests/e2e/screenshots/
+
+# Local QA/session artifacts — never history (2026-10-01)
+.screenshots-raw/
+journey*.png
+screenshot-*.png
+screenshots/
+.playwright-mcp/
+.devlog.log
+.tmp-*.network-response
+frontend/dev.log
+# Stale parallel frontend experiment (has its own node_modules; 159M)
+frontend-v2/
