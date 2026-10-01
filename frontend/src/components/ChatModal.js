@@ -324,9 +324,13 @@ export default function ChatModal({
     onOpenSignIn?.();
   }, [onOpenSignIn]);
 
-  // Scoped chat — when a scope/title was passed in, swap the generic
-  // header for "About: <subject>" with a faded helper line below.
-  const scoped = Boolean(scope && title)
+  // Scoped chat — when a title was passed in (with or without a
+  // scope/refId entity anchor), swap the generic header for
+  // "About: <subject>" with the helper line below. The earlier
+  // requirement that scope AND title both be set meant chat flows
+  // like "Build my timeline" — which have a title but no specific
+  // entity to anchor on — still rendered the generic header.
+  const scoped = Boolean(title)
   const headerTitle = scoped ? `About: ${title}` : "Chat with your coach"
   const headerSubtitle = scoped
     ? (helperText || "Ask anything about this — proposals only land after you confirm.")
