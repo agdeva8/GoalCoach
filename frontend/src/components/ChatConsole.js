@@ -273,13 +273,13 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 border-t border-[var(--border)] p-3 sm:p-4 bg-[var(--bg-primary)]">
+      <div className="shrink-0 border-t border-[var(--border)] p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[var(--bg-primary)]">
         {sources.length > 0 && (
           <div data-testid="attached-sources" className="mb-2 flex flex-wrap gap-1.5">
             {sources.map((s) => (
               <span key={s.id} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
                 <FileText className="w-3 h-3" /> <span className="max-w-[140px] truncate">{s.original_filename}</span>
-                <button onClick={() => onDeleteSource(s.id)} className="text-[var(--text-muted)] hover:text-[var(--danger)]"><X className="w-3 h-3" /></button>
+                <button onClick={() => onDeleteSource(s.id)} aria-label={`Remove source ${s.original_filename}`} className="text-[var(--text-muted)] hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>
