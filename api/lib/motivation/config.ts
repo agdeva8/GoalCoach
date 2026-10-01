@@ -16,6 +16,7 @@
 import 'server-only'
 
 import { env } from '@/lib/env'
+import { MODEL_REGISTRY } from '@/lib/emergent/model-registry'
 
 import {
   CORE_PARAMS,
@@ -63,13 +64,30 @@ export const MOTIVATION_AGENT_ENABLED = parseEnabledFlag(
 export const TAVILY_API_KEY = process.env.TAVILY_API_KEY || null
 
 /**
- * LLM calls go through the existing Emergent proxy; the key lives
- * in `env.EMERGENT_LLM_KEY`. We re-export model constants here so
- * callers don't need to import from `@/lib/emergent/llm` for the
- * names alone.
+ * LLM calls go through the Emergent LLM proxy; the key lives in
+ * `env.EMERGENT_LLM_KEY`. When `DEEPSEEK_API_KEY` is set (MVP
+ * default), `streamChat` (lib/emergent/stream-chat.ts) routes to
+ * DeepSeek instead — DeepSeek only accepts its own model ids, so we
+ * read the actual model string off the registry instead of baking
+ * one in here. The `provider` field on each row is preserved so the
+ * `critique` / `frame` stages can route through their preferred
+ * provider (claude for reasoning, gemini for the cheap frame call);
+ * the `model` field is what gets sent on the wire.
+ *
+ * Reading from the registry — instead of hardcoding `'claude-sonnet-4-5'`
+ * and `'gemini/gemini-3-flash-preview'` here — keeps this file in sync
+ * with `lib/emergent/model-registry.ts`, which is the single source of
+ * truth for provider selection.
  */
-export const REASONING_MODEL = 'claude-sonnet-4-5' as const
-export const CHEAP_MODEL = 'gemini/gemini-3-flash-preview' as const
+export const REASONING_MODEL = MODEL_REGISTRY.claude.model as string
+export const CHEAP_MODEL = MODEL_REGISTRY.gemini.model as string
+/**
+ * Provider id used by `critique.ts` / `frame.ts` when calling
+ * `streamChat`. Distinct from the model string — `streamChat` looks
+ * up `MODEL_REGISTRY[provider].model` for routing.
+ */
+export const REASONING_PROVIDER = 'claude' as const
+export const CHEAP_PROVIDER = 'gemini' as const
 
 /* -------------------------------------------------------------------------- */
 /* Pipeline bounds                                                            */
@@ -106,12 +124,22 @@ export const DAILY_USER_CAP = 20
 /**
  * USD per 1M tokens. Live cost is computed from input/output token
  * counts × these rates. Update when rates change or a model is added.
+ *
+ * MVP caveat — the cost figures below were captured against the
+ * pre-DeepSeek Emergent proxy (Anthropic Sonnet + Gemini 3 Flash).
+ * With `DEEPSEEK_API_KEY` set, the registry routes both stages to
+ * DeepSeek instead and these rates drift. We keep the labels
+ * (`reasoning` / `cheap`) so the cost ceiling (`COST_CAP_USD`)
+ * remains the only thing that needs re-tuning; the figures here are
+ * an upper bound that still produces useful "this is getting
+ * expensive" signals during MVP. Post-MVP, replace with DeepSeek's
+ * published rates.
  */
 const COST_PER_M_TOKENS_USD = {
-  reasoning_input: 3.0, // claude-sonnet-4-5 input
-  reasoning_output: 15.0, // claude-sonnet-4-5 output
-  cheap_input: 0.075, // gemini-3-flash-preview input
-  cheap_output: 0.3, // gemini-3-flash-preview output
+  reasoning_input: 3.0, // was claude-sonnet-4-5 input
+  reasoning_output: 15.0, // was claude-sonnet-4-5 output
+  cheap_input: 0.075, // was gemini-3-flash-preview input
+  cheap_output: 0.3, // was gemini-3-flash-preview output
   tavily_per_query: 0.005, // ~$5 per 1k queries, Starter tier
 } as const
 

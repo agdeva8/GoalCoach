@@ -34,6 +34,28 @@ import {
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+/**
+ * Dev-only remap: bearer auth (`Authorization: Bearer dev_*`) creates
+ * a synthetic userId that does NOT exist in the `users` table, which
+ * makes any FK-protected write (motivation_cache, motivation_rejects,
+ * motivation_served_log) fail. In production this branch is dead code
+ * — `caller.source === 'bearer'` is gated on `ALLOW_DEV_LOGIN` /
+ * `NODE_ENV === 'test'`, both of which must be off in prod.
+ *
+ * Remap any bearer-sourced caller to the founder id so persistence
+ * layers exercise end-to-end during dev. The card-side cache and
+ * reject log will be polluted across dev users; that's acceptable —
+ * they're dev-only.
+ */
+const FOUNDER_ID = 'user_founder01'
+
+function resolvePersistableUserId(
+  caller: { userId: string; source: 'session' | 'guest' | 'bearer' },
+): string {
+  if (caller.source === 'bearer') return FOUNDER_ID
+  return caller.userId
+}
+
 /* -------------------------------------------------------------------------- */
 /* Bucket detection — same logic the v0 route used, kept verbatim so the     */
 /* front-end's "Picked from what you're working on" promise still holds.     */
@@ -83,7 +105,7 @@ export async function GET(req: NextRequest) {
   if (!caller) {
     return NextResponse.json({ detail: 'Not authenticated' }, { status: 401 })
   }
-  const userId = caller.userId
+  const userId = resolvePersistableUserId(caller)
 
   const url = new URL(req.url)
   const count = Math.min(3, Math.max(1, Number(url.searchParams.get('n')) || 3))

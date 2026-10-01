@@ -19,7 +19,7 @@ import 'server-only'
 
 import { streamChat } from '@/lib/emergent/stream-chat'
 
-import { CHEAP_MODEL, STAGE_TIMEOUTS } from './config'
+import { CHEAP_MODEL, CHEAP_PROVIDER, STAGE_TIMEOUTS } from './config'
 import type { Bucket, ScoredCandidate } from './schema'
 
 /* -------------------------------------------------------------------------- */
@@ -110,7 +110,12 @@ async function callFrame(args: {
   let full = ''
   try {
     for await (const ev of streamChat({
-      provider: 'gemini', // routes to gemini-3-flash
+      // Provider id (for the registry lookup); the actual model name
+      // comes from `CHEAP_MODEL`, which reads `MODEL_REGISTRY.gemini.model`
+      // — at MVP that resolves to `deepseek-flash` whenever
+      // `DEEPSEEK_API_KEY` is set (see `lib/emergent/model-registry.ts`
+      // MVP note).
+      provider: CHEAP_PROVIDER,
       model: CHEAP_MODEL,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],

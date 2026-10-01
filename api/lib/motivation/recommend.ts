@@ -12,10 +12,25 @@
  *   - COST_CAP_USD ($0.25)      — short-circuit to catalogue on breach.
  *
  * Failover (preserves the route.ts user-facing guarantees):
- *   1. Cache hit (≤ 60m)            → return cached items
- *   2. Stale cache (≤ 24h)          → return stale + kick off async refresh
- *   3. Pipeline success             → return new items
- *   4. Pipeline failure / cap breach → return fallback catalogue
+ *   1. Cache hit   (≤ 60m)  → return cached items        (cache: 'hit')
+ *   2. Stale cache (≤ 24h)  → return stale + kick off async refresh
+ *                            (cache: 'stale', same items, background writes)
+ *   3. Miss        (none)   → return catalogue immediately + kick off async
+ *                            pipeline (cache: 'miss', deterministic items,
+ *                            background writes — same SWR shape as stale)
+ *   4. Pipeline failure / cap breach → return fallback catalogue (still
+ *      inside `runPipeline`, only ever surfaces if the background pass
+ *      was awaited synchronously, which today it never is).
+ *
+ * SWR rationale: at MVP the pipeline takes ~20-30s on DeepSeek flash
+ * (5-way parallel critiques × ~25 candidates with the 8s per-stage
+ * timeout). Blocking on it for the first request after a cold cache
+ * makes the Goals tab feel broken. Returning the catalogue immediately
+ * — the same shape the user would see anyway — and refreshing in the
+ * background gives the card useful content at first paint, then a
+ * fresh LLM-curated item lands within one poll cycle. The frontend's
+ * `MotivationCard` polls every 5s while it knows a refresh is in
+ * flight, so the user sees the transition without a manual refresh.
  *
  * Public entry: `recommend(args)`. Returns a `RecommendationResponse`.
  */
@@ -36,6 +51,15 @@ import {
   llmCallCostUsd,
   tavilyCostUsd,
 } from './config'
+
+/**
+ * Max critiques in flight at once. Caps the burst we throw at the
+ * Emergent proxy per-key budget. 5 was chosen empirically — it's
+ * enough to keep total pipeline latency low (~2-3 sequential waves
+ * for 25 candidates) and low enough that a 429 from a key budget
+ * breach surfaces as a clean wave rather than a total cliff.
+ */
+const CRITIQUE_CONCURRENCY = 5
 import { fallbackFrame, pickFromCatalogue } from './catalogue'
 import { persistRejects, pickTopN } from './picker'
 import { critiqueCandidate } from './critique'
@@ -97,8 +121,37 @@ export async function recommend(
     }
   }
 
-  // 3. Fresh pipeline run.
-  return runPipeline({ userId, bucket, stateHash, n })
+  // 3. Cold miss — SWR. Return the catalogue immediately so the
+  //    Goals tab is never blocked behind a 20-30s LLM pipeline on
+  //    the first request after the cache expires. The pipeline runs
+  //    in the background; when it lands the cache row, the next
+  //    poll from `MotivationCard` picks it up as a fresh `hit`.
+  //
+  //    Same shape as the stale path above — the only difference is
+  //    what we serve right now (stale item vs. catalogue item). The
+  //    response contract (bucket, items, generated_at, cache) stays
+  //    identical so the frontend doesn't have to branch.
+  //
+  //    Why catalogue and not a "re-framing…" spinner: the user gets
+  //    real, useful content on first paint instead of staring at a
+  //    loader, and the eventual transition into the LLM-fresh item
+  //    is a quiet swap of one item for another, not a layout shift.
+  //
+  //    Dedup with other in-flight refreshes for the same (user, bucket,
+  //    stateHash): `runPipeline` writes to the cache by `stateHash`, so
+  //    two concurrent callers for the same fingerprint would race to
+  //    overwrite each other's row. The cost cap inside the pipeline
+  //    keeps the duplicate work cheap (second wave hits `overBudget`),
+  //    but if this ever becomes a hot path, swap the `void` for a
+  //    `Map<stateHash, Promise>` so the second caller awaits the first.
+  void runPipeline({ userId, bucket, stateHash, n }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.warn('[motivation] cold-miss refresh failed:', err)
+  })
+  // fromCatalogue() already returns cache: 'miss', but we spread it
+  // explicitly to make the intent obvious — this branch is always a
+  // miss, never anything else.
+  return fromCatalogue(bucket, n)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -194,8 +247,12 @@ async function runPipeline(args: {
 
     return { bucket, items, generated_at, cache: 'miss' }
   } catch (err) {
+    // Same rationale as the per-candidate log above — message only,
+    // not the stack. The catalogue fallback below keeps the user
+    // unblocked even when the pipeline blows up; the stack belongs
+    // in a debug log, not in every dev-request's console.
     // eslint-disable-next-line no-console
-    console.warn('[motivation] pipeline failed:', err)
+    console.warn('[motivation] pipeline failed:', err instanceof Error ? err.message : err)
     return fromCatalogue(bucket, n)
   } finally {
     clearTimeout(masterTimer)
@@ -222,12 +279,20 @@ async function critiqueAll(args: {
   const scored: ScoredCandidate[] = []
   let overBudget = false
 
-  await Promise.all(
-    candidates.map(async (c) => {
+  // Bounded concurrency: at most CRITIQUE_CONCURRENCY critiques in
+  // flight. The classic "promise pool with index cursor" pattern —
+  // small, dependency-free, and avoids hammering the Emergent proxy
+  // budget guard with N concurrent requests.
+  let cursor = 0
+  async function worker() {
+    while (true) {
       if (onCap()) {
         overBudget = true
         return
       }
+      const idx = cursor++
+      if (idx >= candidates.length) return
+      const c = candidates[idx]
       try {
         const result = await critiqueCandidate({
           candidate: c,
@@ -240,12 +305,25 @@ async function critiqueAll(args: {
         onCost(estimatedCost)
         scored.push(result)
       } catch (err) {
-        // Per-candidate isolation: log and drop.
+        // Per-candidate isolation: log and drop. A 429 budget breach
+        // shows up here as "Emergent LLM 429" — the worker continues
+        // and the cost cap short-circuits the next wave.
+        //
+        // Log the message only — the upstream Error carries a full
+        // stack trace (incl. request_id, raw upstream body) which
+        // floods the dev log every request. If we ever need the
+        // stack for post-mortem, dump it at WARN with `err.stack`
+        // behind a debug flag, not by default.
         // eslint-disable-next-line no-console
-        console.warn('[motivation] critique dropped:', err)
+        console.warn('[motivation] critique dropped:', err instanceof Error ? err.message : err)
       }
-    }),
-  )
+    }
+  }
+
+  const workers: Promise<void>[] = []
+  const pool = Math.min(CRITIQUE_CONCURRENCY, candidates.length)
+  for (let i = 0; i < pool; i++) workers.push(worker())
+  await Promise.all(workers)
 
   return { scored, overBudget }
 }
@@ -371,6 +449,11 @@ function fromCatalogue(bucket: Bucket, n: number): RecommendationResponse {
     cache: 'miss',
   }
 }
+
+// Exported for tests — the SWR cold-miss branch in `recommend()`
+// depends on `fromCatalogue` returning the exact contract shape.
+// Production code paths should go through `recommend()`, never this.
+export const _internal = { fromCatalogue }
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */

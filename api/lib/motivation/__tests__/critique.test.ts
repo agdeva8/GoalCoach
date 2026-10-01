@@ -17,8 +17,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CHEAP_MODEL,
+  CHEAP_PROVIDER,
   PER_PARAM_FLOOR,
   REASONING_MODEL,
+  REASONING_PROVIDER,
   computeWeightedTotal,
   countAboveFloor,
   passesCoreFour,
@@ -213,13 +215,24 @@ describe('critique — deterministic verdict (the three gates)', () => {
 })
 
 describe('config — model + thresholds', () => {
-  it('REASONING_MODEL is a strong model string', () => {
+  it('REASONING_MODEL is a model string from the registry', () => {
     expect(typeof REASONING_MODEL).toBe('string')
     expect(REASONING_MODEL.length).toBeGreaterThan(0)
   })
 
-  it('CHEAP_MODEL is a different (cheaper) model string', () => {
-    expect(CHEAP_MODEL).not.toBe(REASONING_MODEL)
+  it('CHEAP_MODEL is a model string from the registry', () => {
+    expect(typeof CHEAP_MODEL).toBe('string')
+    expect(CHEAP_MODEL.length).toBeGreaterThan(0)
+  })
+
+  it('REASONING_PROVIDER / CHEAP_PROVIDER are distinct registry ids', () => {
+    // The reasoning stage routes through the `claude` registry row
+    // and the cheap frame stage through the `gemini` row. At MVP
+    // both rows resolve to the same model on the wire, but the
+    // provider ids stay distinct so we can pick a different model
+    // later without changing call sites.
+    expect(REASONING_PROVIDER).toBe('claude')
+    expect(CHEAP_PROVIDER).toBe('gemini')
   })
 
   it('STAGE_TIMEOUTS has every stage we use', () => {

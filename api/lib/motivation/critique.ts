@@ -28,6 +28,7 @@ import { streamChat } from '@/lib/emergent/stream-chat'
 import {
   CHEAP_MODEL,
   REASONING_MODEL,
+  REASONING_PROVIDER,
   STAGE_TIMEOUTS,
   computeWeightedTotal,
   countAboveFloor,
@@ -244,7 +245,12 @@ async function chatJson(args: {
 }): Promise<{ content: CritiqueRaw; costUsd: number }> {
   let full = ''
   for await (const ev of streamChat({
-    provider: 'claude', // routes to anthropic per model-registry
+    // Provider id (for the registry lookup); the actual model name
+    // comes from `args.model`, which `critiqueCandidate` reads off
+    // `REASONING_MODEL` — the registry's `claude` row, which at MVP
+    // resolves to `deepseek-flash` whenever `DEEPSEEK_API_KEY` is
+    // set (see `lib/emergent/model-registry.ts` MVP note).
+    provider: REASONING_PROVIDER,
     model: args.model,
     system: args.system,
     messages: [{ role: 'user', content: args.user }],
