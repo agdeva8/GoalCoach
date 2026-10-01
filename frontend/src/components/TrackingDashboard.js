@@ -363,23 +363,6 @@ export default function TrackingDashboard({
         ))
       )}
 
-      <div className="border-t border-[var(--border)] pt-4 mt-2" data-testid="upcoming-features">
-        <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          On the roadmap
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {["Calendar view", "Weekly / daily scheduler", "Reminders", "Trackers"].map((u) => (
-            <span
-              key={u}
-              className="font-mono text-[10px] px-2 py-1 border border-dashed border-[var(--border)] rounded text-[var(--text-muted)]"
-              title="Coming soon"
-            >
-              {u}
-            </span>
-          ))}
-        </div>
-      </div>
-
       {/* Motivation / curated nudges — moved to the bottom so it doesn't
           compete with the goals grid for attention on first paint. */}
       <div className="mt-6">

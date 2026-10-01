@@ -36,6 +36,16 @@ export default function ChatModal({
   onAddLink,
   onOpenSignIn,
   isGuest,
+  prefillMessage = "",
+  // Iteration 5 — scoped chat context. When the modal opens from a
+  // Timeline tile / Today timetable item / milestone, the caller passes
+  // these so the title bar can read "About: <subject>" and the server
+  // can mint a per-entity conversation (`conv_<kind>_<refId>`).
+  scope = null,
+  refId = null,
+  kind = null,
+  title = "",
+  helperText = "",
 }) {
   // Chat-internal state — fully isolated from the dashboard.
   const [messages, setMessages] = useState([]);
@@ -45,6 +55,15 @@ export default function ChatModal({
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const streamIdRef = useRef(0);
+
+  // When the modal opens with a prefillMessage, drop it into the
+  // textarea — used by the Today Timetable's "I can't do this" /
+  // "Break it down with coach" buttons. Only fires when the prop
+  // changes while the modal is open.
+  useEffect(() => {
+    if (!open || !prefillMessage) return;
+    setInput(prefillMessage);
+  }, [open, prefillMessage]);
 
   // Load conversation history when the user changes (and we've never
   // loaded it for them). We surface a non-blocking toast on failure
@@ -95,6 +114,11 @@ export default function ChatModal({
             message: text,
             auto_answer: autoAnswer,
             clarify: grillMe,
+            scope,
+            refId,
+            kind,
+            title,
+            helperText,
           }),
         });
         if (!resp.ok || !resp.body) throw new Error("stream failed");
@@ -183,7 +207,7 @@ export default function ChatModal({
         );
       }
     },
-    [autoAnswer, grillMe],
+    [autoAnswer, grillMe, scope, refId, kind, title, helperText],
   );
 
   const confirmProposal = useCallback(
@@ -300,13 +324,21 @@ export default function ChatModal({
     onOpenSignIn?.();
   }, [onOpenSignIn]);
 
+  // Scoped chat — when a scope/title was passed in, swap the generic
+  // header for "About: <subject>" with a faded helper line below.
+  const scoped = Boolean(scope && title)
+  const headerTitle = scoped ? `About: ${title}` : "Chat with your coach"
+  const headerSubtitle = scoped
+    ? (helperText || "Ask anything about this — proposals only land after you confirm.")
+    : "Ask anything. The coach writes to your goals only after you confirm a proposal."
+
   return (
     <CenteredDialog
       open={open}
       onClose={onClose}
       icon={MessageSquare}
-      title="Chat with your coach"
-      subtitle="Ask anything. The coach writes to your goals only after you confirm a proposal."
+      title={headerTitle}
+      subtitle={headerSubtitle}
       maxWidth="max-w-3xl"
       testId="chat-modal"
     >
@@ -329,6 +361,9 @@ export default function ChatModal({
           onAddLink={addLink}
           sources={[]}
           onDeleteSource={() => {}}
+          focusOnMount={open}
+          scopeLabel={scoped ? title : ""}
+          scopeIntent={scoped ? (helperText || "Talk to the coach about this —") : ""}
           onClearChat={async () => {
             try {
               await api.clearHistory();
@@ -346,7 +381,7 @@ export default function ChatModal({
         <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
           <span className="flex-1">
-            You're chatting as a guest. Sign in to keep your goals across devices.
+            Log in to persist this session and access all advanced features.
           </span>
           <button
             type="button"

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Sparkles } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
-import { api } from "../lib/api";
+import { api, API } from "../lib/api";
 
 /**
  * FocusedTaskChatDialog — isolated chat for goal-level actions
@@ -40,6 +40,13 @@ export default function FocusedTaskChatDialog({
   onUploadFile,
   onAddLink,
   onOpenSignIn,
+  // Iteration 5 — scoped chat context. Caller passes these so the
+  // server can mint a per-entity conversation
+  // (`conv_<kind>_<refId>`) and the post-confirm close can fire.
+  scope = null,
+  refId = null,
+  kind = null,
+  helperText = "",
 }) {
   // Chat-internal state — fully isolated.
   const [messages, setMessages] = useState([]);
@@ -83,7 +90,7 @@ export default function FocusedTaskChatDialog({
         },
       ]);
       try {
-        const resp = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/chat/stream`, {
+        const resp = await fetch(`${API}/chat/stream`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -91,6 +98,11 @@ export default function FocusedTaskChatDialog({
             message: text,
             auto_answer: autoAnswer,
             clarify: grillMe,
+            scope,
+            refId,
+            kind,
+            title,
+            helperText,
           }),
         });
         if (!resp.ok || !resp.body) throw new Error("stream failed");
@@ -173,7 +185,7 @@ export default function FocusedTaskChatDialog({
         setSending(false);
       }
     },
-    [open, user, autoAnswer, grillMe],
+    [open, user, autoAnswer, grillMe, scope, refId, kind, title, helperText],
   );
 
   const confirmProposal = useCallback(
@@ -319,6 +331,13 @@ export default function FocusedTaskChatDialog({
           sources={[]}
           onDeleteSource={() => {}}
           onClearChat={() => setMessages([])}
+          focusOnMount={open}
+          // Focused-task dialogs always have a specific subject —
+          // mirror AddGoalDialog's per-category subtitle so the empty
+          // body says what this chat is for, not the generic "tell
+          // me everything" onboarding.
+          scopeLabel={title && title !== "Chat with your coach" ? title : ""}
+          scopeIntent={helperText || (subtitle && subtitle !== "Focus on this task. The chat below starts fresh and resets when you close it." ? subtitle : "Talk to the coach about this —")}
           pendingClarifications={pendingClarifications}
           onAnswerClarification={onAnswerClarification}
           onDismissClarifications={onDismissClarifications}
@@ -328,7 +347,7 @@ export default function FocusedTaskChatDialog({
         <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
           <span className="flex-1">
-            You're chatting as a guest. Sign in to keep your goals across devices.
+            Log in to persist this session and access all advanced features.
           </span>
           <button
             type="button"

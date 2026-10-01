@@ -7,7 +7,6 @@ import {
   Moon,
   LogIn,
   LogOut,
-  ChevronDown,
   ShieldCheck,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
@@ -42,7 +41,18 @@ export default function Settings() {
   const { user, setUser, logout } = useAuth();
   const isGuest = !user || user.is_guest;
 
+  // Model provider — must re-sync when the user loads. The first
+  // render usually runs before AuthContext resolves (user is null),
+  // so we keep provider in state but mirror user.model_provider
+  // whenever the user object changes.
   const [provider, setProvider] = useState(user?.model_provider || "gemini");
+  useEffect(() => {
+    if (user?.model_provider && user.model_provider !== provider) {
+      setProvider(user.model_provider);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.user_id, user?.model_provider]);
+
   const [auditOpen, setAuditOpen] = useState(false);
 
   const providers = useProviders();
@@ -50,23 +60,7 @@ export default function Settings() {
   const displayLabel = cur?.label || provider || "…";
   const displayModel = cur?.model || "";
 
-  // Read current theme from the DOM (Coach.js is the single source of truth).
-  const [isLight, setIsLight] = useState(() =>
-    document.documentElement.classList.contains("light"),
-  );
-  useEffect(() => {
-    const mo = new MutationObserver(() => {
-      setIsLight(document.documentElement.classList.contains("light"));
-    });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => mo.disconnect();
-  }, []);
-
-  const toggleTheme = () => {
-    const next = !document.documentElement.classList.contains("light");
-    document.documentElement.classList.toggle("light", next);
-    localStorage.setItem("gc_theme", next ? "light" : "dark");
-  };
+  // Theme toggle lives in the main header now — see Header.js.
 
   const changeProvider = async (p) => {
     setProvider(p);
@@ -80,8 +74,13 @@ export default function Settings() {
   };
 
   const doLogout = async () => {
-    await logout();
-    window.location.href = "/";
+    // Fire-and-forget the server logout so a slow / hung request
+    // can't block the navigation. AuthContext's logout() also clears
+    // the in-memory user, which is what gates the redirect.
+    logout().catch(() => {});
+    // Use replace so the user can't back-button into /settings while
+    // signed out.
+    window.location.replace("/");
   };
 
   return (
@@ -103,37 +102,6 @@ export default function Settings() {
         <span className="font-display font-bold tracking-tight text-sm">Settings</span>
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Model switcher */}
-          <div className="relative">
-            <button
-              title="Switch the coach's model"
-              className="flex items-center gap-2 h-9 px-3 border border-[var(--border)] hover:border-[var(--border-accent)] transition-colors"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-              <span className="font-mono text-[11px] uppercase tracking-wider">{displayLabel}</span>
-              {displayModel && <span className="font-mono text-[10px] text-[var(--text-muted)] hidden sm:inline">{displayModel}</span>}
-              <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
-            </button>
-            <div className="absolute right-0 mt-1 w-52 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-2xl z-50">
-              {providers.length === 0 ? (
-                <div className="px-3 py-2.5 text-xs text-[var(--text-muted)]">Loading…</div>
-              ) : (
-                providers.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => changeProvider(p.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 text-xs hover:bg-[var(--bg-tertiary)] border-b border-[var(--border)] last:border-0 transition-colors ${
-                      p.id === provider ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
-                    }`}
-                  >
-                    <span className="font-mono uppercase tracking-wider">{p.label}</span>
-                    <span className="text-[var(--text-muted)]">{p.model}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-
           {/* Audit */}
           <button
             onClick={() => setAuditOpen(true)}
@@ -143,15 +111,9 @@ export default function Settings() {
             <span className="hidden sm:inline text-xs">Audit</span>
           </button>
 
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            title={isLight ? "Switch to dark" : "Switch to light"}
-            className="h-9 w-9 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors"
-          >
-            {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
-
+          {/* Theme toggle lives in the main header (Coach.js) so it's
+              reachable on every page; this Settings page no longer
+              duplicates it. */}
           {/* Sign in / out */}
           {isGuest ? (
             <button
@@ -222,58 +184,19 @@ export default function Settings() {
                   ))}
                 </div>
               </section>
-
-              <section className="space-y-4">
-                <h3 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Persona</h3>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                  The coach adapts its tone based on the scenario you're in — cold start, returning, routine check-in, or a meta question about your progress.
-                  You can pick a scenario from the header or from within the chat.
-                </p>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                  The persona you pick here sets the default tone for new conversations.
-                </p>
-              </section>
             </TabsContent>
 
-            {/* Account tab — theme, sign in/out */}
+            {/* Account tab — sign in/out (theme moved to main header) */}
             <TabsContent value="account" className="space-y-6">
-              <section className="space-y-4">
-                <h3 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Appearance</h3>
-                <div className="flex gap-3">
-                  <button
-                    onClick={toggleTheme}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border rounded-lg transition-colors ${
-                      !isLight
-                        ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
-                        : "border-[var(--border)] hover:border-[var(--border-accent)]"
-                    }`}
-                  >
-                    <Moon className="w-4 h-4" />
-                    <span className="text-sm">Dark</span>
-                  </button>
-                  <button
-                    onClick={toggleTheme}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border rounded-lg transition-colors ${
-                      isLight
-                        ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
-                        : "border-[var(--border)] hover:border-[var(--border-accent)]"
-                    }`}
-                  >
-                    <Sun className="w-4 h-4" />
-                    <span className="text-sm">Light</span>
-                  </button>
-                </div>
-              </section>
-
               <section className="space-y-4">
                 <h3 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Session</h3>
                 {isGuest ? (
                   <div className="space-y-3">
                     <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                      You're using a preview session. Your goals are saved in this browser.
+                      You're using a preview session. Log in to persist this session and access all advanced features.
                     </p>
                     <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                      Sign in with Google to keep your goals across devices and auto-migrate this session.
+                      Sign in with Google to migrate this session to your account.
                     </p>
                     <button
                       onClick={() => navigate("/")}

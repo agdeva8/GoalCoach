@@ -37,7 +37,7 @@ export default function Coach() {
 
   const [state, setState] = useState(null);
   const [theme, setTheme] = useState(
-    () => localStorage.getItem("gc_theme") || "dark",
+    () => localStorage.getItem("sutra_theme") || "light",
   );
   const [auditOpen, setAuditOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -79,7 +79,7 @@ export default function Coach() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
-    localStorage.setItem("gc_theme", theme);
+    localStorage.setItem("sutra_theme", theme);
   }, [theme]);
 
   // Probe /api/auth/dev-login once on mount to learn whether the
@@ -276,14 +276,14 @@ export default function Coach() {
             preview
           </span>
           <span className="text-xs text-[var(--text-secondary)] flex-1">
-            Everything you build is saved in this browser. Sign in to keep it on your account and pick up on any device.
+            Log in to persist this session and access all advanced features.
           </span>
           <button
             data-testid="guest-banner-signin"
             onClick={openSignIn}
             className="text-xs font-medium text-[var(--accent)] hover:underline shrink-0"
           >
-            Sign in to save →
+            Log in →
           </button>
         </div>
       )}

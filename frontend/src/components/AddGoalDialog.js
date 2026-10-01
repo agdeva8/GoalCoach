@@ -15,74 +15,76 @@ import ChatConsole from "./ChatConsole";
 import { api, API } from "../lib/api";
 
 /**
- * CATEGORIES — modern hero cards for picking a goal area. Each
- * entry pairs a brand-shaped icon with a category-themed gradient
- * (warm amber for action categories, cooler hues for craft / quiet
- * categories). The card is the same height on every viewport so
- * the grid stays balanced — the typography + gradient do the visual
- * lifting, not the size of the icon.
+ * CATEGORIES — hero cards for picking a goal area.
+ *
+ * Every gradient stays inside the warm spectrum (amber / orange / rose /
+ * stone / accent) so the surface matches the rest of the app's warm
+ * dark / light theme. Differentiation comes from icon + label + a
+ * slight gradient-direction shift, not from hue jumps that fight the
+ * palette. The "Something else" tile is the only one that uses the
+ * canonical --accent so it reads as the meta / catch-all choice.
  */
 const CATEGORIES = [
   {
     id: "health",
     label: "Health",
     Icon: HeartPulse,
-    gradient: "from-emerald-500/30 via-emerald-400/15 to-emerald-500/0",
-    ring: "ring-emerald-400/40",
-    glow: "bg-emerald-400/20",
+    gradient: "from-amber-500/25 via-yellow-500/12 to-amber-500/0",
+    ring: "ring-amber-400/40",
+    glow: "bg-amber-400/20",
     prompt: "Help me set up a health goal. Ask anything you need, then propose it.",
   },
   {
     id: "career",
     label: "Career",
     Icon: Briefcase,
-    gradient: "from-amber-500/35 via-amber-400/15 to-orange-500/0",
-    ring: "ring-amber-400/40",
-    glow: "bg-amber-400/20",
+    gradient: "from-orange-500/30 via-amber-500/12 to-red-500/0",
+    ring: "ring-orange-400/40",
+    glow: "bg-orange-400/20",
     prompt: "Help me set up a career goal. Ask anything you need, then propose it.",
   },
   {
     id: "learning",
     label: "Learning",
     Icon: BookOpen,
-    gradient: "from-indigo-500/30 via-violet-500/15 to-fuchsia-500/0",
-    ring: "ring-violet-400/40",
-    glow: "bg-violet-400/20",
+    gradient: "from-yellow-500/22 via-amber-300/10 to-yellow-600/0",
+    ring: "ring-yellow-400/40",
+    glow: "bg-yellow-400/15",
     prompt: "Help me set up a learning goal. Ask anything you need, then propose it.",
   },
   {
     id: "relationship",
     label: "Relationship",
     Icon: HeartHandshake,
-    gradient: "from-rose-500/30 via-pink-400/15 to-rose-500/0",
+    gradient: "from-rose-500/25 via-pink-400/10 to-rose-600/0",
     ring: "ring-rose-400/40",
-    glow: "bg-rose-400/20",
+    glow: "bg-rose-400/15",
     prompt: "Help me set up a relationship goal. Ask anything you need, then propose it.",
   },
   {
     id: "finance",
     label: "Finance",
     Icon: TrendingUp,
-    gradient: "from-teal-500/30 via-cyan-400/15 to-blue-500/0",
-    ring: "ring-teal-400/40",
-    glow: "bg-teal-400/20",
+    gradient: "from-amber-600/28 via-orange-500/12 to-amber-700/0",
+    ring: "ring-amber-500/40",
+    glow: "bg-amber-500/15",
     prompt: "Help me set up a finance goal. Ask anything you need, then propose it.",
   },
   {
     id: "side-project",
     label: "Side project",
     Icon: Wrench,
-    gradient: "from-zinc-500/30 via-zinc-400/15 to-zinc-600/0",
-    ring: "ring-zinc-400/40",
-    glow: "bg-zinc-400/20",
+    gradient: "from-stone-500/25 via-stone-400/10 to-stone-600/0",
+    ring: "ring-stone-400/40",
+    glow: "bg-stone-400/15",
     prompt: "Help me set up a side-project goal. Ask anything you need, then propose it.",
   },
   {
     id: "custom",
     label: "Something else",
     Icon: Wand2,
-    gradient: "from-orange-400/30 via-amber-300/20 to-rose-400/0",
-    ring: "ring-[color-mix(in_srgb,var(--accent)_40%,transparent)]",
+    gradient: "from-[color-mix(in_srgb,var(--accent)_25%,transparent)] via-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent",
+    ring: "ring-[color-mix(in_srgb,var(--accent)_50%,transparent)]",
     glow: "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]",
     prompt: "",
   },
@@ -109,6 +111,7 @@ export default function AddGoalDialog({
   onUploadSource,
   onAddLink,
   onDeleteSource,
+  onGoalConfirmed,
 }) {
   // Dialog-internal chat state — completely isolated from the parent.
   const [messages, setMessages] = useState([]);
@@ -121,6 +124,16 @@ export default function AddGoalDialog({
   // UI state for the 2-step flow.
   const [activeCategory, setActiveCategory] = useState(null);
   const [step, setStep] = useState("tiles"); // "tiles" | "chat"
+  // Iteration 5 (Bug 10) — bump every tiles→chat transition so React
+  // remounts <ChatConsole> via `key` and re-fires its focus effect.
+  // The old `focusOnMount={step === "chat"}` only flipped once on the
+  // first cycle, so the second / third "change category" round
+  // landed without focus on the textarea.
+  const [focusToken, setFocusToken] = useState(0);
+  const enterChat = (next) => {
+    setStep(next ?? "chat");
+    setFocusToken((t) => t + 1);
+  };
   // Mode for the dialog's chat input. Seeded from the parent's mode
   // so the dialog opens on whatever mode the user is in globally.
   // Tracked locally after that — the previous `() => {}` no-op setters
@@ -140,6 +153,7 @@ export default function AddGoalDialog({
       setPendingClarifications(null);
       setActiveCategory(null);
       setStep("tiles");
+      setFocusToken(0);
       setSources([]);
     }
   }, [open]);
@@ -211,10 +225,15 @@ export default function AddGoalDialog({
   };
 
   const buildMessage = () => {
+    // Iteration 5 (Issue 8) — never auto-send a canned prompt. If the
+    // textarea is empty, send the category label so the coach still has
+    // a noun to anchor on, but no fabricated user voice. Returning ""
+    // here would short-circuit the send and the user would wonder why
+    // Enter did nothing.
     const text = (input || "").trim();
     if (text) return text;
     const cat = CATEGORIES.find((c) => c.id === activeCategory);
-    return cat?.prompt || "";
+    return cat ? `I want to set a ${cat.label.toLowerCase()} goal.` : "";
   };
 
   const handleSend = () => {
@@ -226,7 +245,7 @@ export default function AddGoalDialog({
   const pickCategory = (cat) => {
     const isActive = activeCategory === cat.id;
     setActiveCategory(isActive ? null : cat.id);
-    if (!isActive) setStep("chat");
+    if (!isActive) enterChat();
   };
 
   const goBackToTiles = () => {
@@ -270,6 +289,10 @@ export default function AddGoalDialog({
             : m,
         ),
       );
+      // Tell the parent to re-fetch state so the new goal shows up
+      // immediately in the dashboard (the dialog's internal messages
+      // don't know about the parent's /api/state shape).
+      onGoalConfirmed?.(proposalId);
       setTimeout(() => onClose?.(), 700);
     } catch {
       // bubble — parent toasts on the dashboard
@@ -342,7 +365,7 @@ export default function AddGoalDialog({
               data-testid={`add-goal-category-${cat.id}`}
               onClick={() => pickCategory(cat)}
               aria-pressed={isActive}
-              className={`relative flex flex-col items-start justify-between text-left rounded-xl border min-h-[112px] p-3.5 overflow-hidden transition-all group ${
+              className={`relative flex flex-col items-start justify-between text-left rounded-xl border min-h-[112px] p-3.5 overflow-hidden transition-all group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
                 isActive
                   ? `border-transparent ring-1 ${ring} bg-gradient-to-br ${gradient}`
                   : `border-[var(--border)] bg-[var(--bg-primary)] hover:border-[var(--border-accent)] hover:-translate-y-0.5`
@@ -381,22 +404,7 @@ export default function AddGoalDialog({
         })}
       </div>
 
-      {step === "tiles" ? (
-        <div className="flex flex-col items-center justify-center text-center py-8 border-t border-[var(--border)]">
-          <Sparkles className="w-8 h-8 text-[var(--accent)] opacity-60 mb-3" />
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm">
-            Pick a category above to start coaching, or click again to deselect.
-          </p>
-          <button
-            type="button"
-            data-testid="add-goal-skip-tiles"
-            onClick={() => setStep("chat")}
-            className="mt-4 font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
-          >
-            Or skip and describe freely →
-          </button>
-        </div>
-      ) : (
+      {step === "tiles" ? null : (
         <>
           <div className="flex items-center justify-between mb-2">
             <button
@@ -417,6 +425,7 @@ export default function AddGoalDialog({
               stubs were surfacing as a confusing dead UI. */}
           <div className="h-[55vh] min-h-[420px] -mx-5 -mb-5 border-t border-[var(--border)]">
             <ChatConsole
+              key={focusToken}
               messages={messages}
               onSend={handleSend}
               sending={sending}
@@ -439,6 +448,11 @@ export default function AddGoalDialog({
               onAnswerClarification={(text) => { setPendingClarifications(null); send(text); }}
               onDismissClarifications={() => setPendingClarifications(null)}
               showSources={true}
+              // Iteration 5 (Bug 10) — focus on every tiles→chat
+              // transition. `key={focusToken}` remounts the
+              // component, and ChatConsole's effect picks up the
+              // mount focus.
+              focusOnMount={true}
             />
           </div>
         </>
