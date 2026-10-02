@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Sparkles } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
+import RefineModal from "./RefineModal";
+import RejectModal from "./RejectModal";
+import { useDialogBack } from "../hooks/useDialogBack";
 import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
@@ -56,6 +59,12 @@ export default function FocusedTaskChatDialog({
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // Iteration 9 — refine / reject modal state. Focused-task chats
+  // already start empty (no bucket bleed), so these are independent.
+  const [refiningProposal, setRefiningProposal] = useState(null);
+  const [rejectingProposal, setRejectingProposal] = useState(null);
+  // Iteration 9 — back button closes this dialog.
+  useDialogBack(open, onClose, `focused-task:${refId || ""}`);
   // Session attachments — real server sources added in THIS chat, so the
   // chip X can delete them server-side (same pattern as ChatModal).
   const [sources, setSources] = useState([]);
@@ -263,10 +272,10 @@ export default function FocusedTaskChatDialog({
     [onStateChange],
   );
 
-  const rejectProposal = useCallback(async (messageId, proposalId) => {
+  const rejectProposal = useCallback(async (messageId, proposalId, reason) => {
     setBusyProposal(proposalId);
     try {
-      await api.reject(messageId, proposalId);
+      await api.reject(messageId, proposalId, reason);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
@@ -286,21 +295,57 @@ export default function FocusedTaskChatDialog({
     }
   }, []);
 
-  const refineProposal = useCallback(
-    (proposal, thought) => {
-      const name =
-        proposal.title ||
-        proposal.new_title ||
-        proposal.goal_title ||
-        proposal.text ||
-        "";
-      const label = (proposal.action || "change").replace(/_/g, " ");
-      send(
-        `About your proposed ${label}${name ? ` ("${name}")` : ""}: ${thought}. Please re-propose it with that taken into account.`,
+  // Iteration 9 — refine / reject open modals instead of chat round-trip.
+  const refineProposal = useCallback(() => {}, []);
+
+  const findProposalMessageId = useCallback((proposal) => {
+    for (const m of messages) {
+      if ((m.proposals || []).some((p) => p.id === proposal.id)) return m.id;
+    }
+    return null;
+  }, [messages]);
+
+  const onOpenRefine = useCallback((proposal) => setRefiningProposal(proposal), []);
+  const onOpenReject = useCallback((proposal) => setRejectingProposal(proposal), []);
+
+  const submitRefine = useCallback(async (thought) => {
+    if (!refiningProposal) return;
+    const messageId = findProposalMessageId(refiningProposal);
+    if (!messageId) throw new Error("Couldn't find the original proposal to refine.");
+    setBusyProposal(refiningProposal.id);
+    try {
+      const result = await api.refine(messageId, refiningProposal.id, thought);
+      const newProposal = result?.proposal || result;
+      if (!newProposal?.id) throw new Error("The coach didn't return a new proposal.");
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                proposals: m.proposals.map((p) =>
+                  p.id === refiningProposal.id
+                    ? { ...newProposal, id: refiningProposal.id, status: "pending" }
+                    : p,
+                ),
+              }
+            : m,
+        ),
       );
-    },
-    [send],
-  );
+      toast.success("Proposal refined.");
+    } catch (e) {
+      toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
+      throw e;
+    } finally {
+      setBusyProposal(null);
+    }
+  }, [refiningProposal, findProposalMessageId]);
+
+  const submitReject = useCallback(async (reason) => {
+    if (!rejectingProposal) return;
+    const messageId = findProposalMessageId(rejectingProposal);
+    if (!messageId) throw new Error("Couldn't find the original proposal to reject.");
+    await rejectProposal(messageId, rejectingProposal.id, reason);
+  }, [rejectingProposal, findProposalMessageId, rejectProposal]);
 
   const onAnswerClarification = useCallback(
     (text) => {
@@ -391,8 +436,14 @@ export default function FocusedTaskChatDialog({
           input={input}
           setInput={setInput}
           onConfirm={confirmProposal}
-          onReject={rejectProposal}
-          onRefine={refineProposal}
+          onReject={(messageId, proposalId) => {
+            const proposal = messages
+              .find((m) => m.id === messageId)
+              ?.proposals?.find((p) => p.id === proposalId);
+            if (proposal) setRejectingProposal(proposal);
+          }}
+          onOpenRefine={onOpenRefine}
+          onOpenReject={onOpenReject}
           busyProposal={busyProposal}
           autoAnswer={autoAnswer}
           setAutoAnswer={setAutoAnswer}
@@ -431,6 +482,21 @@ export default function FocusedTaskChatDialog({
           </button>
         </div>
       )}
+      <RefineModal
+        open={!!refiningProposal}
+        onClose={() => setRefiningProposal(null)}
+        proposalTitle={refiningProposal?.args?.title || refiningProposal?.title || refiningProposal?.args?.goal_title || ""}
+        proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
+        proposalActionKey={refiningProposal?.action || ""}
+        onSubmit={submitRefine}
+      />
+      <RejectModal
+        open={!!rejectingProposal}
+        onClose={() => setRejectingProposal(null)}
+        proposalTitle={rejectingProposal?.args?.title || rejectingProposal?.title || rejectingProposal?.args?.goal_title || ""}
+        proposalActionKey={rejectingProposal?.action || ""}
+        onSubmit={submitReject}
+      />
     </CenteredDialog>
   );
 }

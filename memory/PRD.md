@@ -249,6 +249,32 @@ Founder's four asks, all verified inline against Storybook (`localhost:6006`, MV
 - **Production domain is now a registered project domain.** Root cause of the first post-migration deploy not claiming `gurusutra.vercel.app`: the URL only existed as a manually-created alias (aliases don't auto-update) and the project had *zero* registered domains. Fixed by `POST /v10/projects/{id}/domains` — `gurusutra.vercel.app` is now registered + verified on the project, so Vercel auto-points it at every future `main` build. Confirmed: the PR #2 push self-served without any `vercel alias set`.
 - API test suite: 9 failed / 210 (guard-test hardcodes `FOUNDER_ID='user_founder01'`; migration journal stops at 0005 while SQL runs to 0008). Not a deploy blocker; needs a reconcile pass.
 
+## Iteration 9 (2026-10) — Mobile UX + flow consolidation, shipped
+
+- Slice 9a: mobile nav (hamburger removed; goal dropdown per-context
+  profile menu replaces it), chat input layout (attach buttons below,
+  textarea taller 48→68px, max-h-40→max-h-56), pinned Confirm/Recreate
+  button on the AddGoalDialog confirming or re-asking the goal when
+  milestones are absent, centered app icon SVG + regen script (`yarn
+  add -D sharp && node scripts/regen-icons.mjs`).
+
+- Slice 9b: refine/reject as modal forms with action-aware quick-fill
+  chips (no chat round-trip; new `POST /api/chat/refine` one-shot LLM
+  that replaces the proposal in place + audit entry `refine:proposal`;
+  reject reason recorded in audit / optional skip), 60s voice
+  auto-pause with manual stop button, browser/system back closes the
+  topmost dialog via `useDialogBack` hook, scoped chat history
+  isolation (scoped dialogs never fetch `/api/chat/history`), link
+  pre-check via `LinkPreviewDialog` before attaching, and action-aware
+  chips in ActionPromptModal + RefineModal + RejectModal that
+  pre-fill the textarea.
+
+Verified: `pnpm typecheck` + `yarn build` clean. 9 pre-existing test
+failures unchanged. E2E fleet not run (MVP).
+
+Icon PNGs require `yarn add -D sharp && node scripts/regen-icons.mjs`
+before the next production build.
+
 ## Backlog / next
 - P0: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
 - P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider; **upstash-redis / cross-instance cache** if multi-node staleness becomes a complaint; cache the remaining read endpoints (`audit`, `blockers`, `sources`, `memories`, `chat/history`) — one-liner per route, all already auto-invalidated.

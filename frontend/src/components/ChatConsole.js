@@ -4,6 +4,7 @@ import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 import ChatModeSelect from "./ChatModeSelect";
 import SuccessBanner from "./SuccessBanner";
 import ImpactPanel from "./ImpactPanel";
+import LinkPreviewDialog from "./LinkPreviewDialog";
 
 /**
  * EmptyState — the prompt shown when there are no messages yet.
@@ -143,7 +144,7 @@ function SetLines({ content, settled }) {
   ));
 }
 
-function Message({ m, settled = false, onConfirm, onReject, onRefine, busyProposal, onViewGoal }) {
+function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, busyProposal, onViewGoal }) {
   // Success divider — appended by the parent after a confirm closes the
   // conversation bucket (spec §10.5). Rendered inline in the same
   // stream; the messages are never cleared on confirm.
@@ -189,7 +190,9 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, busyPropos
               busy={busyProposal === p.id}
               onConfirm={() => onConfirm(m.id, p.id)}
               onReject={() => onReject(m.id, p.id)}
-              onRefine={(thought) => onRefine(p, thought)}
+              onRefine={onRefine ? (thought) => onRefine(p, thought) : undefined}
+              onOpenRefine={onOpenRefine ? () => onOpenRefine(p) : undefined}
+              onOpenReject={onOpenReject ? () => onOpenReject(p) : undefined}
             />
           ))}
         </div>
@@ -201,7 +204,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, busyPropos
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", onViewGoal = null }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", onViewGoal = null }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -224,11 +227,31 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     setLinkOpen(false);
     setLinkValue("");
   };
+
+  // Iteration 9 — URL pre-check. Instead of silently POSTing the link
+  // to /api/sources/link, open the LinkPreviewDialog which calls
+  // /api/sources/link/preview and shows the user what the coach will
+  // be able to read before committing. The actual POST happens when
+  // the user clicks "Attach" / "Attach anyway" in the dialog.
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const submitLink = () => {
     const url = linkValue.trim();
     if (!url) return;
-    onAddLink(url);
+    setPreviewUrl(url);
+    setPreviewOpen(true);
+    // Don't close yet — wait until the user decides in the dialog.
+  };
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setPreviewUrl("");
     closeLink();
+  };
+
+  const attachFromPreview = async () => {
+    await onAddLink(previewUrl);
   };
 
   // --- Attach: drag & drop ---------------------------------------------------
@@ -315,6 +338,16 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   // can hide the mic button on browsers that don't support it
   // (Firefox desktop, older Safari). On the unsupported path, the
   // user can still type — no broken UI.
+  //
+  // Iteration 9 — voice behaviour:
+  //   1. continuous: TRUE so the model keeps listening after the first
+  //      final result (the default `false` cut off after one pause).
+  //   2. interimResults: TRUE so the user sees partial words while
+  //      speaking.
+  //   3. Auto-pause = 60s with NO onresult event. The previous
+  //      single-pause behaviour was too aggressive — users mid-thought
+  //      were being cut off. The 60s timer is the fallback; the user
+  //      can ALWAYS hit the red stop button to end early.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -324,9 +357,23 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     }
     setVoiceSupported(true);
     const recognition = new SR();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = (typeof navigator !== "undefined" && navigator.language) || "en-US";
+
+    let silenceTimerId = null;
+    const SILENCE_LIMIT_MS = 60_000;
+
+    const armSilenceTimer = () => {
+      // 60s without an onresult event = user stopped talking for a while.
+      // Pause the session so the recognition's buffer doesn't drift; the
+      // user can re-tap the mic to resume from a fresh slate.
+      if (silenceTimerId) clearTimeout(silenceTimerId);
+      silenceTimerId = setTimeout(() => {
+        setVoiceListening(false);
+        try { recognition.stop(); } catch { /* ignore */ }
+      }, SILENCE_LIMIT_MS);
+    };
 
     recognition.onresult = (event) => {
       let finalText = "";
@@ -336,9 +383,8 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         if (event.results[i].isFinal) finalText += t;
         else interimText += t;
       }
-      // Replace, not append, while listening — the interim stream already
-      // contains the prefix we showed previously, and committing a final
-      // chunk re-emits the whole transcript.
+      // Reset the 60s timer on every result — the user is still active.
+      armSilenceTimer();
       setInput((prev) => {
         // Drop any prefix the model echoed back from a prior interim.
         const base = interimText ? "" : prev;
@@ -348,19 +394,23 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     };
 
     recognition.onerror = (event) => {
+      if (silenceTimerId) { clearTimeout(silenceTimerId); silenceTimerId = null; }
       setVoiceListening(false);
       const err = event?.error || "unknown";
       if (err === "no-speech") setVoiceError("Didn't catch that. Try again.");
       else if (err === "not-allowed" || err === "service-not-allowed") setVoiceError("Microphone access is blocked — allow it in your browser settings.");
+      else if (err === "aborted") { /* user pressed stop; no error needed */ }
       else setVoiceError("Voice input stopped unexpectedly. Tap the mic to try again.");
     };
 
     recognition.onend = () => {
+      if (silenceTimerId) { clearTimeout(silenceTimerId); silenceTimerId = null; }
       setVoiceListening(false);
     };
 
     recognitionRef.current = recognition;
     return () => {
+      if (silenceTimerId) clearTimeout(silenceTimerId);
       try { recognition.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
     };
@@ -447,7 +497,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           </div>
         )}
         {messages.slice(-CHAT_RENDER_CAP).map((m) => (
-          <Message key={m.id} m={m} settled={settledId === m.id} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} busyProposal={busyProposal} onViewGoal={onViewGoal} />
+          <Message key={m.id} m={m} settled={settledId === m.id} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} onOpenRefine={onOpenRefine} onOpenReject={onOpenReject} busyProposal={busyProposal} onViewGoal={onViewGoal} />
         ))}
         <div ref={endRef} />
       </div>
@@ -482,7 +532,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               inputMode="url"
               data-testid="chat-link-input"
               value={linkValue}
-              onChange={(e) => setLinkValue(e.target.value)}
+              onChange={(e) => setLinkValue(e.targetValue)}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   e.preventDefault();
@@ -513,68 +563,78 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             </button>
           </form>
         )}
-        <div className="flex items-end gap-2 border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
-          {showSources && (
-            <>
-              <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
-              <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" aria-label="Attach a file as a source" className="m-2 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
-                <Paperclip className="w-4 h-4" />
-              </button>
-              <button
-                data-testid="chat-attach-link"
-                onClick={() => setLinkOpen((v) => !v)}
-                aria-expanded={linkOpen}
-                aria-controls="chat-link-row"
-                title="Add a link as a source"
-                aria-label="Add a link as a source"
-                className={`m-2 h-11 w-11 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
-                  linkOpen
-                    ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--accent)]"
-                }`}
-              >
-                <Link2 className="w-4 h-4" />
-              </button>
-            </>
-          )}
+        {/* Composer — Iteration 9 mobile layout. The textarea gets its own
+            row with a taller min-height (~68px so two lines breathe);
+            the attach / link / mic / send buttons move to a row
+            BENEATH it. Old layout crammed them into `items-end` with
+            the textarea — paperclip + link ate half the typing row on
+            a phone, exactly what the founder flagged. */}
+        <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
           <textarea
             ref={taRef}
             data-testid="chat-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
-            rows={1}
+            rows={2}
             placeholder={voiceListening ? "Listening…" : "Think out loud…"}
             aria-label="Message the coach"
-            className="flex-1 min-w-0 bg-transparent resize-none px-2 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded max-h-40"
-            style={{ minHeight: "48px" }}
+            className="block w-full bg-transparent resize-none px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-t-md max-h-56"
+            style={{ minHeight: "68px" }}
           />
-          {voiceSupported && (
+          <div className="flex items-center justify-between gap-1 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
+            <div className="flex items-center gap-0.5">
+              {showSources && (
+                <>
+                  <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
+                  <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" aria-label="Attach a file as a source" className="h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+                  <button
+                    data-testid="chat-attach-link"
+                    onClick={() => setLinkOpen((v) => !v)}
+                    aria-expanded={linkOpen}
+                    aria-controls="chat-link-row"
+                    title="Add a link as a source"
+                    aria-label="Add a link as a source"
+                    className={`h-11 w-11 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
+                      linkOpen
+                        ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
+                        : "text-[var(--text-muted)] hover:text-[var(--accent)]"
+                    }`}
+                  >
+                    <Link2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+              {voiceSupported && (
+                <button
+                  type="button"
+                  data-testid="chat-voice-button"
+                  onClick={toggleVoice}
+                  title={voiceListening ? "Stop listening (or wait 60s for auto-pause)" : "Dictate with your voice"}
+                  aria-label={voiceListening ? "Stop dictating" : "Dictate with your voice"}
+                  aria-pressed={voiceListening}
+                  className={`h-11 w-11 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
+                    voiceListening
+                      ? "bg-[var(--danger)] text-[var(--bg-primary)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--accent)]"
+                  }`}
+                >
+                  {voiceListening ? <Square className="w-3.5 h-3.5" aria-hidden="true" /> : <Mic className="w-4 h-4" aria-hidden="true" />}
+                </button>
+              )}
+            </div>
             <button
-              type="button"
-              data-testid="chat-voice-button"
-              onClick={toggleVoice}
-              title={voiceListening ? "Stop listening" : "Dictate with your voice"}
-              aria-label={voiceListening ? "Stop dictating" : "Dictate with your voice"}
-              aria-pressed={voiceListening}
-              className={`m-2 h-11 w-11 flex items-center justify-center transition-colors shrink-0 ${
-                voiceListening
-                  ? "bg-[var(--danger)] text-[var(--bg-primary)] animate-pulse"
-                  : "text-[var(--text-muted)] hover:text-[var(--accent)]"
-              }`}
+              data-testid="chat-send-button"
+              onClick={submit}
+              disabled={sending || !input.trim()}
+              aria-label="Send"
+              className="h-11 w-11 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0 rounded"
             >
-              {voiceListening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-4 h-4" />}
+              <ArrowUp className="w-4 h-4" aria-hidden="true" />
             </button>
-          )}
-          <button
-            data-testid="chat-send-button"
-            onClick={submit}
-            disabled={sending || !input.trim()}
-            aria-label="Send"
-            className="m-2 h-11 w-11 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0"
-          >
-            <ArrowUp className="w-4 h-4" />
-          </button>
+          </div>
         </div>
         <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
           <ChatModeSelect
@@ -587,7 +647,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             {voiceError ? (
               <span data-testid="voice-error" role="alert" className="text-[var(--danger)]">{voiceError}</span>
             ) : voiceListening ? (
-              <span data-testid="voice-listening" className="text-[var(--accent)]">● Listening — tap the mic to stop</span>
+              <span data-testid="voice-listening" className="text-[var(--accent)]">● Listening — tap the mic to stop, or wait 60s</span>
             ) : sending ? (
               <span className="text-[var(--accent)]">Coach is responding…</span>
             ) : (
@@ -648,6 +708,12 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           </div>
         )}
       </div>
+      <LinkPreviewDialog
+        open={previewOpen}
+        onClose={closePreview}
+        url={previewUrl}
+        onAttach={attachFromPreview}
+      />
     </div>
   );
 }

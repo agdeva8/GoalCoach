@@ -3,6 +3,43 @@ import { Send, MessageSquareText } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import { canAutofocus } from "../lib/utils";
 
+// Per-action chip library — common reasons for drop / pause / edit /
+// add_step so they don't have to write much and don't get frustrated
+// (founder feedback, Iteration 9). Each chip is a pre-fill string; the
+// user can edit it after tapping. Tapping a chip when the textarea is
+// empty REPLACES; tapping when there's content APPENDS with a comma
+// separator (the user is composing their own reason).
+export const FRAME_CHIPS = {
+  drop: [
+    "Not a priority anymore",
+    "Already accomplished",
+    "Career / life pivot",
+    "Too ambitious right now",
+    "Other goals need the time",
+  ],
+  pause: [
+    "Park until after launch",
+    "Need a break",
+    "Switching focus this month",
+    "Other goals need the time",
+    "Waiting on a decision",
+  ],
+  edit: [
+    "Rename it",
+    "Pull the target date earlier",
+    "Push the target date later",
+    "Change the horizon",
+    "Sharpen the 'why'",
+    "Smaller scope",
+  ],
+  add_step: [
+    "Add a milestone",
+    "Add a measurable first step",
+    "Add a deadline-bound commitment",
+    "Add a research step",
+  ],
+};
+
 // Exported so Coach.js can reuse the same frame titles when it opens the
 // focused-task chat (the chat header should match the dialog the user
 // just came from, not a generic "Coach — focused task").
@@ -44,13 +81,30 @@ export const FRAMES = {
  * spacing. The wrapper remains the test-id the existing snapshot /
  * fixture tests look for (`action-prompt-modal`) so we don't break the
  * `ActionPromptModal`-driven UI flow.
+ *
+ * Iteration 9 — added chip shortcuts above the textarea so users with
+ * a common reason (e.g. "Not a priority anymore") don't have to write
+ * a sentence. Tapping a chip fills the textarea; tapping a second one
+ * appends with a comma. They can still edit before sending.
  */
 export default function ActionPromptModal({ action, onClose, onSend }) {
   const [text, setText] = useState("");
   useEffect(() => { setText(""); }, [action]);
   const open = !!action;
   const frame = open ? (FRAMES[action.type] || FRAMES.edit) : null;
+  const chips = open ? (FRAME_CHIPS[action.type] || FRAME_CHIPS.edit) : [];
   const title = action?.goalTitle;
+
+  const tapChip = (chip) => {
+    setText((prev) => {
+      const cur = prev.trim();
+      if (!cur) return chip;
+      if (cur === chip) return cur;
+      // Avoid duplicates if the user taps the same chip twice.
+      if (cur.toLowerCase().includes(chip.toLowerCase())) return cur;
+      return `${cur}, ${chip}`;
+    });
+  };
 
   const submit = () => {
     const a = text.trim();
@@ -83,21 +137,39 @@ export default function ActionPromptModal({ action, onClose, onSend }) {
         </>
       ) : null}
     >
-      <label className="block">
-        <span className="sr-only">Reason</span>
-        <textarea
-          data-testid="action-modal-input"
-          autoFocus={canAutofocus()}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-          rows={4}
-          placeholder={frame?.ph || ""}
-          aria-label="Reason for this action"
-          className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] resize-none"
-        />
-      </label>
+      <div className="space-y-3">
+        {/* Quick-fill chips. Tapping a chip replaces empty text OR
+            appends to existing text with a comma separator. */}
+        {chips.length > 0 && (
+          <div data-testid="action-modal-chips" className="flex flex-wrap gap-1.5">
+            {chips.map((c) => (
+              <button
+                key={c}
+                type="button"
+                data-testid={`action-chip-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                onClick={() => tapChip(c)}
+                className="min-h-11 text-left text-xs px-2.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        <label className="block">
+          <span className="sr-only">Reason</span>
+          <textarea
+            data-testid="action-modal-input"
+            autoFocus={canAutofocus()}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            rows={4}
+            placeholder={frame?.ph || ""}
+            aria-label="Reason for this action"
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] resize-none"
+          />
+        </label>
+      </div>
     </CenteredDialog>
   );
 }
-

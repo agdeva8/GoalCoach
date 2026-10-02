@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Check, X, GitCommit, Pencil, Send } from "lucide-react";
+import { Check, X, GitCommit, Pencil } from "lucide-react";
 import { canAutofocus } from "../lib/utils";
 
 const ACTION_LABELS = {
@@ -42,20 +41,24 @@ function flatProposal(p) {
   return { ...args, ...p, args };
 }
 
-export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, onRefine, busy }) {
+/**
+ * Iteration 9 — Refine / Reject no longer open an inline textarea or
+ * call back into the chat stream. They each open a parent-owned modal
+ * (`<RefineModal>` / `<RejectModal>`) that does ONE LLM round-trip and
+ * either replaces the proposal in place (refine) or records the reason
+ * and dismisses (reject).
+ *
+ *   onOpenRefine(proposal) → parent opens RefineModal
+ *   onOpenReject(proposal) → parent opens RejectModal
+ *   onConfirm()             → unchanged
+ */
+export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, onOpenRefine, onOpenReject, busy }) {
   const status = proposal.status || "pending";
   const isDrop = proposal.action === "drop_goal" || proposal.action === "pause_goal";
-  const [refining, setRefining] = useState(false);
-  const [thought, setThought] = useState("");
   const d = flatProposal(proposal);
 
-  const sendRefine = () => {
-    const t = thought.trim();
-    if (!t) return;
-    onRefine(t);
-    setThought("");
-    setRefining(false);
-  };
+  const displayName = d.title || d.new_title || d.goal_title || "";
+  const actionLabel = (ACTION_LABELS[proposal.action] || proposal.action || "change").toLowerCase();
 
   return (
     <div
@@ -75,7 +78,7 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
       </div>
 
       <div className="px-3 py-3 space-y-1.5">
-        <Row label="Goal" value={d.title || d.new_title || d.goal_title} />
+        <Row label="Goal" value={displayName} />
         <Row label="Horizon" value={HORIZON_LABELS[d.horizon]} />
         <Row label="Why" value={d.why} />
         <Row label="Action" value={d.first_action || d.next_action} />
@@ -88,7 +91,7 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
         <Row label="Reason" value={d.reason || d.note} />
       </div>
 
-      {status === "pending" && !refining && (
+      {status === "pending" && (
         <div className="flex border-t border-[var(--border)]">
           <button
             data-testid="confirm-tool-button"
@@ -101,7 +104,7 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
           <button
             data-testid="refine-tool-button"
             disabled={busy}
-            onClick={() => setRefining(true)}
+            onClick={() => onOpenRefine?.(proposal)}
             className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] disabled:opacity-40 transition-colors border-r border-[var(--border)]"
           >
             <Pencil className="w-3.5 h-3.5" /> Refine
@@ -109,34 +112,11 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onReject, 
           <button
             data-testid="reject-tool-button"
             disabled={busy}
-            onClick={onReject}
+            onClick={() => onOpenReject?.(proposal)}
             className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] disabled:opacity-40 transition-colors"
           >
             <X className="w-3.5 h-3.5" /> Reject
           </button>
-        </div>
-      )}
-
-      {status === "pending" && refining && (
-        <div className="border-t border-[var(--border)] p-2.5 space-y-2">
-          <textarea
-            data-testid="refine-input"
-            autoFocus={canAutofocus()}
-            value={thought}
-            onChange={(e) => setThought(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendRefine(); } }}
-            rows={2}
-            placeholder="What should change? e.g. push the target a month later, make the first step smaller…"
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
-          />
-          <div className="flex gap-2 justify-end">
-            <button data-testid="refine-cancel" onClick={() => { setRefining(false); setThought(""); }} className="min-h-11 text-xs px-2.5 py-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
-              Cancel
-            </button>
-            <button data-testid="refine-send" onClick={sendRefine} disabled={!thought.trim()} className="flex items-center gap-1.5 min-h-11 text-xs px-2.5 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity">
-              <Send className="w-3 h-3" /> Send to coach
-            </button>
-          </div>
         </div>
       )}
     </div>

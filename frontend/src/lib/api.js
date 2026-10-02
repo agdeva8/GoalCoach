@@ -55,8 +55,21 @@ export const api = {
   audit: () => req("/audit"),
   confirm: (message_id, proposal_id) =>
     req("/tools/confirm", { method: "POST", body: JSON.stringify({ message_id, proposal_id }) }),
-  reject: (message_id, proposal_id) =>
-    req("/tools/reject", { method: "POST", body: JSON.stringify({ message_id, proposal_id }) }),
+  reject: (message_id, proposal_id, reason) =>
+    req("/tools/reject", {
+      method: "POST",
+      body: JSON.stringify({ message_id, proposal_id, reason: reason || undefined }),
+    }),
+  // Iteration 9 — refine a proposal in place. The server LLM is called
+  // once with the user's thought; the response is the SAME proposal
+  // shape (id, action, args, status:'pending') that REPLACES the old
+  // one in the parent message. No streaming — the modal shows a
+  // loading spinner, then swaps the proposal card.
+  refine: (message_id, proposal_id, thought) =>
+    req("/chat/refine", {
+      method: "POST",
+      body: JSON.stringify({ message_id, proposal_id, thought }),
+    }),
   // Blockers (direct edit)
   blockers: () => req("/blockers"),
   createBlocker: (b) => req("/blockers", { method: "POST", body: JSON.stringify(b) }),

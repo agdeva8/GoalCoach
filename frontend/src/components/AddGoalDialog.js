@@ -14,6 +14,7 @@ import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
 import RefineModal from "./RefineModal";
 import RejectModal from "./RejectModal";
+import { useDialogBack } from "../hooks/useDialogBack";
 import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
@@ -142,6 +143,8 @@ export default function AddGoalDialog({
   // Each modal owns its own input; the dialog owns the lifecycle.
   const [refiningProposal, setRefiningProposal] = useState(null);
   const [rejectingProposal, setRejectingProposal] = useState(null);
+  // Iteration 9 — back button closes this dialog.
+  useDialogBack(open, onClose, "add-goal-dialog");
   const enterChat = (next) => {
     setStep(next ?? "chat");
     setFocusToken((t) => t + 1);
@@ -688,12 +691,14 @@ export default function AddGoalDialog({
             onClose={() => setRefiningProposal(null)}
             proposalTitle={refiningProposal?.args?.title || refiningProposal?.title || refiningProposal?.args?.goal_title || ""}
             proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
+            proposalActionKey={refiningProposal?.action || ""}
             onSubmit={submitRefine}
           />
           <RejectModal
             open={!!rejectingProposal}
             onClose={() => setRejectingProposal(null)}
             proposalTitle={rejectingProposal?.args?.title || rejectingProposal?.title || rejectingProposal?.args?.goal_title || ""}
+            proposalActionKey={rejectingProposal?.action || ""}
             onSubmit={submitReject}
           />
         </>

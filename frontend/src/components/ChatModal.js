@@ -2,6 +2,9 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Sparkles, MessageSquare } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
+import RefineModal from "./RefineModal";
+import RejectModal from "./RejectModal";
+import { useDialogBack } from "../hooks/useDialogBack";
 import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
@@ -54,6 +57,13 @@ export default function ChatModal({
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // Iteration 9 — refine / reject modal state. The modal owns the
+  // input; the dialog owns the lifecycle and the proposal lookup.
+  const [refiningProposal, setRefiningProposal] = useState(null);
+  const [rejectingProposal, setRejectingProposal] = useState(null);
+  // Iteration 9 — browser/system back button closes this dialog
+  // instead of exiting the app.
+  useDialogBack(open, onClose, "chat-modal");
   // Sources attached during THIS chat session. Kept locally so the chips
   // render above the composer and an X on a chip can delete the row it
   // stands for — previously the parent passed `sources={[]}` and a no-op
@@ -102,10 +112,20 @@ export default function ChatModal({
   }, [open, prefillMessage]);
 
   // Load conversation history when the user changes (and we've never
-  // loaded it for them). We surface a non-blocking toast on failure
-  // but otherwise keep the chat usable in offline / 401 paths.
+  // loaded it for them). Iteration 9 — scoped dialogs (scope/refId/kind
+  // set) NEVER fetch history; they start empty. Only the unscoped
+  // "Chat with coach" surface (Coach.js sets scope=null on FAB / header
+  // taps) accumulates across sessions via the general bucket.
   useEffect(() => {
     if (!open || !user || historyLoaded) return;
+    if (scope || refId || kind) {
+      // Scoped — start empty, no fetch. The conversation bucket is
+      // sealed on first confirm, so historical turns from prior
+      // scoped sessions never bleed into a new one.
+      setMessages([]);
+      setHistoryLoaded(true);
+      return;
+    }
     api
       .history()
       .then((m) => {
@@ -113,12 +133,10 @@ export default function ChatModal({
         setHistoryLoaded(true);
       })
       .catch(() => {
-        // Temporary failure — start fresh but say so; an empty chat
-        // is otherwise indistinguishable from lost history.
         toast.error("Couldn't load chat history. Starting fresh — new messages still send.");
         setHistoryLoaded(true);
       });
-  }, [open, user, historyLoaded]);
+  }, [open, user, historyLoaded, scope, refId, kind]);
 
   // Reset history-loaded when user changes so a different account gets
   // its own conversation.
@@ -323,10 +341,10 @@ export default function ChatModal({
     [onStateChange],
   );
 
-  const rejectProposal = useCallback(async (messageId, proposalId) => {
+  const rejectProposal = useCallback(async (messageId, proposalId, reason) => {
     setBusyProposal(proposalId);
     try {
-      await api.reject(messageId, proposalId);
+      await api.reject(messageId, proposalId, reason);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
@@ -346,21 +364,71 @@ export default function ChatModal({
     }
   }, []);
 
-  const refineProposal = useCallback(
-    (proposal, thought) => {
-      const name =
-        proposal.title ||
-        proposal.new_title ||
-        proposal.goal_title ||
-        proposal.text ||
-        "";
-      const label = (proposal.action || "change").replace(/_/g, " ");
-      send(
-        `About your proposed ${label}${name ? ` ("${name}")` : ""}: ${thought}. Please re-propose it with that taken into account.`,
+  // Iteration 9 — refine / reject open parent-owned modals instead of
+  // round-tripping through the chat stream. `refineProposal` is kept
+  // as a no-op shim so any stale callers don't crash; new code uses
+  // `onOpenRefine` / `onOpenReject`.
+  const refineProposal = useCallback(() => {}, []);
+
+  const findProposalMessageId = useCallback((proposal) => {
+    for (const m of messages) {
+      if ((m.proposals || []).some((p) => p.id === proposal.id)) return m.id;
+    }
+    return null;
+  }, [messages]);
+
+  const onOpenRefine = useCallback((proposal) => {
+    setRefiningProposal(proposal);
+  }, []);
+
+  const onOpenReject = useCallback((proposal) => {
+    setRejectingProposal(proposal);
+  }, []);
+
+  const submitRefine = useCallback(async (thought) => {
+    if (!refiningProposal) return;
+    const messageId = findProposalMessageId(refiningProposal);
+    if (!messageId) {
+      throw new Error("Couldn't find the original proposal to refine.");
+    }
+    setBusyProposal(refiningProposal.id);
+    try {
+      const result = await api.refine(messageId, refiningProposal.id, thought);
+      const newProposal = result?.proposal || result;
+      if (!newProposal?.id) {
+        throw new Error("The coach didn't return a new proposal.");
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                proposals: m.proposals.map((p) =>
+                  p.id === refiningProposal.id
+                    ? { ...newProposal, id: refiningProposal.id, status: "pending" }
+                    : p,
+                ),
+              }
+            : m,
+        ),
       );
-    },
-    [send],
-  );
+      toast.success("Proposal refined.");
+    } catch (e) {
+      toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
+      throw e;
+    } finally {
+      setBusyProposal(null);
+    }
+  }, [refiningProposal, findProposalMessageId]);
+
+  const submitReject = useCallback(async (reason) => {
+    if (!rejectingProposal) return;
+    const messageId = findProposalMessageId(rejectingProposal);
+    if (!messageId) {
+      throw new Error("Couldn't find the original proposal to reject.");
+    }
+    await rejectProposal(messageId, rejectingProposal.id, reason);
+  }, [rejectingProposal, findProposalMessageId, rejectProposal]);
 
   const onAnswerClarification = useCallback(
     (text) => {
@@ -459,8 +527,16 @@ export default function ChatModal({
           input={input}
           setInput={setInput}
           onConfirm={confirmProposal}
-          onReject={rejectProposal}
-          onRefine={refineProposal}
+          onReject={(messageId, proposalId) => {
+            // The modal owns the rejection flow; here we just stash
+            // the proposal so the modal knows what to label itself.
+            const proposal = messages
+              .find((m) => m.id === messageId)
+              ?.proposals?.find((p) => p.id === proposalId);
+            if (proposal) setRejectingProposal(proposal);
+          }}
+          onOpenRefine={onOpenRefine}
+          onOpenReject={onOpenReject}
           busyProposal={busyProposal}
           autoAnswer={autoAnswer}
           setAutoAnswer={setAutoAnswer}
@@ -502,6 +578,21 @@ export default function ChatModal({
           </button>
         </div>
       )}
+      <RefineModal
+        open={!!refiningProposal}
+        onClose={() => setRefiningProposal(null)}
+        proposalTitle={refiningProposal?.args?.title || refiningProposal?.title || refiningProposal?.args?.goal_title || ""}
+        proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
+        proposalActionKey={refiningProposal?.action || ""}
+        onSubmit={submitRefine}
+      />
+      <RejectModal
+        open={!!rejectingProposal}
+        onClose={() => setRejectingProposal(null)}
+        proposalTitle={rejectingProposal?.args?.title || rejectingProposal?.title || rejectingProposal?.args?.goal_title || ""}
+        proposalActionKey={rejectingProposal?.action || ""}
+        onSubmit={submitReject}
+      />
     </CenteredDialog>
   );
 }

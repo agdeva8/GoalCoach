@@ -1,45 +1,43 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Info, LogIn, Settings, Menu, X, Sun, Moon } from "lucide-react";
+import { LogOut, Info, LogIn, Settings, Sun, Moon, UserCircle2 } from "lucide-react";
 import Logo from "./Logo";
 import PersonaMenu from "./PersonaMenu";
-import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "./ui/sheet";
-import { SCREENS, screenKeyFromSearch } from "../constants/screens";
+import GoalMenu from "./GoalMenu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
-// Header — top-level navigation. The model switcher and audit
-// buttons used to live here, but both duplicate surface in /settings
-// (see Settings.jsx). The header now keeps only what's used on every
-// route: navigation, theme toggle (persisted), account, About, and the
-// entry point to /settings itself. Settings has exactly ONE surface per
-// breakpoint: the secondary cluster on desktop (≥640px) and the
-// hamburger drawer below it — the drawer is a collapse of that same
-// cluster and is the app's primary nav on mobile. It used to also sit
-// in the avatar menu, which gave signed-in users two gears at once;
-// that duplicate is gone. The cluster/drawer pair is what guarantees
-// every state has a path to /settings, since guests never render the
-// avatar menu.
+// Header — Iteration 9 mobile shell. The hamburger sheet that used to
+// host the secondary cluster (Settings / Theme / About / Sign in) plus
+// the screen nav is gone. The nav lives in a Goals dropdown
+// (`<GoalMenu>`, see GoalMenu.js) — Goals is the canonical landing, the
+// other screens sit inside the dropdown — and the secondary cluster
+// lives in the avatar / "Guest" profile menu below.
+//
+// Desktop (≥ sm): unchanged surface — full tab strip + secondary cluster
+// (About / Theme / Settings) + avatar. The Goals dropdown is a
+// complementary jump-to on the right of the avatar.
+//
+// Mobile (< sm): no tab strip; the Goals dropdown lives next to the
+// active screen title bar; the avatar / Guest chip opens a profile menu
+// (Settings / Theme / About / Sign out | Sign in).
 export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onSignIn, onLogout, devLoginAvailable = false, currentUserId }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const accountTriggerRef = useRef(null);
-  const activeScreenKey = screenKeyFromSearch(location.search);
   const [isLight, setIsLight] = useState(() => {
-    // Mirror the html class — the inline script in public/index.html
-    // already set it from localStorage before React mounted, so this
-    // is just a sync-up on first render.
     if (typeof document === "undefined") return false;
     return document.documentElement.classList.contains("light");
   });
   const isGuest = !user || user.is_guest;
   const rootRef = useRef(null);
 
-  // Keep the header in sync with theme changes from elsewhere (Coach.js
-  // also writes the class when the user toggles there). The same
-  // observer keeps the mobile browser chrome (address bar / status bar
-  // tint) following the toggle — a static theme-color would go stale
-  // the moment the user switches to dark.
   useEffect(() => {
     const syncThemeColor = () => {
       const light = document.documentElement.classList.contains("light");
@@ -70,58 +68,24 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
 
   useEffect(() => {
     const onDown = (e) => {
-      // The drawer lives in a Radix portal (outside rootRef) but owns its
-      // own dismissal — Escape, overlay click, focus trap — so only the
-      // avatar menu is handled here.
-      if (rootRef.current && !rootRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
+      // Radix DropdownMenu closes on outside click by default, but the
+      // avatar menu's controlled `open` state is bound to menuOpen — the
+      // onOpenChange handler keeps it in sync. We only need this
+      // fallback for older browsers; on modern browsers Radix handles it.
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // B2#4 — Escape closes the avatar menu and returns focus to its
-  // trigger (the custom menu had neither; it only closed on outside
-  // mousedown). Mirrors the established pattern in ChatModeSelect /
-  // Sources / TodayTimetable, plus the focus return.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e) => {
-      if (e.key !== "Escape") return;
-      setMenuOpen(false);
-      accountTriggerRef.current?.focus();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
-
-  // Any navigation (drawer link, tab strip, browser back while the
-  // drawer is open) should never leave the drawer sitting over a screen
-  // the user has left.
-  useEffect(() => {
-    setMoreOpen(false);
-  }, [location.pathname, location.search]);
-
-  // Shared row style for the drawer's nav items: ≥44px targets, gap-2
-  // between them comes from the list container (B1#9), and the active
-  // screen is marked with aria-current="page" rather than colour alone.
-  const drawerItem = (active) =>
-    `min-h-11 flex items-center gap-3 px-3 rounded-md text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-      active
-        ? "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]"
-        : "text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
-    }`;
+  // Shared row style for the avatar popover's items.
+  const itemRow =
+    "min-h-11 flex items-center gap-2.5 px-2.5 rounded text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
 
   return (
     <header
       data-testid="app-header"
-      className="min-h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50"
+      className="min-h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-2 sm:gap-4 sticky top-0 z-50"
     >
-      {/* The whole lockup is the home affordance — tapping the mark or the
-          wordmark always lands on the canonical screen (Goals), on every
-          route including /settings. Re-tapping while already home is a
-          no-op so we never stack a duplicate history entry. */}
       <Link
         to="/"
         data-testid="header-home-link"
@@ -131,13 +95,12 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
         <Logo className="w-7 h-7 text-[var(--accent)] shrink-0" />
         <h1 className="font-display font-bold tracking-tight text-base sm:text-lg">Sutra</h1>
         <span className="hidden md:inline text-xs text-[var(--text-muted)] truncate">
-          Let's sort your life — together.
+          Let&apos;s sort your life — together.
         </span>
       </Link>
 
       <div ref={rootRef} className="ml-auto flex items-center gap-2">
-        {/* Desktop secondary controls — a labelled nav landmark (B2#5),
-            8px between targets (B1#9). */}
+        {/* Desktop secondary cluster — unchanged */}
         <nav aria-label="Primary" className="hidden sm:flex items-center gap-2">
           <button
             data-testid="open-about-button"
@@ -158,10 +121,6 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
           >
             {isLight ? <Moon className="w-4 h-4" aria-hidden="true" /> : <Sun className="w-4 h-4" aria-hidden="true" />}
           </button>
-          {/* Settings is the only route destination in this cluster, and
-              the mobile drawer below is literally a collapse of these
-              controls — so it has to be here too, or a desktop guest has no
-              path to /settings at all (guests never render the avatar menu). */}
           <button
             data-testid="header-settings-button"
             onClick={() => navigate("/settings")}
@@ -173,120 +132,79 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
           </button>
         </nav>
 
-        {/* Mobile primary nav — a Radix sheet (Dialog), so Escape, the
-            focus trap and focus-return to the trigger all come free.
-            Replaces the old custom `div role="menu"` popup (B2#4): it
-            had no Escape, no focus management, and only collapsed the
-            secondary controls. Now it's the app's primary nav on mobile —
-            every screen plus the secondary cluster in one vertical list,
-            `<nav>` landmark, aria-current on the active screen, gap-2
-            between targets (B1#9). */}
-        <div className="sm:hidden">
-          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-            <SheetTrigger asChild>
-              <button
-                data-testid="header-more-button"
-                aria-label="Menu"
-                title="Menu"
-                className="h-11 w-11 flex items-center justify-center border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
-              >
-                {moreOpen ? <X className="w-4 h-4" aria-hidden="true" /> : <Menu className="w-4 h-4" aria-hidden="true" />}
-              </button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              aria-describedby={undefined}
-              className="p-0 w-72 sm:max-w-72 bg-[var(--bg-secondary)] text-[var(--text-primary)] [&>button]:hidden"
-            >
-              <div className="flex h-full flex-col overflow-y-auto">
-                <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-1">
-                  <SheetTitle className="text-sm">Menu</SheetTitle>
-                  {/* 44px close target — replaces SheetContent's built-in
-                      16px X (hidden via [&>button]:hidden above); SheetClose
-                      still gives Radix's focus-return to the hamburger. */}
-                  <SheetClose
-                    aria-label="Close menu"
-                    className="h-11 w-11 -mr-2 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                  >
-                    <X className="w-4 h-4" aria-hidden="true" />
-                  </SheetClose>
-                </div>
-                <nav aria-label="Primary" className="flex flex-col gap-2 px-4 py-3">
-                  {SCREENS.map((s) => {
-                    const Icon = s.Icon;
-                    const active = s.key === activeScreenKey;
-                    return (
-                      <Link
-                        key={s.key}
-                        to={s.to}
-                        aria-current={active ? "page" : undefined}
-                        data-testid={`nav-${s.key}`}
-                        onClick={(e) => {
-                          // Re-tapping the current screen just closes the
-                          // drawer — never stack duplicate history entries.
-                          if (active) e.preventDefault();
-                          setMoreOpen(false);
-                        }}
-                        className={drawerItem(active)}
-                      >
-                        <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                        {s.label}
-                      </Link>
-                    );
-                  })}
-
-                  <div className="border-t border-[var(--border)] my-1" aria-hidden="true" />
-
-                  <Link
-                    to="/settings"
-                    data-testid="nav-settings"
-                    onClick={() => setMoreOpen(false)}
-                    className={drawerItem(false)}
-                  >
-                    <Settings className="w-4 h-4 shrink-0" aria-hidden="true" />
-                    Settings
-                  </Link>
-                  <button
-                    onClick={() => { onOpenAbout(); setMoreOpen(false); }}
-                    className={drawerItem(false)}
-                  >
-                    <Info className="w-4 h-4 shrink-0" aria-hidden="true" />
-                    About Sutra
-                  </button>
-                  <button
-                    onClick={toggleTheme}
-                    aria-pressed={isLight}
-                    className={drawerItem(false)}
-                  >
-                    {isLight ? <Moon className="w-4 h-4 shrink-0" aria-hidden="true" /> : <Sun className="w-4 h-4 shrink-0" aria-hidden="true" />}
-                    {isLight ? "Dark theme" : "Light theme"}
-                  </button>
-                  {!authLoading && isGuest && (
-                    <button
-                      onClick={() => { onSignIn(); setMoreOpen(false); }}
-                      className={drawerItem(false)}
-                    >
-                      <LogIn className="w-4 h-4 shrink-0" aria-hidden="true" />
-                      Sign in
-                    </button>
-                  )}
-                </nav>
-              </div>
-            </SheetContent>
-          </Sheet>
+        {/* Goals menu — present on every breakpoint as the nav entry.
+            On mobile it lives next to the active screen title bar (Coach.js);
+            on desktop it sits right of the avatar. The trigger is always
+            labelled "Goals" — that's the canonical landing. */}
+        <div className="hidden sm:block">
+          <GoalMenu />
         </div>
 
         {authLoading ? (
           <div className="h-11 w-11" aria-hidden="true" />
         ) : isGuest ? (
           <>
+            {/* Mobile-only "Guest" chip — the avatar menu trigger for
+                guests who don't have a profile picture. On desktop we
+                keep the explicit "Sign in" button. */}
+            <div className="sm:hidden">
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                <DropdownMenuTrigger
+                  data-testid="user-menu-trigger-guest"
+                  aria-label="Open account menu"
+                  title="Account"
+                  className="h-11 px-3 inline-flex items-center gap-1.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded text-xs font-medium"
+                >
+                  <UserCircle2 className="w-4 h-4" aria-hidden="true" />
+                  <span>Guest</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6} className="min-w-[200px]">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] font-medium">
+                    Browsing as guest
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem
+                    data-testid="guest-menu-settings"
+                    onSelect={() => { navigate("/settings"); setMenuOpen(false); }}
+                    className={itemRow}
+                  >
+                    <Settings className="w-4 h-4" aria-hidden="true" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    data-testid="guest-menu-theme"
+                    onSelect={(e) => { e.preventDefault(); toggleTheme(); }}
+                    className={itemRow}
+                  >
+                    {isLight ? <Moon className="w-4 h-4" aria-hidden="true" /> : <Sun className="w-4 h-4" aria-hidden="true" />}
+                    {isLight ? "Dark theme" : "Light theme"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    data-testid="guest-menu-about"
+                    onSelect={() => { onOpenAbout?.(); setMenuOpen(false); }}
+                    className={itemRow}
+                  >
+                    <Info className="w-4 h-4" aria-hidden="true" />
+                    About Sutra
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    data-testid="guest-menu-signin"
+                    onSelect={() => { onSignIn?.(); setMenuOpen(false); }}
+                    className={`${itemRow} text-[var(--accent)]`}
+                  >
+                    <LogIn className="w-4 h-4" aria-hidden="true" />
+                    Sign in
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             {devLoginAvailable && <PersonaMenu currentName={user?.name} currentUserId={currentUserId} />}
             <button
               data-testid="header-signin-button"
               onClick={onSignIn}
               title="Sign in with Google to save your work"
               aria-label="Sign in with Google to save your work"
-              className="h-11 flex items-center gap-2 px-3.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
+              className="hidden sm:inline-flex h-11 items-center gap-2 px-3.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
             >
               <LogIn className="w-3.5 h-3.5" /> Sign in
             </button>
@@ -294,43 +212,62 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
         ) : (
           <>
             {devLoginAvailable && <PersonaMenu currentName={user?.name} currentUserId={currentUserId} />}
-        <div className="relative">
-          <button
-            data-testid="user-menu-trigger"
-            ref={accountTriggerRef}
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="true"
-            aria-expanded={menuOpen}
-            title="Account"
-            className="h-11 w-11 rounded-full overflow-hidden border border-[var(--border)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-          >
-            {user?.picture ? (
-              <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="flex items-center justify-center w-full h-full text-xs">{user?.name?.[0] || "?"}</span>
-            )}
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 mt-1 w-52 bg-[var(--bg-secondary)] border border-[var(--border)] shadow-2xl z-50">
-              <div className="px-3 py-2.5 border-b border-[var(--border)]">
-                <div className="text-xs font-medium text-[var(--text-primary)] truncate">{user?.name}</div>
-                <div className="text-xs text-[var(--text-muted)] truncate">{user?.email}</div>
-              </div>
-              {/* Settings deliberately lives in exactly ONE place — the
-                  header cluster on desktop / the hamburger drawer on
-                  mobile. It used to be duplicated here, so signed-in
-                  users saw two gears at once. Guests never render this
-                  menu, so the cluster/drawer stays the guaranteed path. */}
-              <button
-                data-testid="logout-button"
-                onClick={onLogout}
-                className="w-full flex items-center gap-2 min-h-11 px-3 py-2.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--danger)] transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" /> Sign out
-              </button>
+            <div className="relative">
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                <DropdownMenuTrigger
+                  data-testid="user-menu-trigger"
+                  aria-label="Open account menu"
+                  title="Account"
+                  className="h-11 w-11 rounded-full overflow-hidden border border-[var(--border)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                >
+                  {user?.picture ? (
+                    <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="flex items-center justify-center w-full h-full text-xs">{user?.name?.[0] || "?"}</span>
+                  )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6} className="min-w-[220px]">
+                  <DropdownMenuLabel className="px-2.5 py-2 text-[var(--text-primary)]">
+                    <div className="text-xs font-medium truncate">{user?.name}</div>
+                    <div className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">{user?.email}</div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    data-testid="user-menu-settings"
+                    onSelect={() => { navigate("/settings"); setMenuOpen(false); }}
+                    className={itemRow}
+                  >
+                    <Settings className="w-4 h-4" aria-hidden="true" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    data-testid="user-menu-theme"
+                    onSelect={(e) => { e.preventDefault(); toggleTheme(); }}
+                    className={itemRow}
+                  >
+                    {isLight ? <Moon className="w-4 h-4" aria-hidden="true" /> : <Sun className="w-4 h-4" aria-hidden="true" />}
+                    {isLight ? "Dark theme" : "Light theme"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    data-testid="user-menu-about"
+                    onSelect={() => { onOpenAbout?.(); setMenuOpen(false); }}
+                    className={itemRow}
+                  >
+                    <Info className="w-4 h-4" aria-hidden="true" />
+                    About Sutra
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    data-testid="user-menu-logout"
+                    onSelect={() => { onLogout?.(); setMenuOpen(false); }}
+                    className={`${itemRow} text-[var(--danger)]`}
+                  >
+                    <LogOut className="w-4 h-4" aria-hidden="true" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          )}
-        </div>
           </>
         )}
       </div>

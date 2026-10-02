@@ -5,25 +5,63 @@ export default {
   title: "Components/ToolConfirmationPrompt",
   component: ToolConfirmationPrompt,
   tags: ["autodocs"],
-  parameters: { layout: "centered" },
+  parameters: { layout: "fullscreen" },
   args: {
     proposal: {
-      id: "prop_1",
+      id: "prop_001",
       action: "create_goal",
-      status: "pending",
       args: {
-        title: "Ship the v2 landing page",
-        why: "You've mentioned it three sessions running and it's blocking the career-pivot story.",
-        horizon: "weekly",
-        first_action: "Outline the five sections before Wednesday",
-        target_date: "2026-10-12",
+        title: "Build a running habit this quarter",
+        horizon: "short",
+        why: "Want to start running regularly",
+        first_action: "Start with a 10-minute jog",
+        target_date: "2026-12-01",
       },
+      status: "pending",
     },
     onConfirm: fn(),
     onReject: fn(),
-    onRefine: fn(),
+    onOpenRefine: fn(),
+    onOpenReject: fn(),
     busy: false,
   },
 };
 
 export const Default = {};
+
+export const WithConfirmButton = {
+  render: (args) => {
+    const { component } = args;
+    return component({
+      ...args,
+      proposal: {
+        ...args.proposal,
+        status: "confirmed",
+      },
+    });
+  },
+};
+
+export const WithRefineClick = {
+  render: (args) => {
+    const { component } = args;
+    // Simulate clicking the Refine button — this should open a
+    // RefineModal instead of an inline textarea.
+    const { onOpenRefine } = args;
+    if (onOpenRefine) {
+      onOpenRefine(args.proposal);
+    }
+    return component({ ...args });
+  },
+};
+
+export const WithRejectClick = {
+  render: (args) => {
+    const { component } = args;
+    const { onOpenReject } = args;
+    if (onOpenReject) {
+      onOpenReject(args.proposal);
+    }
+    return component({ ...args });
+  },
+};

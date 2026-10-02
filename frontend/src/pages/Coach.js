@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { SCREENS, SCREEN_BY_KEY, screenKeyFromSearch, searchForScreen } from "../constants/screens";
 import Header from "../components/Header";
+import GoalMenu from "../components/GoalMenu";
 import TrackingDashboard from "../components/TrackingDashboard";
 // The four panel views are all gated behind `panelView`, so exactly one is
 // mounted at a time and none of them are on the first-paint path — the
@@ -387,10 +388,12 @@ export default function Coach() {
 
       <main id="main" tabIndex={-1} className="flex-1 min-h-0 overflow-y-auto focus:outline-none">
         <div className="shrink-0 flex items-center border-b border-[var(--border)] px-4 sm:px-6 pt-3 bg-[var(--bg-primary)] sticky top-0 z-10 backdrop-blur overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none]">
-          {/* Mobile — the tab strip is hidden below sm: the hamburger
-              drawer is the primary nav here (Header.js). The sticky bar
-              keeps its height and shows an obvious back affordance +
-              the current screen title instead. */}
+          {/* Mobile — no tab strip. The Goals dropdown (Header.js,
+              visible in the top header) is the primary nav here. The
+              sticky bar keeps its height and shows an obvious back
+              affordance + the current screen title + a Goals dropdown
+              trigger so users can jump between screens from the body
+              header too. */}
           <div className="sm:hidden flex items-center gap-2 min-w-0 w-full h-11">
             {canGoBack && (
               <button
@@ -406,6 +409,9 @@ export default function Coach() {
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)] truncate">
               {activeScreen.label}
             </h2>
+            <div className="ml-auto shrink-0">
+              <GoalMenu />
+            </div>
           </div>
 
           {/* Desktop — the horizontal strip stays, now route-driven:

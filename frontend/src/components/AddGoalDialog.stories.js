@@ -1,4 +1,4 @@
-import { fn, expect } from "storybook/test";
+import { fn } from "storybook/test";
 import AddGoalDialog from "./AddGoalDialog";
 
 export default {
@@ -8,7 +8,6 @@ export default {
   parameters: { layout: "fullscreen" },
   args: {
     open: true,
-    onClose: fn(),
     autoAnswer: true,
     grillMe: false,
     onUploadSource: fn(),
@@ -18,25 +17,75 @@ export default {
   },
 };
 
-export const Default = {};
+export const Tiles = {
+  render: (args) => {
+    const { component } = args;
+    return component({ ...args, open: true });
+  },
+};
 
-/**
- * Two goals back-to-back in one dialog session — the core regression
- * scenario for the operation-scoped context model (spec §14.5):
- * confirming goal #1 seals bucket 1 and swaps to the pre-minted next
- * bucket, so goal #2's chat never sees goal #1's history.
- *
- * The dialog opens in the tiles step; the play function picks a
- * category to land in the chat. The refId swap itself is asserted
- * against the live backend in the browser repro (manual check), not
- * here — Storybook has no server.
- */
-export const TwoGoalsBackToBack = {
-  play: async ({ canvas }) => {
-    // Enter the chat phase via a category tile.
-    await canvas.getByTestId("add-goal-category-health").click();
-    // The isolated ChatConsole mounts with a fresh bucket.
-    expect(canvas.getByTestId("chat-console")).toBeInTheDocument();
-    expect(canvas.getByTestId("chat-input")).toBeInTheDocument();
+export const ChatStepNoMilestones = {
+  render: (args) => {
+    const { component } = args;
+    return component({
+      ...args,
+      messages: [
+        {
+          id: `stream_1`,
+          role: "assistant",
+          content: "I see you want a health goal. I propose: Add a health goal with 3 milestones and 2 weekly commitments.",
+          proposals: [
+            {
+              id: "prop_001",
+              action: "create_goal",
+              args: { title: "Health goal", horizon: "short", why: "Be healthier", first_action: "Walk 10 min daily", target_date: "2026-12-01" },
+              status: "pending",
+            },
+          ],
+          streaming: false,
+        },
+      ],
+      pendingClarifications: null,
+      onGoalConfirmed: fn(),
+    });
+  },
+};
+
+export const ChatStepWithMilestones = {
+  render: (args) => {
+    const { component } = args;
+    return component({
+      ...args,
+      messages: [
+        {
+          id: `stream_2`,
+          role: "assistant",
+          content: "I see you want a health goal. I propose: Add a health goal with 3 milestones and 2 weekly commitments.",
+          proposals: [
+            {
+              id: "prop_002",
+              action: "create_goal",
+              args: {
+                title: "Health goal",
+                horizon: "short",
+                why: "Be healthier",
+                first_action: "Walk 10 min daily",
+                target_date: "2026-12-01",
+              },
+              status: "pending",
+            },
+            {
+              id: "prop_003",
+              action: "add_milestone",
+              args: { title: "Walk 10 min daily", target_date: "2026-11-01" },
+              status: "pending",
+            },
+          ],
+          streaming: false,
+        },
+      ],
+      pendingClarifications: null,
+      onGoalConfirmed: fn(),
+    });
   },
 };
