@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
+import RefineModal from "./RefineModal";
+import RejectModal from "./RejectModal";
 import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
@@ -136,6 +138,10 @@ export default function AddGoalDialog({
   // first cycle, so the second / third "change category" round
   // landed without focus on the textarea.
   const [focusToken, setFocusToken] = useState(0);
+  // Iteration 9 — which proposal (if any) is being refined / rejected.
+  // Each modal owns its own input; the dialog owns the lifecycle.
+  const [refiningProposal, setRefiningProposal] = useState(null);
+  const [rejectingProposal, setRejectingProposal] = useState(null);
   const enterChat = (next) => {
     setStep(next ?? "chat");
     setFocusToken((t) => t + 1);
@@ -366,10 +372,10 @@ export default function AddGoalDialog({
     }
   };
 
-  const reject = async (messageId, proposalId) => {
+  const reject = async (messageId, proposalId, reason) => {
     setBusyProposal(proposalId);
     try {
-      await api.reject(messageId, proposalId);
+      await api.reject(messageId, proposalId, reason);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
@@ -384,15 +390,128 @@ export default function AddGoalDialog({
     }
   };
 
-  const refine = (proposal, thought) => {
-    const label = (proposal.action || "change").replace(/_/g, " ");
-    send(`About your proposed ${label}: ${thought}. Please re-propose.`);
+  // Refine / Reject modal handlers (Iteration 9).
+  // The proposal object passed in carries enough context (action +
+  // title) to label the modals; the messageId is looked up from the
+  // messages state.
+  const findProposalMessageId = (proposal) => {
+    for (const m of messages) {
+      if ((m.proposals || []).some((p) => p.id === proposal.id)) return m.id;
+    }
+    return null;
+  };
+
+  const onOpenRefine = (proposal) => {
+    setRefiningProposal(proposal);
+  };
+  const onOpenReject = (proposal) => {
+    setRejectingProposal(proposal);
+  };
+
+  const submitRefine = async (thought) => {
+    if (!refiningProposal) return;
+    const messageId = findProposalMessageId(refiningProposal);
+    if (!messageId) {
+      throw new Error("Couldn't find the original proposal to refine.");
+    }
+    setBusyProposal(refiningProposal.id);
+    try {
+      const result = await api.refine(messageId, refiningProposal.id, thought);
+      // The server returns the new proposal; replace the OLD one in place
+      // (same proposal id, refreshed args + content).
+      const newProposal = result?.proposal || result;
+      if (!newProposal?.id) {
+        throw new Error("The coach didn't return a new proposal.");
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                proposals: m.proposals.map((p) =>
+                  p.id === refiningProposal.id
+                    ? { ...newProposal, id: refiningProposal.id, status: "pending" }
+                    : p,
+                ),
+              }
+            : m,
+        ),
+      );
+      toast.success("Proposal refined.");
+    } catch (e) {
+      toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
+      throw e; // re-throw so the modal can show its own error state
+    } finally {
+      setBusyProposal(null);
+    }
+  };
+
+  const submitReject = async (reason) => {
+    if (!rejectingProposal) return;
+    const messageId = findProposalMessageId(rejectingProposal);
+    if (!messageId) {
+      throw new Error("Couldn't find the original proposal to reject.");
+    }
+    await reject(messageId, rejectingProposal.id, reason);
   };
 
   const clearChat = async () => {
     setMessages([]);
     setInput("");
     setPendingClarifications(null);
+  };
+
+  // Iteration 9 — Confirm / Recreate pinned button. Logic:
+  //   - input is empty (user hasn't typed anything — refining takes over)
+  //   - latest assistant message has at least one pending create_goal proposal
+  //   - if any pending add_milestone proposal is in the same message
+  //     → button label = "Confirm" (we have a full goal + milestones)
+  //   - else → button label = "Recreate goals & commitments" (re-ask the
+  //     coach to bundle milestones and commitments into the next proposal)
+  //
+  // The button is a thin override on top of ToolConfirmationPrompt: the
+  // existing Confirm / Refine / Reject buttons inside the proposal card
+  // stay so a user with a mouse can still act inline.
+  const pinnedAction = (() => {
+    if (input.trim().length > 0) return null;
+    // Find the latest assistant message with proposals.
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant" || m.streaming) continue;
+      const proposals = m.proposals || [];
+      if (proposals.length === 0) continue;
+      const pending = proposals.filter((p) => (p.status || "pending") === "pending");
+      const hasCreateGoal = pending.some((p) => p.action === "create_goal");
+      if (!hasCreateGoal) continue;
+      const hasMilestones = pending.some((p) => p.action === "add_milestone");
+      const hasCommitments = pending.some((p) => p.action === "add_commitment");
+      const createProposal = pending.find((p) => p.action === "create_goal");
+      return {
+        messageId: m.id,
+        proposalId: createProposal.id,
+        hasMilestones,
+        hasCommitments,
+        label: hasMilestones
+          ? `Confirm${pending.length > 1 ? ` (${pending.length} changes)` : ""}`
+          : "Recreate goals & commitments",
+        variant: hasMilestones ? "confirm" : "recreate",
+      };
+    }
+    return null;
+  })();
+
+  const onPinnedAction = () => {
+    if (!pinnedAction) return;
+    if (pinnedAction.variant === "confirm") {
+      confirm(pinnedAction.messageId, pinnedAction.proposalId);
+    } else {
+      // Recreate — re-ask the coach to bundle milestones + commitments.
+      // We don't fake a user message; we send an explicit system-flavored
+      // instruction so the LLM treats this as a re-propose, not a new turn.
+      send(
+        "Your last proposal was a goal with no milestones and no commitments. Re-propose the SAME goal but bundle at least 3 milestones (with target dates) and at least 2 weekly commitments (smallest first step + smallest second step). Same voice, same why, same first action.",
+      );
+    }
   };
 
   const activeCat = CATEGORIES.find((c) => c.id === activeCategory);
@@ -502,7 +621,7 @@ export default function AddGoalDialog({
               showSources={false} hides the attach / link buttons —
               sources don't apply to a goal-add chat, and the no-op
               stubs were surfacing as a confusing dead UI. */}
-          <div className="h-[55vh] min-h-[min(420px,60dvh)] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)]">
+          <div className="h-[55vh] min-h-[min(420px,60dvh)] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)] flex flex-col">
             <ChatConsole
               key={focusToken}
               messages={messages}
@@ -511,8 +630,18 @@ export default function AddGoalDialog({
               input={input}
               setInput={setInput}
               onConfirm={confirm}
-              onReject={reject}
-              onRefine={refine}
+              onReject={(messageId, proposalId) => {
+                // Reject now flows through the modal. The actual reject
+                // call happens in `submitReject` (below) once the modal
+                // closes. Here we just stash the proposal so the modal
+                // knows which one to ask about.
+                const proposal = messages
+                  .find((m) => m.id === messageId)
+                  ?.proposals?.find((p) => p.id === proposalId);
+                if (proposal) setRejectingProposal(proposal);
+              }}
+              onOpenRefine={onOpenRefine}
+              onOpenReject={onOpenReject}
               busyProposal={busyProposal}
               autoAnswer={autoAnswer}
               setAutoAnswer={setAutoAnswer}
@@ -527,13 +656,46 @@ export default function AddGoalDialog({
               onAnswerClarification={(text) => { setPendingClarifications(null); send(text); }}
               onDismissClarifications={() => setPendingClarifications(null)}
               showSources={true}
-              // Iteration 5 (Bug 10) — focus on every tiles→chat
-              // transition. `key={focusToken}` remounts the
-              // component, and ChatConsole's effect picks up the
-              // mount focus.
               focusOnMount={true}
             />
+            {/* Iteration 9 — Confirm / Recreate pinned button. Renders
+                below the chat console's composer, inside the dialog so
+                it stays visible at the bottom of the sheet even when
+                the chat log is scrolled to the top. Hides the moment
+                the user types (refining takes over via Enter). */}
+            {pinnedAction && (
+              <div
+                data-testid={`pinned-action-${pinnedAction.variant}`}
+                className="shrink-0 px-4 sm:px-5 py-2.5 border-t border-[var(--border)] bg-[var(--bg-secondary)]"
+              >
+                <button
+                  data-testid="pinned-action-button"
+                  onClick={onPinnedAction}
+                  disabled={sending || busyProposal === pinnedAction.proposalId}
+                  className={`w-full min-h-11 px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-40 hover:opacity-90 ${
+                    pinnedAction.variant === "confirm"
+                      ? "bg-[var(--success)] text-[var(--bg-primary)]"
+                      : "bg-[var(--accent)] text-[var(--bg-primary)]"
+                  }`}
+                >
+                  {pinnedAction.label}
+                </button>
+              </div>
+            )}
           </div>
+          <RefineModal
+            open={!!refiningProposal}
+            onClose={() => setRefiningProposal(null)}
+            proposalTitle={refiningProposal?.args?.title || refiningProposal?.title || refiningProposal?.args?.goal_title || ""}
+            proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
+            onSubmit={submitRefine}
+          />
+          <RejectModal
+            open={!!rejectingProposal}
+            onClose={() => setRejectingProposal(null)}
+            proposalTitle={rejectingProposal?.args?.title || rejectingProposal?.title || rejectingProposal?.args?.goal_title || ""}
+            onSubmit={submitReject}
+          />
         </>
       )}
     </CenteredDialog>
