@@ -33,6 +33,15 @@ import { localDateKey } from "../lib/utils";
  *   - Refresh button re-rolls items from the same bucket.
  */
 const POLL_INTERVAL_MS = 5_000
+// Cap on how long we keep polling for a fresh LLM-curated row. The
+// server's pipeline takes ~20-30s on a healthy day; we leave headroom
+// and stop after this. Without a cap, a broken LLM / missing Tavily
+// key leaves the frontend polling the route every 5s forever — every
+// poll kicks off another `void runPipeline()` in the backend (the
+// cost cap eventually short-circuits those, but the call itself still
+// hits the route, runs the bucket detector, etc). 60s = 12 polls
+// ceiling, well above the cold-miss window, well below the runaway.
+const POLL_MAX_DURATION_MS = 60_000
 
 export default function MotivationCard({ state }) {
   const [items, setItems] = useState([])
@@ -44,6 +53,9 @@ export default function MotivationCard({ state }) {
   // for. Stays false on `hit` and on hard errors (so we don't
   // hammer the route when the LLM is broken).
   const [awaitingFresh, setAwaitingFresh] = useState(false)
+  // True once the poll cap is hit. Renders the "couldn't refresh"
+  // hint next to the badge instead of a forever-spinner.
+  const [pollGaveUp, setPollGaveUp] = useState(false)
   // Ref to the poll interval so we can clear it on unmount and on
   // transitions out of `awaitingFresh`.
   const pollRef = useRef(null)
@@ -67,7 +79,18 @@ export default function MotivationCard({ state }) {
 
   const startPolling = () => {
     stopPolling()
+    setPollGaveUp(false)
+    const pollStartedAt = Date.now()
     pollRef.current = setInterval(() => {
+      // Cap the poll window. The healthy cold-miss path lands in 20-30s;
+      // after 60s we assume the LLM is broken and stop hammering the
+      // route. The user can still hit the refresh button to retry.
+      if (Date.now() - pollStartedAt > POLL_MAX_DURATION_MS) {
+        setAwaitingFresh(false)
+        setPollGaveUp(true)
+        stopPolling()
+        return
+      }
       api
         .motivation()
         .then((d) => {
@@ -75,9 +98,10 @@ export default function MotivationCard({ state }) {
           if (d.cache === "hit") {
             // Fresh LLM-curated row landed — swap and stop polling.
             setAwaitingFresh(false)
+            setPollGaveUp(false)
             stopPolling()
           }
-          // If still 'miss' / 'stale', keep polling.
+          // If still 'miss' / 'stale', keep polling (until the cap).
         })
         .catch(() => {
           // Background poll failure is non-fatal — keep trying until
@@ -89,6 +113,7 @@ export default function MotivationCard({ state }) {
   const fetchRecommendations = () => {
     setLoading(true)
     setError(null)
+    setPollGaveUp(false)
     api
       .motivation()
       .then((d) => {
@@ -98,7 +123,8 @@ export default function MotivationCard({ state }) {
           stopPolling()
         } else {
           // 'miss' or 'stale' — server kicked off a background
-          // refresh; start (or continue) polling until it lands.
+          // refresh; start (or continue) polling until it lands
+          // (or the poll cap fires).
           setAwaitingFresh(true)
           startPolling()
         }
@@ -163,6 +189,15 @@ export default function MotivationCard({ state }) {
             title="Curating fresh picks — this view will update shortly"
           >
             <Loader2 className="w-3 h-3 animate-spin" /> refreshing
+          </span>
+        )}
+        {pollGaveUp && !awaitingFresh && (
+          <span
+            data-testid="motivation-refresh-stalled"
+            className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] inline-flex items-center gap-1"
+            title="Curator didn't land in time — tap refresh to try again"
+          >
+            tap refresh to retry
           </span>
         )}
         <button
