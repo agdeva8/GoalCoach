@@ -21,7 +21,13 @@ const config = {
     "@storybook/preset-create-react-app",
     "@storybook/addon-a11y",
     "@storybook/addon-docs",
-    "@storybook/addon-onboarding"
+    "@storybook/addon-onboarding",
+    {
+      name: "@storybook/addon-mcp",
+      options: {
+        endpoint: "/mcp",
+      },
+    }
   ],
   "framework": "@storybook/react-webpack5",
   "staticDirs": [

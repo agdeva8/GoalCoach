@@ -147,7 +147,7 @@ export default function MotivationCard({ state }) {
           type="button"
           onClick={fetchRecommendations}
           disabled={loading}
-          className="h-7 w-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] border border-transparent transition-colors"
+          className="h-11 w-11 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] border border-transparent transition-colors"
           title="Refresh"
         >
           {loading ? (
@@ -169,7 +169,7 @@ export default function MotivationCard({ state }) {
           data-testid="motivation-dismiss"
           type="button"
           onClick={() => setDismissed(true)}
-          className="h-7 w-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          className="h-11 w-11 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
           title="Hide for this view"
         >
           <X className="w-3.5 h-3.5" />
@@ -188,7 +188,7 @@ export default function MotivationCard({ state }) {
             <button
               type="button"
               onClick={fetchRecommendations}
-              className="inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:underline"
+              className="min-h-11 inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:underline"
             >
               <RefreshCw className="w-3 h-3" /> Retry
             </button>
@@ -206,7 +206,7 @@ export default function MotivationCard({ state }) {
                 href={it.url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors inline-flex items-center gap-1 group"
+                className="min-h-11 text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors inline-flex items-center gap-1 group"
               >
                 {it.title}
                 <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -234,7 +234,7 @@ function KindIcon({ kind }) {
   }
   const Icon = map[kind] || Sparkles
   return (
-    <div className="h-9 w-9 shrink-0 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center">
+    <div className="h-11 w-11 shrink-0 rounded-md bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center">
       <Icon className="w-4 h-4 text-[var(--accent)]" />
     </div>
   )

@@ -93,7 +93,7 @@ export default function SignInModal({ open, onClose, reason }) {
               data-testid="signin-dev-button"
               onClick={devSignIn}
               disabled={signingIn}
-              className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-accent)] bg-[var(--bg-primary)] text-[var(--text-secondary)] px-5 py-2.5 font-mono text-[11px] uppercase tracking-widest hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="min-h-11 w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-accent)] bg-[var(--bg-primary)] text-[var(--text-secondary)] px-5 py-3 font-mono text-[11px] uppercase tracking-widest hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             >
               <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
               {signingIn ? "Signing in…" : "Continue as Dev User (founders01)"}

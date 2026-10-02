@@ -1,7 +1,9 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 import ChatModeSelect from "./ChatModeSelect";
+import SuccessBanner from "./SuccessBanner";
+import ImpactPanel from "./ImpactPanel";
 
 /**
  * EmptyState — the prompt shown when there are no messages yet.
@@ -20,26 +22,26 @@ function EmptyState({ scopeLabel, scopeIntent }) {
   if (scopeLabel && scopeIntent) {
     return (
       <div data-testid="chat-empty-scoped" className="h-full flex flex-col justify-center max-w-lg">
-        <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--text-muted)] mb-3">
-          about this
+        <div className="font-medium text-xs text-[var(--text-muted)] mb-3">
+          About this
         </div>
         <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
           {scopeIntent}{" "}
           <span className="text-[var(--text-primary)]">
-            Anything you propose lands only after I confirm — keep, shrink, or drop it.
+            Nothing changes until you confirm it. Refine or reject it if it isn't right.
           </span>
         </p>
         <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-          Chatting about <span className="text-[var(--text-secondary)]">{scopeLabel}</span>.
+          You're chatting about <span className="text-[var(--text-secondary)]">{scopeLabel}</span>.
         </p>
       </div>
     );
   }
   return (
     <div data-testid="chat-empty-generic" className="h-full flex flex-col justify-center max-w-lg">
-      <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--text-muted)] mb-3">start here</div>
+      <div className="font-medium text-xs text-[var(--text-muted)] mb-3">Start here</div>
       <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-        Tell me everything about your goal and let's create milestones together.
+        Tell me about your goal and we'll build the milestones together.
       </p>
     </div>
   );
@@ -70,7 +72,7 @@ function SpeechWave({ text }) {
       aria-live="polite"
       className="mb-2 flex items-center gap-2 px-3 py-2 border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] rounded-md"
     >
-      <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--danger)] shrink-0">
+      <span className="text-xs uppercase text-[var(--danger)] shrink-0">
         listening
       </span>
       <div className="flex items-end gap-[3px] h-5 flex-1 min-w-0">
@@ -82,29 +84,100 @@ function SpeechWave({ text }) {
           />
         ))}
       </div>
-      <span className="font-mono text-[10px] text-[var(--text-muted)] truncate min-w-0 max-w-[40%]" title={text}>
+      <span className="text-xs text-[var(--text-muted)] truncate min-w-0 max-w-[40%]" title={text}>
         {text ? text.slice(-32) : "…"}
       </span>
     </div>
   );
 }
 
-function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
+/**
+ * SetLines — the typesetting pass over a coach reply.
+ *
+ * Coaching-as-correspondence (D3 · Marginalia): the mentor writes, the
+ * interface labels. A reply is split into TYPOGRAPHIC UNITS — hard newline
+ * runs (`whitespace-pre-wrap` already lays those out as separate lines) and
+ * sentence boundaries — one INLINE span per unit, each carrying its
+ * reading-order index. When the reply settles the reveal runs unit by unit:
+ * type being set down a page, not a bubble popping in.
+ *
+ * Self-critique drove the sentence split: most coach replies are prose with
+ * no hard newlines at all, so a newline-only split collapses to a single
+ * element and the moment degrades to the generic blur-in fade. Sentences
+ * are the unit a letter is actually composed in, so the cascade survives
+ * the common case.
+ *
+ * The spans are rendered for the whole life of the message (streaming
+ * included) and only GAIN the `.gc-type-line` class at the settle moment.
+ * That keeps the DOM shape identical across the transition — inside an
+ * aria-live log, mutating childList/characterData at completion would risk
+ * re-announcing the reply; an attribute change does not.
+ *
+ * The split is capture-group based, so every matched separator (whitespace,
+ * newline) is returned inline and the spans' text content concatenates back
+ * to the original string byte for byte: text content, copy/selection and
+ * screen-reader output are identical to a single text node. Animated
+ * properties are opacity + filter only: paint-only, no box ever moves or
+ * resizes → CLS = 0.
+ *
+ * `--gc-line` is set here in JS, capped at 4 units, so a long reply still
+ * resolves inside the 300–500ms window — units 5+ ink in with unit 4
+ * instead of pushing the reveal into a second second.
+ */
+const TYPE_UNITS = /([.!?]+["')\]]*\s+|\n+)/;
+
+// B5#8 — render cap for the chat log (no virtualization lib; a slice
+// keeps long sessions cheap without changing any data flow).
+const CHAT_RENDER_CAP = 100;
+
+function SetLines({ content, settled }) {
+  const parts = String(content).split(TYPE_UNITS);
+  return parts.map((p, i) => (
+    <span
+      key={i}
+      className={settled ? "gc-type-line" : undefined}
+      style={{ "--gc-line": String(Math.min(Math.floor(i / 2), 4)) }}
+    >
+      {p}
+    </span>
+  ));
+}
+
+function Message({ m, settled = false, onConfirm, onReject, onRefine, busyProposal, onViewGoal }) {
+  // Success divider — appended by the parent after a confirm closes the
+  // conversation bucket (spec §10.5). Rendered inline in the same
+  // stream; the messages are never cleared on confirm.
+  if (m.role === "success") {
+    return (
+      <SuccessBanner
+        message={m.content}
+        goalId={m.goalId}
+        goalTitle={m.goalTitle}
+        createdAt={m.createdAt}
+        onView={m.goalId && onViewGoal ? () => onViewGoal(m.goalId) : undefined}
+      />
+    );
+  }
   if (m.role === "user") {
     return (
       <div data-testid="chat-message-user" className="flex flex-col items-end gc-fade-up">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">you</span>
-        <div className="max-w-[85%] bg-[var(--bg-tertiary)] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
+        <span className="font-medium text-xs text-[var(--text-muted)] mb-1">You</span>
+        <div className="max-w-[85%] bg-[var(--bg-tertiary)] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words">
           {m.content}
         </div>
       </div>
     );
   }
   return (
-    <div data-testid="chat-message-coach" className="flex flex-col items-start gc-fade-up">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)] mb-1">coach</span>
-      <div className="max-w-[92%] text-sm leading-relaxed whitespace-pre-wrap text-[var(--text-primary)]">
-        {m.content}
+    <div data-testid="chat-message-coach" className="flex flex-col items-start">
+      <span className="font-medium text-xs text-[var(--accent)] mb-1">Coach</span>
+      {/* A4 signature moment — the reply "sets" like type. The wrapper
+          deliberately no longer carries `gc-fade-up`: a completed reply
+          remounts (its id swaps from the client stream id to the server id),
+          so the generic fade-up used to run at exactly the same instant as
+          this. One arrival, one animation — the coach's, not the bubble's. */}
+      <div className={`max-w-[92%] text-lg leading-[1.65] font-serif whitespace-pre-wrap break-words text-[var(--voice-fg)]${settled ? " gc-type-set" : ""}`}>
+        <SetLines content={m.content} settled={settled} />
         {m.streaming && <span className="gc-caret text-[var(--accent)]">▋</span>}
       </div>
       {(m.proposals || []).length > 0 && (
@@ -121,11 +194,14 @@ function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
           ))}
         </div>
       )}
+      {/* Structured [[IMPACT]] block emitted with this reply (spec §10.5)
+          — load shifts, conflicts, buffer warnings, recommendation. */}
+      {m.impact && <ImpactPanel impact={m.impact} />}
     </div>
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "" }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", onViewGoal = null }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -134,6 +210,85 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const recognitionRef = useRef(null);
+
+  // --- Attach: link composer -------------------------------------------------
+  // The link button used to be `onClick={onAddLink}`, which passed the click
+  // EVENT as the url — the caller then stored that event object as
+  // `original_filename` and React crashed with "Objects are not valid as a
+  // React child". It now opens a real input so a url is the only thing that
+  // ever reaches onAddLink.
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkValue, setLinkValue] = useState("");
+
+  const closeLink = () => {
+    setLinkOpen(false);
+    setLinkValue("");
+  };
+  const submitLink = () => {
+    const url = linkValue.trim();
+    if (!url) return;
+    onAddLink(url);
+    closeLink();
+  };
+
+  // --- Attach: drag & drop ---------------------------------------------------
+  // Dropping a file anywhere on the console attaches it (same handler as the
+  // paperclip). A depth counter keeps the highlight alive while the pointer
+  // crosses child elements, and text/URI drags are ignored so reordering text
+  // never reads as an attach.
+  const [dragging, setDragging] = useState(false);
+  const dragDepthRef = useRef(0);
+  const isFileDrag = (e) =>
+    Array.from(e.dataTransfer?.types || []).includes("Files");
+  const onDragEnter = (e) => {
+    if (!showSources || !isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepthRef.current += 1;
+    setDragging(true);
+  };
+  const onDragOver = (e) => {
+    if (!showSources || !isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+  const onDragLeave = (e) => {
+    if (!showSources || !dragging) return;
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDragging(false);
+  };
+  const onDrop = (e) => {
+    if (!showSources || !isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepthRef.current = 0;
+    setDragging(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) onUploadFile(file);
+  };
+
+  // --- A4 signature moment: the coach's reply sets like type ---------------
+  // Detect the streaming -> complete transition HERE, not inside Message:
+  // finishing a reply swaps the message id (client stream id -> server id),
+  // so the bubble unmounts and remounts at completion and any per-instance
+  // state would miss the moment entirely. A layout effect is used so the
+  // class lands in the same frame the completed reply first paints — there
+  // is no un-animated flash of the finished text before the effect runs.
+  // Fires exactly once per reply (true -> false edge), never per token;
+  // loading history or reopening a chat never streams, so nothing animates.
+  const streamingNow = messages.some((m) => m.streaming);
+  const wasStreamingRef = useRef(false);
+  const [settledId, setSettledId] = useState(null);
+  useLayoutEffect(() => {
+    if (wasStreamingRef.current && !streamingNow) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        if (m.role !== "user" && m.role !== "success") {
+          setSettledId(m.id);
+          break;
+        }
+      }
+    }
+    wasStreamingRef.current = streamingNow;
+  }, [streamingNow, messages]);
 
   // Scroll to bottom whenever messages change OR when sending starts (user sent a
   // message but the response hasn't arrived yet — we still want to scroll so the
@@ -195,9 +350,9 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     recognition.onerror = (event) => {
       setVoiceListening(false);
       const err = event?.error || "unknown";
-      if (err === "no-speech") setVoiceError("Didn't catch that — try again?");
-      else if (err === "not-allowed" || err === "service-not-allowed") setVoiceError("Microphone access blocked");
-      else setVoiceError(`Voice input failed (${err})`);
+      if (err === "no-speech") setVoiceError("Didn't catch that. Try again.");
+      else if (err === "not-allowed" || err === "service-not-allowed") setVoiceError("Microphone access is blocked — allow it in your browser settings.");
+      else setVoiceError("Voice input stopped unexpectedly. Tap the mic to try again.");
     };
 
     recognition.onend = () => {
@@ -223,7 +378,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         r.start();
         setVoiceListening(true);
       } catch (e) {
-        setVoiceError(e?.message || "Could not start voice input");
+        setVoiceError(e?.message || "Couldn't start voice input. Tap the mic to try again.");
         setVoiceListening(false);
       }
     }
@@ -243,16 +398,34 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   };
 
   return (
-    <div data-testid="chat-console" className="flex flex-col h-full min-h-0 bg-[var(--bg-primary)]">
+    <div
+      data-testid="chat-console"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className="relative flex flex-col h-full min-h-0 bg-[var(--bg-primary)]"
+    >
+      {dragging && (
+        <div
+          data-testid="chat-drop-overlay"
+          className="absolute inset-0 z-20 m-2 flex items-center justify-center rounded-lg border-2 border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,var(--bg-primary))] pointer-events-none"
+        >
+          <span className="text-sm font-medium text-[var(--text-primary)]">
+            Drop to attach it as a source
+          </span>
+        </div>
+      )}
       {messages.length > 0 && (
         <div className="shrink-0 flex justify-end px-4 sm:px-6 pt-4">
           <button
             onClick={onClearChat}
-            className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            aria-label="Clear chat"
+            className="min-h-11 flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             title="Clear chat"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Clear
+            Clear chat
           </button>
         </div>
       )}
@@ -260,13 +433,21 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         role="log"
         aria-live="polite"
         aria-label="Coaching conversation"
+        tabIndex={0}
         className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6 space-y-6"
       >
         {messages.length === 0 && (
           <EmptyState scopeLabel={scopeLabel} scopeIntent={scopeIntent} />
         )}
-        {messages.map((m) => (
-          <Message key={m.id} m={m} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} busyProposal={busyProposal} />
+        {/* B5#8 — cap the rendered log; the full history stays in the
+            parent's state, we just don't mount a thousand bubbles. */}
+        {messages.length > CHAT_RENDER_CAP && (
+          <div className="text-xs text-[var(--text-muted)]">
+            Showing the last {CHAT_RENDER_CAP} messages.
+          </div>
+        )}
+        {messages.slice(-CHAT_RENDER_CAP).map((m) => (
+          <Message key={m.id} m={m} settled={settledId === m.id} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} busyProposal={busyProposal} onViewGoal={onViewGoal} />
         ))}
         <div ref={endRef} />
       </div>
@@ -275,9 +456,9 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         {sources.length > 0 && (
           <div data-testid="attached-sources" className="mb-2 flex flex-wrap gap-1.5">
             {sources.map((s) => (
-              <span key={s.id} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
+              <span key={s.id} className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
                 <FileText className="w-3 h-3" /> <span className="max-w-[140px] truncate">{s.original_filename}</span>
-                <button onClick={() => onDeleteSource(s.id)} aria-label={`Remove source ${s.original_filename}`} className="text-[var(--text-muted)] hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"><X className="w-3 h-3" /></button>
+                <button onClick={() => onDeleteSource(s.id)} aria-label={`Remove source ${s.original_filename}`} className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>
@@ -285,14 +466,73 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         {voiceSupported && voiceListening && (
           <SpeechWave text={input} />
         )}
-        <div className="flex items-end gap-1 border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
+        {showSources && linkOpen && (
+          <form
+            id="chat-link-row"
+            data-testid="chat-link-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitLink();
+            }}
+            className="mb-2 flex items-center gap-2 border border-[var(--border-accent)] bg-[var(--bg-secondary)] px-2.5 py-1.5"
+          >
+            <Link2 className="w-4 h-4 text-[var(--accent)] shrink-0" aria-hidden="true" />
+            <input
+              type="text"
+              inputMode="url"
+              data-testid="chat-link-input"
+              value={linkValue}
+              onChange={(e) => setLinkValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  closeLink();
+                }
+              }}
+              placeholder="Paste a link — https://…"
+              aria-label="Link to attach as a source"
+              autoFocus
+              className="flex-1 min-w-0 bg-transparent px-1 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none rounded"
+            />
+            <button
+              type="submit"
+              data-testid="chat-link-submit"
+              disabled={!linkValue.trim()}
+              className="min-h-11 px-3 rounded bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium disabled:opacity-40 hover:opacity-90 transition-opacity shrink-0"
+            >
+              Attach
+            </button>
+            <button
+              type="button"
+              data-testid="chat-link-cancel"
+              onClick={closeLink}
+              aria-label="Cancel adding a link"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 rounded"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </form>
+        )}
+        <div className="flex items-end gap-2 border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
           {showSources && (
             <>
               <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
-              <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" className="ml-1 mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+              <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" aria-label="Attach a file as a source" className="m-2 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
                 <Paperclip className="w-4 h-4" />
               </button>
-              <button data-testid="chat-attach-link" onClick={onAddLink} title="Add a link as a source" className="mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+              <button
+                data-testid="chat-attach-link"
+                onClick={() => setLinkOpen((v) => !v)}
+                aria-expanded={linkOpen}
+                aria-controls="chat-link-row"
+                title="Add a link as a source"
+                aria-label="Add a link as a source"
+                className={`m-2 h-11 w-11 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
+                  linkOpen
+                    ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--accent)]"
+                }`}
+              >
                 <Link2 className="w-4 h-4" />
               </button>
             </>
@@ -306,7 +546,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             rows={1}
             placeholder={voiceListening ? "Listening…" : "Think out loud…"}
             aria-label="Message the coach"
-            className="flex-1 bg-transparent resize-none px-2 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none max-h-40"
+            className="flex-1 min-w-0 bg-transparent resize-none px-2 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded max-h-40"
             style={{ minHeight: "48px" }}
           />
           {voiceSupported && (
@@ -317,7 +557,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               title={voiceListening ? "Stop listening" : "Dictate with your voice"}
               aria-label={voiceListening ? "Stop dictating" : "Dictate with your voice"}
               aria-pressed={voiceListening}
-              className={`m-2 h-9 w-9 flex items-center justify-center transition-colors shrink-0 ${
+              className={`m-2 h-11 w-11 flex items-center justify-center transition-colors shrink-0 ${
                 voiceListening
                   ? "bg-[var(--danger)] text-[var(--bg-primary)] animate-pulse"
                   : "text-[var(--text-muted)] hover:text-[var(--accent)]"
@@ -331,7 +571,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             onClick={submit}
             disabled={sending || !input.trim()}
             aria-label="Send"
-            className="m-2 h-9 w-9 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0"
+            className="m-2 h-11 w-11 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0"
           >
             <ArrowUp className="w-4 h-4" />
           </button>
@@ -343,15 +583,15 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             setAutoAnswer={setAutoAnswer}
             setGrillMe={setGrillMe}
           />
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+          <span className="text-xs text-[var(--text-muted)]" role="status" aria-live="polite">
             {voiceError ? (
-              <span data-testid="voice-error" className="text-[var(--danger)]">{voiceError}</span>
+              <span data-testid="voice-error" role="alert" className="text-[var(--danger)]">{voiceError}</span>
             ) : voiceListening ? (
-              <span data-testid="voice-listening" className="text-[var(--accent)]">● listening — tap mic to stop</span>
+              <span data-testid="voice-listening" className="text-[var(--accent)]">● Listening — tap the mic to stop</span>
             ) : sending ? (
-              <span className="text-[var(--accent)]">coach is responding…</span>
+              <span className="text-[var(--accent)]">Coach is responding…</span>
             ) : (
-              "enter to send · shift+enter = newline"
+              "Enter to send. Shift+Enter for a new line."
             )}
           </span>
         </div>
@@ -365,16 +605,16 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                   {pendingClarifications.prompt || "I want to make a real proposal, but I need a couple of details first."}
                 </p>
                 {/* Claude-style: full-width single-choice options + a free-text fallback input below */}
-                <div className="mt-2.5 space-y-1.5">
+                <div className="mt-2.5 space-y-2">
                   {pendingClarifications.questions.map((q, i) => (
                     <button
                       key={i}
                       type="button"
                       data-testid={`clarification-chip-${i}`}
                       onClick={() => onAnswerClarification(q)}
-                      className="w-full text-left text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors"
+                      className="w-full text-left min-h-11 text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors"
                     >
-                      <span className="font-mono text-[10px] text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
+                      <span className="tabular-nums text-xs text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
                       {q}
                     </button>
                   ))}
@@ -385,7 +625,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                     data-testid="clarification-free-text"
                     placeholder="Or type your own answer…"
                     aria-label="Type your own answer"
-                    className="flex-1 min-w-0 bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] outline-none rounded-md px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                    className="flex-1 min-w-0 bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-md px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && e.currentTarget.value.trim()) {
                         onAnswerClarification(e.currentTarget.value);
@@ -399,7 +639,8 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                 onClick={onDismissClarifications}
                 data-testid="clarification-dismiss"
                 title="Dismiss"
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] shrink-0"
+                aria-label="Dismiss suggestions"
+                className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
+import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
 /**
@@ -120,6 +121,11 @@ export default function AddGoalDialog({
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const streamIdRef = useRef(0);
+  // Operation-scoped context (spec §10) — the current conversation
+  // bucket. Minted fresh on every dialog open; swapped only on
+  // confirm (server pre-mints the next bucket) or when the server's
+  // `done` event reports a defensive redirect off a closed bucket.
+  const refIdRef = useRef(`new_goal_${crypto.randomUUID()}`);
 
   // UI state for the 2-step flow.
   const [activeCategory, setActiveCategory] = useState(null);
@@ -155,6 +161,9 @@ export default function AddGoalDialog({
       setStep("tiles");
       setFocusToken(0);
       setSources([]);
+      // Fresh conversation bucket per open — the previous (possibly
+      // unfinalized) goal's history must not leak into this session.
+      refIdRef.current = `new_goal_${crypto.randomUUID()}`;
     }
   }, [open]);
 
@@ -176,7 +185,17 @@ export default function AddGoalDialog({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, auto_answer: autoAnswer, clarify: grillMe, proactive_propose: true }),
+        body: JSON.stringify({
+          message: trimmed,
+          auto_answer: autoAnswer,
+          clarify: grillMe,
+          proactive_propose: true,
+          // Operation-scoped context (spec §10.3) — same refId for
+          // every turn in this bucket.
+          scope: "goal",
+          refId: refIdRef.current,
+          kind: "add_goal",
+        }),
       });
       if (!resp.ok || !resp.body) throw new Error("stream failed");
 
@@ -199,7 +218,14 @@ export default function AddGoalDialog({
             prompt: data.prompt,
             questions: data.questions || [],
           });
+        } else if (data.type === "impact") {
+          // Structured impact block (spec §10.6) — attach to the
+          // assistant message that produced it.
+          setMessages((prev) => prev.map((m) => (m.id === (finalId || streamId) ? { ...m, impact: data.impact } : m)));
         } else if (data.type === "done") {
+          // Defensive redirect (spec §10.2) — server detected we sent
+          // to a closed bucket and minted a fresh one.
+          if (data.redirected && data.ref_id) refIdRef.current = data.ref_id;
           setMessages((prev) => prev.map((m) => (m.id === (finalId || streamId) ? { ...m, id: data.message_id, streaming: false } : m)));
         } else if (data.type === "error") {
           setMessages((prev) => prev.map((m) => (m.id === streamId ? { ...m, streaming: false, content: m.content || "(no response)" } : m)));
@@ -255,20 +281,32 @@ export default function AddGoalDialog({
 
   const handleUploadFile = async (file) => {
     try {
-      await onUploadSource(file);
+      // Coach.uploadFile returns the created server source — use its real
+      // id so the chip's X deletes it server-side instead of a local stub.
+      const created = await onUploadSource(file);
+      if (!created?.id) return;
       setSources((prev) => [
         ...prev,
-        { id: `local_${Date.now()}`, original_filename: file.name, url: file.name, isLocal: true },
+        {
+          id: created.id,
+          original_filename: created.original_filename || file.name,
+          url: created.url || file.name,
+        },
       ]);
     } catch {}
   };
 
   const handleAddLink = async (url) => {
     try {
-      await onAddLink(url);
+      const created = await onAddLink(url);
+      if (!created?.id) return;
       setSources((prev) => [
         ...prev,
-        { id: `local_${Date.now()}`, original_filename: url, url, isLocal: true },
+        {
+          id: created.id,
+          original_filename: created.original_filename || url,
+          url: created.url || url,
+        },
       ]);
     } catch {}
   };
@@ -281,21 +319,48 @@ export default function AddGoalDialog({
   const confirm = async (messageId, proposalId) => {
     setBusyProposal(proposalId);
     try {
-      await api.confirm(messageId, proposalId);
-      setMessages((prev) =>
-        prev.map((m) =>
+      const resp = await api.confirm(messageId, proposalId);
+      // Spec §10.4 — on confirm the server closes this bucket and
+      // (for add_goal) pre-mints the next one. Swap immediately so
+      // the next send() lands in a fresh conversation.
+      if (resp?.ref_id) refIdRef.current = resp.ref_id;
+
+      const confirmedProposal = messages
+        .find((m) => m.id === messageId)
+        ?.proposals?.find((p) => p.id === proposalId);
+      const createdGoalTitle =
+        confirmedProposal?.args?.title ||
+        confirmedProposal?.args?.goal_title ||
+        confirmedProposal?.title ||
+        "your new goal";
+      const createdGoalId = resp?.state?.goals?.find(
+        (g) => g.title === createdGoalTitle && g.status === "active",
+      )?.id;
+
+      setMessages((prev) => [
+        ...prev.map((m) =>
           m.id === messageId
             ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "confirmed" } : p)) }
             : m,
         ),
-      );
+        // Success divider inline in the stream (spec §10.5) — the
+        // visible messages are NOT cleared on confirm.
+        {
+          id: `success_${Date.now()}`,
+          role: "success",
+          content: `Created "${createdGoalTitle}"`,
+          goalId: createdGoalId,
+          goalTitle: createdGoalTitle,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
       // Tell the parent to re-fetch state so the new goal shows up
       // immediately in the dashboard (the dialog's internal messages
       // don't know about the parent's /api/state shape).
       onGoalConfirmed?.(proposalId);
       setTimeout(() => onClose?.(), 700);
     } catch {
-      // bubble — parent toasts on the dashboard
+      toast.error("Couldn't confirm that proposal. Try again.");
     } finally {
       setBusyProposal(null);
     }
@@ -312,6 +377,8 @@ export default function AddGoalDialog({
             : m,
         ),
       );
+    } catch {
+      toast.error("Couldn't reject that proposal. Try again.");
     } finally {
       setBusyProposal(null);
     }
@@ -423,9 +490,9 @@ export default function AddGoalDialog({
               type="button"
               data-testid="add-goal-back-to-tiles"
               onClick={goBackToTiles}
-              className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              className="font-medium min-h-11 flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
-              <ArrowLeft className="w-3 h-3" /> change category
+              <ArrowLeft className="w-3 h-3" /> Change category
             </button>
           </div>
 
@@ -435,7 +502,7 @@ export default function AddGoalDialog({
               showSources={false} hides the attach / link buttons —
               sources don't apply to a goal-add chat, and the no-op
               stubs were surfacing as a confusing dead UI. */}
-          <div className="h-[55vh] min-h-[420px] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)]">
+          <div className="h-[55vh] min-h-[min(420px,60dvh)] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)]">
             <ChatConsole
               key={focusToken}
               messages={messages}

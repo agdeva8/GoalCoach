@@ -1,0 +1,18 @@
+-- Conversation `closed_at` timestamp (Iteration N: scope-isolated chat).
+--
+-- The chat route flips `status` to 'closed' on first confirm and stamps
+-- `closed_at` to mark the boundary. After that, the conversation is
+-- read-only for new messages — any subsequent send that targets the
+-- same `refId` is detected by the chat route and routed to a freshly
+-- minted `conv_<kind>_<newRefId>` bucket (defensive redirect).
+--
+-- The user sees the prior conversation inline in the dialog (visual
+-- continuity) but the LLM only ever sees the active bucket's history
+-- (semantic continuity). This is the structural fix for the "HU plans
+-- for old goal" bug.
+--
+-- Nullable + no default: existing rows are unaffected, no backfill
+-- required. Closed conversations remain queryable; the field just
+-- records WHEN they closed.
+--> statement-breakpoint
+ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS "closed_at" timestamp with time zone;

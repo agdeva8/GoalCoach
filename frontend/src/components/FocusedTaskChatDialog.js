@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Sparkles } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
+import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
 /**
@@ -55,7 +56,15 @@ export default function FocusedTaskChatDialog({
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // Session attachments — real server sources added in THIS chat, so the
+  // chip X can delete them server-side (same pattern as ChatModal).
+  const [sources, setSources] = useState([]);
   const streamIdRef = useRef(0);
+  // Operation-scoped context (spec §10) — current conversation bucket,
+  // seeded from the parent's `refId` prop and swapped on confirm /
+  // defensive redirect. For focused-task chats the parent usually
+  // passes an entity id; when it doesn't, we mint per open.
+  const refIdRef = useRef(refId ?? null);
 
   // Reset everything on open / close transitions so a re-open always
   // starts fresh (the goal of the user's "clear state per focused
@@ -68,8 +77,14 @@ export default function FocusedTaskChatDialog({
       setBusyProposal(null);
       setPendingClarifications(null);
       setHistoryLoaded(false);
+      setSources([]);
+      // Fresh bucket per open — scoped chats get the entity id the
+      // parent passed; unscoped ones mint a focused-task bucket so the
+      // server never falls back to the long-lived general history.
+      refIdRef.current =
+        refId || `task_${new Date().toISOString().slice(0, 10)}_${Math.random().toString(36).slice(2, 8)}`;
     }
-  }, [open]);
+  }, [open, refId]);
 
   const send = useCallback(
     async (text) => {
@@ -99,7 +114,8 @@ export default function FocusedTaskChatDialog({
             auto_answer: autoAnswer,
             clarify: grillMe,
             scope,
-            refId,
+            // Same refId for every turn in this bucket (spec §10.3).
+            refId: refIdRef.current,
             kind,
             title,
             helperText,
@@ -142,7 +158,16 @@ export default function FocusedTaskChatDialog({
               prompt: data.prompt,
               questions: data.questions || [],
             });
+          } else if (data.type === "impact") {
+            // Structured impact block (spec §10.6).
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === (finalId || streamId) ? { ...m, impact: data.impact } : m,
+              ),
+            );
           } else if (data.type === "done") {
+            // Defensive redirect (spec §10.2) — closed bucket minted fresh.
+            if (data.redirected && data.ref_id) refIdRef.current = data.ref_id;
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === (finalId || streamId)
@@ -185,30 +210,52 @@ export default function FocusedTaskChatDialog({
         setSending(false);
       }
     },
-    [open, user, autoAnswer, grillMe, scope, refId, kind, title, helperText],
+    [open, user, autoAnswer, grillMe, scope, kind, title, helperText],
   );
 
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
       setBusyProposal(proposalId);
       try {
-        const { result, state } = await api.confirm(messageId, proposalId);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId
-              ? {
-                  ...m,
-                  proposals: m.proposals.map((p) =>
-                    p.id === proposalId ? { ...p, status: "confirmed" } : p,
-                  ),
-                }
-              : m,
-          ),
-        );
+        const { result, state, ref_id } = await api.confirm(messageId, proposalId);
+        // Spec §10.4 — swap to the server-pre-minted next bucket.
+        if (ref_id) refIdRef.current = ref_id;
+        setMessages((prev) => {
+          const proposal = prev
+            .find((m) => m.id === messageId)
+            ?.proposals?.find((p) => p.id === proposalId);
+          const title =
+            proposal?.args?.title ||
+            proposal?.args?.goal_title ||
+            proposal?.args?.new_title ||
+            proposal?.title;
+          const verb = proposal?.action === "create_goal" ? "Created" : "Confirmed";
+          const content = title ? `${verb} "${title}"` : result || "Change applied";
+          return [
+            ...prev.map((m) =>
+              m.id === messageId
+                ? {
+                    ...m,
+                    proposals: m.proposals.map((p) =>
+                      p.id === proposalId ? { ...p, status: "confirmed" } : p,
+                    ),
+                  }
+                : m,
+            ),
+            // Success divider inline in the stream (spec §10.5).
+            {
+              id: `success_${Date.now()}`,
+              role: "success",
+              content,
+              goalTitle: title,
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
         // Bubble state up so the dashboard re-renders
         onStateChange?.(state);
       } catch (e) {
-        // leave in pending; user can retry
+        toast.error("Couldn't confirm that proposal. Try again.");
       } finally {
         setBusyProposal(null);
       }
@@ -232,6 +279,8 @@ export default function FocusedTaskChatDialog({
             : m,
         ),
       );
+    } catch {
+      toast.error("Couldn't reject that proposal. Try again.");
     } finally {
       setBusyProposal(null);
     }
@@ -269,11 +318,14 @@ export default function FocusedTaskChatDialog({
   const uploadFile = useCallback(
     async (file) => {
       try {
-        await api.uploadSource(file, "");
+        const created = await api.uploadSource(file, "");
         const fresh = await api.state();
         onStateChange?.(fresh);
+        if (created?.id) setSources((prev) => [...prev, created]);
+        return created || null;
       } catch {
         /* offline fine */
+        return null;
       }
     },
     [onStateChange],
@@ -281,13 +333,33 @@ export default function FocusedTaskChatDialog({
 
   const addLink = useCallback(
     async (url) => {
-      if (!url) return;
+      if (!url) return null;
       try {
-        await api.addLink({ url, goal_id: "" });
+        const created = await api.addLink({ url, goal_id: "" });
+        const fresh = await api.state();
+        onStateChange?.(fresh);
+        if (created?.id) setSources((prev) => [...prev, created]);
+        return created || null;
+      } catch {
+        /* offline fine */
+        return null;
+      }
+    },
+    [onStateChange],
+  );
+
+  // Chip X — deletes the attachment server-side ("keep data clean"),
+  // then drops it from the local chip list. Also offered to the parent.
+  const deleteSource = useCallback(
+    async (id) => {
+      if (!id) return;
+      setSources((prev) => prev.filter((s) => s.id !== id));
+      try {
+        await api.deleteSource(id);
         const fresh = await api.state();
         onStateChange?.(fresh);
       } catch {
-        /* offline fine */
+        toast.error("Couldn't remove that attachment. Try again.");
       }
     },
     [onStateChange],
@@ -311,7 +383,7 @@ export default function FocusedTaskChatDialog({
       maxWidth="max-w-3xl"
       testId="focused-task-chat-modal"
     >
-      <div className="-mx-5 -mb-4 h-[68vh] min-h-[440px] max-h-[760px] border-t border-[var(--border)]">
+      <div className="-mx-5 -mb-4 h-[68vh] min-h-[min(440px,60dvh)] max-h-[760px] border-t border-[var(--border)]">
         <ChatConsole
           messages={messages}
           onSend={send}
@@ -328,8 +400,8 @@ export default function FocusedTaskChatDialog({
           setGrillMe={setGrillMe}
           onUploadFile={uploadFile}
           onAddLink={addLink}
-          sources={[]}
-          onDeleteSource={() => {}}
+          sources={sources}
+          onDeleteSource={deleteSource}
           onClearChat={() => setMessages([])}
           focusOnMount={open}
           // Focused-task dialogs always have a specific subject —
@@ -347,15 +419,15 @@ export default function FocusedTaskChatDialog({
         <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
           <span className="flex-1">
-            Log in to persist this session and access all advanced features.
+            Sign in to keep this session and unlock every feature.
           </span>
           <button
             type="button"
             data-testid="focused-task-chat-signin"
             onClick={onOpenSignIn}
-            className="font-medium text-[var(--accent)] hover:underline"
+            className="min-h-11 font-medium text-[var(--accent)] hover:underline"
           >
-            Sign in →
+            Sign in
           </button>
         </div>
       )}

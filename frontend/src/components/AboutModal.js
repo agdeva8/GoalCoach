@@ -80,7 +80,7 @@ export default function AboutModal({ open, onClose }) {
               href={FOUNDER.linkedin}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] hover:underline"
+              className="min-h-11 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] hover:underline"
             >
               LinkedIn ↗
             </a>

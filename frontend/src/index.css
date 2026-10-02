@@ -5,6 +5,10 @@
 @tailwind utilities;
 
 :root {
+  /* Dark is the app default, so scrollbars, form controls, and the
+   * native selection color must render dark rather than the
+   * platform light default. `.light` flips it back below. */
+  color-scheme: dark;
   --bg-primary: #17120E;
   --bg-secondary: #211A14;
   --bg-tertiary: #2C231B;
@@ -28,6 +32,7 @@
 }
 
 .light {
+  color-scheme: light;
   --bg-primary: #FBF6EF;
   --bg-secondary: #F3EBDF;
   --bg-tertiary: #EADFCF;
@@ -72,6 +77,68 @@
 
 * {
   border-color: var(--border);
+}
+
+/* Mobile-native tap hygiene. Scoped to interactive elements only —
+ * NOT to html/body, so pinch-zoom keeps working (disabling zoom is an
+ * accessibility anti-pattern). `manipulation` removes the ~300ms
+ * double-tap-to-zoom delay on mobile web, and the explicit
+ * tap-highlight stops the default gray flash on every tap, which is
+ * the single loudest "this is a webview" tell on iOS/Android. */
+button,
+a,
+[role="button"],
+[role="tab"],
+[role="menuitem"],
+input,
+textarea,
+select,
+label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Pressed feedback for touch. Without this, every control that only
+ * declares `hover:` gives NO response to a finger — `hover` does not
+ * exist on touch, so the tap feels dead. One blanket `:active` rule
+ * covers all 30+ controls instead of trusting a per-component class.
+ *
+ * Scoped to `:active` only, so it can't overwrite the resting
+ * transition each component declares (`.transition-colors` etc. still
+ * run when not pressed). `transform` is listed alongside `opacity` so
+ * the few controls with an explicit `active:scale-[0.98]` keep
+ * animating that scale rather than snapping it.
+ *
+ * 100ms sits inside the 80-150ms window for perceived instant
+ * response; the release has no rule of its own so it snaps back
+ * faster than it went down, which is the correct direction. */
+button:not(:disabled):active,
+a[href]:active,
+[role="button"]:active,
+[role="tab"]:active,
+[role="menuitem"]:active {
+  opacity: 0.85;
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+/* iOS Safari auto-zooms the whole viewport the instant a form control
+ * with font-size < 16px takes focus — the screen jumps and the user has
+ * to pinch back out. Every input and textarea here is `text-sm` (14px),
+ * `text-xs` (12px) or `text-[11px]`, so on a phone merely tapping a
+ * field zoomed the app. That is the single loudest "this is a webview"
+ * symptom on iOS.
+ *
+ * Gate on the `sm` breakpoint so only phones are forced up to the
+ * platform minimum; the compact desktop dialogs keep their 12–14px
+ * rhythm. Checkboxes and radios are excluded — they are sized by their
+ * own utilities, not by font-size, and inflating them would break the
+ * layout of the timetable and filter chips. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 body {
@@ -164,4 +231,69 @@ section[aria-label="Notifications alt+T"] > * {
 }
 .gc-strip-body::-webkit-scrollbar {
   display: none;
+}
+
+/* --- Route transitions (react-view-transitions) --------------------------
+   Directional push/pop for the two routes: / <-> /settings. This is the web
+   equivalent of a navigation-stack slide, so the app reads as moving between
+   sections rather than swapping to an unrelated page.
+
+   Typed (nav-forward / nav-back) rather than a bare cross-fade: Coach ->
+   Settings is hierarchical (it has a "Back to Coach" control), so direction
+   carries meaning. The browser back button carries no type, so it resolves to
+   `default: "none"` and swaps silently — no false depth implied. */
+:root {
+  --duration-exit: 150ms;
+  --duration-enter: 210ms;
+  --duration-move: 400ms;
+}
+
+@keyframes gc-nav-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gc-nav-slide {
+  from { translate: var(--slide-offset); }
+  to { translate: 0; }
+}
+
+/* Forward: incoming slides in from the right, outgoing exits left. */
+::view-transition-old(.nav-forward) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-exit) ease-in both gc-nav-fade reverse,
+    var(--duration-move) ease-in-out both gc-nav-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-enter) ease-out var(--duration-exit) both gc-nav-fade,
+    var(--duration-move) ease-in-out both gc-nav-slide;
+}
+
+/* Back: mirrored — incoming from the left, outgoing exits right. */
+::view-transition-old(.nav-back) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-exit) ease-in both gc-nav-fade reverse,
+    var(--duration-move) ease-in-out both gc-nav-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-enter) ease-out var(--duration-exit) both gc-nav-fade,
+    var(--duration-move) ease-in-out both gc-nav-slide;
+}
+
+/* The generic reduced-motion block above only reaches *::before/::after —
+   view-transition pseudo-elements hang off the root and are not matched by
+   it, so they need their own guard or routes keep sliding for those users. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }

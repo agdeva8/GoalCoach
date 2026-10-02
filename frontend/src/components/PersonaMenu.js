@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { UserRound, Plus, RefreshCw, Pencil, Check, X, Trash2 } from "lucide-react";
 import { API, api } from "../lib/api";
+import { canAutofocus } from "../lib/utils";
 
 /**
  * PersonaMenu — dev-only quick-swap dropdown for guest personas.
@@ -160,7 +161,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
         data-testid="persona-menu-trigger"
         onClick={() => setOpen((v) => !v)}
         title="Switch persona (dev-only)"
-        className="h-11 sm:h-9 px-2 sm:px-3 flex items-center gap-1.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-mono text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        className="min-w-11 h-11 sm:h-9 px-2 sm:px-3 flex items-center gap-1.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-mono text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       >
         <UserRound className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">{chipLabel}</span>
@@ -183,7 +184,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
               type="button"
               onClick={fetchPersonas}
               title="Refresh"
-              className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              className="min-h-11 min-w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               data-testid="persona-menu-refresh"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -218,11 +219,11 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                           type="button"
                           onClick={() => switchTo(p.user_id, p.name || "Guest")}
                           disabled={isCurrent}
-                          className="flex-1 text-left min-w-0 hover:bg-[var(--bg-tertiary)] -mx-1 px-1 py-0.5 rounded transition-colors disabled:cursor-default disabled:hover:bg-transparent"
+                          className="min-h-11 flex-1 text-left min-w-0 hover:bg-[var(--bg-tertiary)] -mx-1 px-1 py-0.5 rounded transition-colors disabled:cursor-default disabled:hover:bg-transparent"
                         >
                           {isRenaming ? (
                             <input
-                              autoFocus
+                              autoFocus={canAutofocus()}
                               value={renameValue}
                               onChange={(e) => setRenameValue(e.target.value)}
                               onKeyDown={(e) => {
@@ -256,7 +257,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                               type="button"
                               onClick={() => submitRename(p.user_id)}
                               disabled={renameBusy || !renameValue.trim()}
-                              className="text-[var(--success)] hover:opacity-80 disabled:opacity-40"
+                              className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--success)] hover:opacity-80 disabled:opacity-40"
                               title="Save"
                               data-testid={`persona-rename-save-${p.user_id}`}
                             >
@@ -265,7 +266,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                             <button
                               type="button"
                               onClick={() => { setRenameId(null); setRenameValue("") }}
-                              className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                              className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                               title="Cancel"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -276,7 +277,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                             <button
                               type="button"
                               onClick={() => { setRenameId(p.user_id); setRenameValue(p.name || "") }}
-                              className="text-[var(--text-muted)] hover:text-[var(--accent)]"
+                              className="min-h-11 min-w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)]"
                               title="Rename persona"
                               data-testid={`persona-rename-trigger-${p.user_id}`}
                             >
@@ -290,7 +291,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                                     deletePersona(p.user_id)
                                   }
                                 }}
-                                className="text-[var(--text-muted)] hover:text-[var(--danger)]"
+                                className="min-h-11 min-w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--danger)]"
                                 title="Delete persona"
                                 data-testid={`persona-delete-trigger-${p.user_id}`}
                               >
@@ -312,7 +313,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
               type="button"
               data-testid="persona-new-guest"
               onClick={() => setNewPersonaOpen(true)}
-              className="w-full flex items-center gap-2 px-3 py-3 text-xs text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors"
+              className="min-h-11 w-full flex items-center gap-2 px-3 py-3 text-xs text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               Continue as new person (fresh identity)
@@ -331,7 +332,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                 Give this identity a display name so it's easy to pick later. Leave blank for "Guest N".
               </div>
               <input
-                autoFocus
+                autoFocus={canAutofocus()}
                 data-testid="persona-new-name-input"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
@@ -349,7 +350,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                 <button
                   type="button"
                   onClick={() => { setNewPersonaOpen(false); setNewError("") }}
-                  className="text-[11px] px-2.5 py-1.5 rounded border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
+                  className="min-h-11 text-[11px] px-2.5 py-1.5 rounded border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
                   data-testid="persona-new-cancel"
                 >
                   Cancel
@@ -358,7 +359,7 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
                   type="button"
                   onClick={() => createPersona(newName)}
                   disabled={newBusy}
-                  className="text-[11px] px-2.5 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 disabled:opacity-50"
+                  className="min-h-11 text-[11px] px-2.5 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 disabled:opacity-50"
                   data-testid="persona-new-save"
                 >
                   {newBusy ? "Creating…" : "Create & switch"}

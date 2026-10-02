@@ -26,3 +26,23 @@ export function localDateKey(date = new Date()) {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+/**
+ * Whether a dialog input should take focus on mount.
+ *
+ * True on desktop, false below Tailwind's `sm` (640px). On a phone the
+ * sheet already animates up, so autofocus adds a second, conflicting
+ * motion and the keyboard immediately covers the sheet's own content —
+ * the user can no longer see what they're being asked. Keyboard flows
+ * on desktop stay fast.
+ *
+ * Evaluated at mount time (dialogs mount on open), so it sees the
+ * viewport that is actually on screen. `autoFocus={canAutofocus()}`
+ * rather than a bare `autoFocus`.
+ *
+ * Ref: Vercel Web Interface Guidelines — "autoFocus — desktop only,
+ * single primary input; avoid on mobile."
+ */
+export function canAutofocus() {
+  return typeof window !== "undefined" && window.innerWidth >= 640;
+}

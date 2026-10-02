@@ -63,7 +63,7 @@ export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, set
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
+        className={`min-h-11 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
           open
             ? "border-[var(--border-accent)] text-[var(--text-primary)]"
             : currentId === "grill"

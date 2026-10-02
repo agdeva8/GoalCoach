@@ -103,7 +103,13 @@ export default function CenteredDialog({
       data-testid={testId}
       role="dialog"
       aria-modal="true"
-      aria-label={typeof title === "string" ? title : undefined}
+      /* Title may be a string OR a JSX element (e.g. HonestyAuditView wraps
+       * it in a span). The old `typeof title === "string"` check silently
+       * dropped the name whenever it was JSX, leaving the dialog unnamed —
+       * an axe `aria-dialog-name` failure. `aria-labelledby` works for both
+       * shapes since it references the rendered <h2> either way. */
+      aria-labelledby={title ? `${testId}-title` : undefined}
+      aria-label={title ? undefined : "Dialog"}
       className={`fixed inset-0 z-[60] flex justify-center p-0 sm:p-4 ${
         mobileAnchor === "sheet" ? "items-end sm:items-center" : "items-center"
       }`}
@@ -117,7 +123,7 @@ export default function CenteredDialog({
         ref={dialogRef}
         tabIndex={-1}
         data-testid={`${testId}-content`}
-        className={`relative w-full ${maxWidth} bg-[var(--bg-secondary)] border border-[color-mix(in_srgb,var(--border-accent)_30%,transparent)] shadow-2xl gc-fade-up outline-none ${
+        className={`relative w-full overscroll-contain ${maxWidth} bg-[var(--bg-secondary)] border border-[color-mix(in_srgb,var(--border-accent)_30%,transparent)] shadow-2xl gc-fade-up outline-none ${
           mobileAnchor === "sheet"
             ? `rounded-t-2xl sm:rounded-xl ${fullHeightMobile ? "h-[92dvh] sm:h-auto flex flex-col" : "max-h-[88dvh] sm:max-h-none"}`
             : "rounded-xl"
@@ -127,7 +133,7 @@ export default function CenteredDialog({
           <div className="flex items-start gap-3 px-5 py-4 border-b border-[var(--border)]">
             {Icon && <Icon className="w-5 h-5 text-[var(--accent)] mt-0.5 shrink-0" />}
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-base font-semibold tracking-tight text-[var(--text-primary)] leading-snug">
+              <h2 id={`${testId}-title`} className="font-display text-base font-semibold tracking-tight text-[var(--text-primary)] leading-snug">
                 {title}
               </h2>
               {subtitle && (
@@ -141,7 +147,7 @@ export default function CenteredDialog({
               data-testid={`${testId}-close`}
               title="Close"
               aria-label="Close"
-              className="h-10 w-10 -mr-2 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
+              className="h-11 w-11 -mr-2 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
             >
               <X className="w-4 h-4" />
             </button>
@@ -153,12 +159,12 @@ export default function CenteredDialog({
             data-testid={`${testId}-close`}
             title="Close"
             aria-label="Close"
-            className="absolute top-2 right-2 h-10 w-10 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
+            className="absolute top-2 right-2 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
           >
             <X className="w-4 h-4" />
           </button>
         )}
-        <div className={`px-5 py-4 overflow-y-auto ${
+        <div className={`px-5 py-4 overflow-y-auto overscroll-contain ${
           mobileAnchor === "sheet" && fullHeightMobile
             ? "sm:max-h-[70vh] flex-1 min-h-0"
             : "max-h-[70vh]"

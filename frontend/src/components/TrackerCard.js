@@ -24,8 +24,10 @@ import {
  * What's left:
  *   1. "How's the things going" — three stat tiles: open count,
  *      completed-today count, overdue count.
- *   2. "Direction dialogue" — CTAs that open the chat with a pre-filled
- *      prompt ("Hold me accountable for today" + "Plan my day").
+ *   2. "Direction dialogue" — CTAs that open a SCOPED chat: the modal
+ *      titles itself after the button ("About: Today's read", "About:
+ *      Plan my day") and the composer stays empty — the button has
+ *      already said what the conversation is about.
  *   3. Streak + next 7 days of milestones.
  */
 export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
@@ -82,11 +84,11 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
       data-testid="tracker-card"
       className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] rounded-xl overflow-hidden"
     >
-      <div className="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
         {/* Col 1 — greeting + stats + CTAs */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="md:col-span-1 lg:col-span-8 space-y-4">
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+            <div className="font-medium text-xs text-[var(--text-muted)]">
               Today
             </div>
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-[var(--text-primary)] tracking-tight leading-tight mt-1">
@@ -150,42 +152,49 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
             <button
               data-testid="tracker-open-today-cta"
               onClick={() => onOpenToday?.()}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
+              className="min-h-11 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
             >
               <CalendarDays className="w-4 h-4" />
               Open today
             </button>
-            {/* Primary CTA — opens the chat with an accountability prompt */}
+            {/* Primary CTA — the daily accountability read. Scoped so the
+                modal reads "About: Today's read" instead of the generic
+                header, and the composer stays EMPTY: the button already
+                says what this chat is for, so a canned paragraph in the
+                box would just be text the user has to delete first. */}
             <button
               data-testid="tracker-coach-cta"
               onClick={() =>
-                onOpenChat?.(
-                  "Hold me accountable for today. Walk me through what I committed to, what's slipping, and where I should be spending the next hour. If anything looks off, propose what to drop or postpone.",
-                )
+                onOpenChat?.("", {
+                  scope: "generic",
+                  kind: "review_progress",
+                  title: "Today's read",
+                  helperText:
+                    "I'll walk you through what you committed to, what's slipping, and where the next hour should go — and propose anything worth dropping or postponing.",
+                })
               }
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
+              className="min-h-11 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               Ask the coach for today's read
             </button>
 
-            {/* Plan my day — opens the chat in interview mode. The coach
-                then walks the user wake-time → bedtime, slotting
+            {/* Plan my day — opens the chat in interview mode (kind =
+                plan_day mints its own per-day conversation bucket). The
+                coach walks the user wake-time → bedtime, slotting
                 commitments into specific hours as it goes. */}
             <button
               data-testid="tracker-plan-day-cta"
-              onClick={() => {
-                const today = localDateKey()
-                onOpenChat?.(
-                  `Plan my day with me. Today is ${today}. ` +
-                    `Walk me through it hour by hour, from when I wake up to when I sleep. ` +
-                    `Ask one question at a time. After each answer, propose concrete ` +
-                    `add_commitment + add_milestone entries so the day lands in the system. ` +
-                    `When we're done, I'll have a real timetable I can put on screen. ` +
-                    `Let's start: what time are you actually getting out of bed tomorrow?`,
-                )
-              }}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
+              onClick={() =>
+                onOpenChat?.("", {
+                  scope: "generic",
+                  kind: "plan_day",
+                  title: "Plan my day",
+                  helperText:
+                    "We'll go hour by hour, from when I wake up to when I sleep, and turn my open commitments into real slots I can put on screen.",
+                })
+              }
+              className="min-h-11 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
             >
               <Sparkles className="w-4 h-4" />
               Plan my day
@@ -195,9 +204,9 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
 
         {/* Col 2 — week + flame (Col 2 used to be the timetable; that
             moved to the Today tab in Iteration 7) */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="md:col-span-1 lg:col-span-4 space-y-4">
           <div className="border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] rounded-md p-3">
-            <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
+            <div className="font-medium flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-2">
               <Flame className="w-3 h-3" />
               Streak
             </div>
@@ -206,7 +215,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
                 ? `On a ${data.doneToday.length}-commit day`
                 : "Quiet today"}
             </div>
-            <div className="text-[11px] text-[var(--text-muted)] leading-relaxed mt-1">
+            <div className="text-sm text-[var(--text-muted)] leading-relaxed mt-1">
               {data.doneToday.length > 0
                 ? "Use the momentum — pick the next item."
                 : "Tiny is fine. One commitment done > none."}
@@ -214,16 +223,16 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
           </div>
 
           <div>
-            <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
+            <div className="font-medium flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-2">
               <Sparkles className="w-3 h-3" />
               This week
             </div>
             {data.milestonesThisWeek.length === 0 ? (
-              <div className="px-3 py-3 border border-dashed border-[var(--border)] rounded-md text-[11px] text-[var(--text-muted)] leading-relaxed">
-                No milestones in the next 7 days.
+              <div className="px-3 py-3 border border-dashed border-[var(--border)] rounded-md text-sm text-[var(--text-muted)] leading-relaxed">
+                Nothing due in the next 7 days. Ask the coach to add one.
               </div>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-2">
                 {data.milestonesThisWeek.slice(0, 5).map((m) => (
                   <li
                     key={m.id}
@@ -231,13 +240,13 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
                     className="text-[12px] text-[var(--text-secondary)] leading-snug px-2 py-1.5 border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] rounded"
                   >
                     <span className="block">{m.title || "Milestone"}</span>
-                    <span className="block font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mt-0.5">
-                      {m.goal_title || "free"} · {m.target_date}
+                    <span className="block text-xs text-[var(--text-muted)] mt-0.5">
+                      {m.goal_title || "free"}, {m.target_date}
                     </span>
                   </li>
                 ))}
                 {data.milestonesThisWeek.length > 5 && (
-                  <li className="text-[10px] text-[var(--text-muted)] pl-1">
+                  <li className="text-xs text-[var(--text-muted)] pl-1">
                     +{data.milestonesThisWeek.length - 5} more
                   </li>
                 )}
@@ -260,7 +269,7 @@ function StatTile({ icon: Icon, value, label, tone }) {
       <div className="text-lg font-semibold text-[var(--text-primary)] leading-none mt-1">
         {value}
       </div>
-      <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mt-1">
+      <div className="text-xs text-[var(--text-muted)] mt-1">
         {label}
       </div>
     </div>
@@ -309,7 +318,7 @@ function CompletionRing({ pct, done, total }) {
         <div className="text-sm font-medium text-[var(--text-primary)]">
           {done} of {total} done
         </div>
-        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+        <div className="text-xs text-[var(--text-muted)] mt-0.5">
           Today's commitments
         </div>
       </div>

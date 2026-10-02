@@ -1,18 +1,45 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Plus, CalendarClock, CalendarDays, LayoutDashboard, Image as ImageIcon, FileText, Sparkles } from "lucide-react";
+import { MessageSquare, Plus, Sparkles, ArrowLeft } from "lucide-react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { SCREENS, SCREEN_BY_KEY, screenKeyFromSearch, searchForScreen } from "../constants/screens";
 import Header from "../components/Header";
 import TrackingDashboard from "../components/TrackingDashboard";
-import Timeline from "../components/Timeline";
-import Memories from "../components/Memories";
-import Sources from "../components/Sources";
-import Today from "../components/Today";
+// The four panel views are all gated behind `panelView`, so exactly one is
+// mounted at a time and none of them are on the first-paint path — the
+// default view renders TrackingDashboard alone. Importing them statically
+// shipped 155 kB of source (Timeline is 103 kB of that) into the initial
+// bundle regardless. Splitting each into its own chunk means the bundle
+// fetches a panel only when the user actually opens that tab. The modals
+// below stay eager on purpose: a dialog has to appear the instant it's
+// tapped, and a chunk fetch there would read as lag.
+const Timeline = lazy(() => import("../components/Timeline"));
+const Memories = lazy(() => import("../components/Memories"));
+const Sources = lazy(() => import("../components/Sources"));
+const Today = lazy(() => import("../components/Today"));
+
+// Fallback while a panel's chunk fetches. Declared at module level rather
+// than inside Coach — a component defined during render is a new component
+// type on every render and would remount the subtree. role="status" so the
+// wait is announced instead of the panel silently not appearing.
+function PanelSkeleton() {
+  return (
+    <div role="status" aria-live="polite" aria-label="Loading panel" className="flex flex-col gap-4">
+      <div className="gc-skeleton h-7 w-44 rounded" />
+      <div className="gc-skeleton h-36 w-full rounded" />
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+        <div className="gc-skeleton h-28 rounded" />
+        <div className="gc-skeleton h-28 rounded" />
+      </div>
+    </div>
+  );
+}
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
-import ActionPromptModal from "../components/ActionPromptModal";
+import ActionPromptModal, { FRAMES } from "../components/ActionPromptModal";
 import SourceActionDialog from "../components/SourceActionDialog";
 import GoalBoundaryConfirmDialog from "../components/GoalBoundaryConfirmDialog";
 import FocusedTaskChatDialog from "../components/FocusedTaskChatDialog";
@@ -36,6 +63,7 @@ export default function Coach() {
   const isGuest = !!user?.is_guest;
 
   const [state, setState] = useState(null);
+  const [stateError, setStateError] = useState(null);
   const [theme, setTheme] = useState(
     () => localStorage.getItem("sutra_theme") || "light",
   );
@@ -110,8 +138,13 @@ export default function Coach() {
     try {
       const next = await api.state();
       setState(next);
+      setStateError(null);
       return next;
-    } catch {
+    } catch (e) {
+      // B5#2 — offline / 5xx used to leave every panel on its
+      // skeleton forever. Keep the error so the landing tab can
+      // offer a retry instead.
+      setStateError(e);
       return null;
     }
   }, []);
@@ -145,14 +178,25 @@ export default function Coach() {
   // When the user clicks "Ask the coach" inside ActionPromptModal,
   // open an ISOLATED focused-task chat (instead of the global
   // ChatModal). Pre-fills the input with the action message so the
-  // user just hits Enter to send.
+  // user just hits Enter to send. The header reuses the frame's own
+  // title (`Drop "X"?` / `Pause "X"?` / …) so the chat reads as the
+  // continuation of the dialog, not a generic "focused task".
   const onGoalAction = (msg) => {
+    const act = actionModal;
     setActionModal(null);
+    const frameTitle =
+      act && FRAMES[act.type || "edit"]
+        ? FRAMES[act.type || "edit"].title(act.goalTitle)
+        : `Add commitments for the "${act?.goalTitle || "goal"}" goal`;
     setFocusedTask({
-      title: "Coach · focused task",
+      title: frameTitle,
       subtitle: "This chat is scoped to the action you just described. It starts empty and resets when you close it.",
       prefillMessage: msg,
       icon: Sparkles,
+      // Spec §10.7 — focused-task chat runs as its own plan_day
+      // bucket; FocusedTaskChatDialog mints the per-open refId.
+      scope: "generic",
+      kind: "plan_day",
     });
   };
 
@@ -163,29 +207,40 @@ export default function Coach() {
     if (goalTitles.length === 0) return;
     const goalList = goalTitles.map((t) => `"${t}"`).join(", ");
     setFocusedTask({
-      title: "Coach · replan after source change",
-      subtitle: `A source change affects ${goalList}. Ask the coach to replan.`,
-      prefillMessage: `The source I just changed affects ${goalList}. Please replan.`,
+      title:
+        goalTitles.length === 1
+          ? `Re-plan "${goalTitles[0]}"`
+          : `Re-plan ${goalTitles.length} goals`,
+      subtitle: `A source change affects ${goalList}. Ask the coach to re-plan.`,
+      prefillMessage: `The source I just changed affects ${goalList}. Please re-plan.`,
       icon: Sparkles,
+      // Spec §10.7 — replan runs as its own plan_day bucket; the
+      // dialog mints the per-open refId.
+      scope: "generic",
+      kind: "plan_day",
     });
   };
 
   const uploadFile = async (file, goalId = "") => {
     toast.message(`Uploading ${file.name}…`);
     try {
-      const fresh = await api.uploadSource(file, goalId).then(() => api.state());
+      // Capture the created source so callers (chat chips, AddGoalDialog)
+      // can hold its real server id and delete it server-side on X.
+      const source = await api.uploadSource(file, goalId);
       await refreshState();
       toast.success(`Added ${file.name} as a source`);
+      return source;
     } catch (e) {
-      toast.error(e?.message || "Upload failed");
+      toast.error(typeof e?.message === 'string' ? e.message : "Couldn't upload that file. Try again.");
+      return null;
     }
   };
 
   const addLink = async (url, goalId = "") => {
-    if (!url) return;
+    if (!url) return null;
     try {
       const prevState = state;
-      await api.addLink({ url, goal_id: goalId });
+      const source = await api.addLink({ url, goal_id: goalId });
       await refreshState();
       if (goalId && prevState?.goals) {
         const goal = prevState.goals.find((g) => g.id === goalId);
@@ -205,8 +260,10 @@ export default function Coach() {
         }
       }
       toast.success("Link added as a source");
+      return source;
     } catch (e) {
-      toast.error(e?.message || "Could not add link");
+      toast.error(typeof e?.message === 'string' ? e.message : "Couldn't add the link. Try again.");
+      return null;
     }
   };
 
@@ -234,7 +291,7 @@ export default function Coach() {
         }
       }
     } catch {
-      toast.error("Could not remove source");
+      toast.error("Couldn't remove the source. Try again.");
     }
   };
 
@@ -252,10 +309,43 @@ export default function Coach() {
   // reported landing on Timeline every time and wanted Goals to be the
   // canonical landing tab on every fresh page load. The localStorage
   // save and read have both been removed.
-  const [panelView, setPanelView] = useState("state");
+  //
+  // Wave B — the active screen now lives in the URL (`?panel=…`, see
+  // constants/screens.js). It's derived, not stored: this component
+  // never remounts across panel switches (pathname stays `/`), so chat,
+  // dashboard data and this screen's scroll position all survive.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const panelView = screenKeyFromSearch(searchParams.toString());
+  const activeScreen = SCREEN_BY_KEY[panelView];
+
+  // Push a screen onto history so browser/system back steps
+  // screen-by-screen. Clicking the screen you're already on is a no-op —
+  // otherwise every tab tap would stack a duplicate history entry.
+  const goPanel = (key) => {
+    if (key === panelView) return;
+    setSearchParams(searchForScreen(key));
+  };
+
+  // Mobile back affordance: pop real history when we have any (every
+  // in-app navigation pushes), otherwise deep-links land back on Goals —
+  // the canonical screen — instead of walking out of the app.
+  const canGoBack = location.key !== "default" || panelView !== "state";
+  const goBack = () => {
+    if (location.key !== "default") navigate(-1);
+    else goPanel("state");
+  };
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
+      <a
+        href="#main"
+        data-testid="skip-link"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[70] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:rounded focus:bg-[var(--accent)] focus:text-[var(--bg-primary)] focus:text-sm focus:font-medium"
+      >
+        Skip to content
+      </a>
       <Header
         user={user}
         authLoading={loading}
@@ -267,113 +357,118 @@ export default function Coach() {
         currentUserId={user?.user_id || user?.id}
       />
 
-      {isGuest && (
+      {isGuest ? (
         <div
           data-testid="guest-banner"
           className="border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-4 sm:px-6 py-2 flex items-center gap-3 shrink-0"
-        >
-          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)]">
+        >          <span className="text-xs uppercase text-[var(--accent)]">
             preview
           </span>
           <span className="text-xs text-[var(--text-secondary)] flex-1">
-            Log in to persist this session and access all advanced features.
+            Sign in to keep this session and unlock every feature.
           </span>
           <button
             data-testid="guest-banner-signin"
             onClick={openSignIn}
-            className="text-xs font-medium text-[var(--accent)] hover:underline shrink-0"
+            className="min-h-11 inline-flex items-center text-xs font-medium text-[var(--accent)] hover:underline shrink-0"
           >
-            Log in →
+            Sign in
           </button>
         </div>
-      )}
+      ) : loading ? (
+        // B5#12 — reserve the banner's row while auth resolves so the
+        // late guest banner doesn't push the page down (CLS).
+        <div
+          data-testid="guest-banner-reserve"
+          aria-hidden="true"
+          className="h-[61px] shrink-0 border-b border-transparent"
+        />
+      ) : null}
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <main id="main" tabIndex={-1} className="flex-1 min-h-0 overflow-y-auto focus:outline-none">
         <div className="shrink-0 flex items-center border-b border-[var(--border)] px-4 sm:px-6 pt-3 bg-[var(--bg-primary)] sticky top-0 z-10 backdrop-blur overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none]">
-          <button
-            data-testid="panel-tab-state"
-            onClick={() => setPanelView("state")}
-            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-              panelView === "state"
-                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <LayoutDashboard className="w-3.5 h-3.5" /> Goals
-          </button>
-          <button
-            data-testid="panel-tab-today"
-            onClick={() => setPanelView("today")}
-            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-              panelView === "today"
-                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <CalendarDays className="w-3.5 h-3.5" /> Today
-          </button>
-          <button
-            data-testid="panel-tab-timeline"
-            onClick={() => setPanelView("timeline")}
-            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-              panelView === "timeline"
-                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <CalendarClock className="w-3.5 h-3.5" /> Timeline
-          </button>
-          <button
-            data-testid="panel-tab-memories"
-            onClick={() => setPanelView("memories")}
-            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-              panelView === "memories"
-                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <ImageIcon className="w-3.5 h-3.5" /> Memories
-          </button>
-          <button
-            data-testid="panel-tab-sources"
-            onClick={() => setPanelView("sources")}
-            className={`flex items-center gap-1.5 h-11 sm:h-9 px-3 font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
-              panelView === "sources"
-                ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" /> Sources
-          </button>
+          {/* Mobile — the tab strip is hidden below sm: the hamburger
+              drawer is the primary nav here (Header.js). The sticky bar
+              keeps its height and shows an obvious back affordance +
+              the current screen title instead. */}
+          <div className="sm:hidden flex items-center gap-2 min-w-0 w-full h-11">
+            {canGoBack && (
+              <button
+                data-testid="panel-back-button"
+                onClick={goBack}
+                aria-label="Back"
+                title="Back"
+                className="-ml-2 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              >
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+              </button>
+            )}
+            <h2 className="text-[15px] font-semibold text-[var(--text-primary)] truncate">
+              {activeScreen.label}
+            </h2>
+          </div>
+
+          {/* Desktop — the horizontal strip stays, now route-driven:
+              each tab is a real URL, and the active screen carries
+              aria-current. Visually unchanged. */}
+          <nav aria-label="Screens" className="hidden sm:flex items-center">
+            {SCREENS.map((s) => {
+              const Icon = s.Icon;
+              const active = s.key === panelView;
+              return (
+                <Link
+                  key={s.key}
+                  to={s.to}
+                  aria-current={active ? "page" : undefined}
+                  data-testid={`panel-tab-${s.key}`}
+                  className={`font-medium flex items-center gap-1.5 h-11 sm:h-9 px-3 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                    active
+                      ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" /> {s.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
-          {panelView === "state" ? (
-            <TrackingDashboard
-              state={state}
-              onAction={(goal, type) => openAction(goal, type)}
-              onUploadSource={uploadFile}
-              onAddLink={addLink}
-              onDeleteSource={deleteSource}
-              onCreated={refreshState}
-              onOpenChat={() => setChatOpen(true)}
-              onOpenChatWith={openChatWith}
-              onOpenToday={() => setPanelView("today")}
-              autoAnswer={autoAnswer}
-              grillMe={grillMe}
-              isGuest={isGuest}
-            />
-          ) : panelView === "today" ? (
-            <Today state={state} onChange={refreshState} onOpenChat={openChatWith} />
-          ) : panelView === "timeline" ? (
-            <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChatWith={openChatWith} />
-          ) : panelView === "sources" ? (
-            <Sources state={state} onChange={refreshState} />
-          ) : (
-            <Memories state={state} onChange={refreshState} />
-          )}
+          <Suspense fallback={<PanelSkeleton />}>
+            {panelView === "state" ? (
+              <TrackingDashboard
+                state={state}
+                loadError={stateError}
+                onRetry={refreshState}
+                onAction={(goal, type) => openAction(goal, type)}
+                onUploadSource={uploadFile}
+                onAddLink={addLink}
+                onDeleteSource={deleteSource}
+                onCreated={refreshState}
+                onOpenChat={() => setChatOpen(true)}
+                onOpenChatWith={openChatWith}
+                onOpenToday={() => goPanel("today")}
+                autoAnswer={autoAnswer}
+                grillMe={grillMe}
+                isGuest={isGuest}
+              />
+            ) : panelView === "today" ? (
+              <Today state={state} onChange={refreshState} onOpenChat={openChatWith} />
+            ) : panelView === "timeline" ? (
+              <Timeline
+                state={state}
+                onPrefill={() => setChatOpen(true)}
+                onOpenChatWith={openChatWith}
+              />
+            ) : panelView === "sources" ? (
+              <Sources state={state} onChange={refreshState} />
+            ) : (
+              <Memories state={state} onChange={refreshState} />
+            )}
+          </Suspense>
         </div>
-      </div>
+      </main>
 
       {/* Floating chat button — always visible, opens the centered modal. */}
       <button
@@ -381,7 +476,7 @@ export default function Coach() {
         onClick={() => setChatOpen(true)}
         title="Chat with your coach"
         aria-label="Chat with your coach"
-        className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] shadow-2xl flex items-center justify-center hover:opacity-90 transition-opacity"
+        className="fixed right-[max(1.5rem,env(safe-area-inset-right))] bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-40 h-14 w-14 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] shadow-2xl flex items-center justify-center hover:opacity-90 transition-opacity"
       >
         <MessageSquare className="w-6 h-6" />
       </button>

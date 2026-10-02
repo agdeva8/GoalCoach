@@ -26,6 +26,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+import useMediaQuery from "../hooks/useMediaQuery";
 
 /* ---------------------------------------------------------------------------
  * Sutra Timeline — 3-view dropdown: Day by day (Drill), At a glance (Strip),
@@ -187,19 +196,19 @@ const VIEW_TYPES = [
   {
     key: "drill",
     label: "Day by day",
-    sub: "See what's due each day",
+    sub: "see what's due each day",
     Icon: ListTree,
   },
   {
     key: "strip",
     label: "At a glance",
-    sub: "Snapshots for today, this week, this month…",
+    sub: "snapshots for today, this week, this month…",
     Icon: Layers,
   },
   {
     key: "calendar",
     label: "Calendar",
-    sub: "See tasks across the days they span",
+    sub: "see tasks across the days they span",
     Icon: LayoutGrid,
   },
 ];
@@ -690,20 +699,20 @@ function HeaderStrip({
               type="button"
               data-testid="timeline-viewtype-trigger"
               aria-label="Choose how to view your timeline"
-              className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+              className="inline-flex items-center gap-2 h-11 sm:h-9 px-3 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
               <ActiveIcon className="w-3.5 h-3.5 text-[var(--accent)]" aria-hidden="true" />
-              <span className="font-display text-[14px] font-semibold text-[var(--text-primary)]">
+              <span className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {activeView.label}
               </span>
-              <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] max-w-[180px] truncate">
-                · {activeView.sub}
+              <span className="hidden sm:inline text-xs text-[var(--text-muted)] max-w-[180px] truncate">
+                — {activeView.sub}
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)] ml-1" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-72">
-            <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+            <DropdownMenuLabel className="font-medium text-xs text-[var(--text-muted)]">
               View type
             </DropdownMenuLabel>
             {VIEW_TYPES.map((v) => {
@@ -723,9 +732,9 @@ function HeaderStrip({
                   <div className="flex-1 min-w-0">
                     <div className={`text-[13px] font-medium ${active ? "text-[var(--accent)]" : "text-[var(--text-primary)]"}`}>
                       {v.label}
-                      {active && <span className="ml-2 text-[10px] uppercase tracking-widest text-[var(--accent)]">· now</span>}
+                      {active && <span className="ml-2 text-xs uppercase text-[var(--accent)]">· now</span>}
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-snug">
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5 leading-snug">
                       {v.sub}
                     </div>
                   </div>
@@ -739,21 +748,21 @@ function HeaderStrip({
           <button
             data-testid="timeline-back"
             onClick={goBack}
-            className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
+            className="min-h-11 flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
           >
             <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" /> Back
           </button>
         )}
         {viewType === "drill" && (
           <div
-            className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]"
+            className="flex items-center gap-2 text-xs text-[var(--text-muted)]"
             data-testid="timeline-crumbs"
           >
             {crumbs.map((c, i) => (
-              <span key={i} className="flex items-center gap-1">
+              <span key={i} className="flex items-center gap-2">
                 {i > 0 && <span className="opacity-40">/</span>}
                 {c.onClick ? (
-                  <button onClick={c.onClick} className="hover:text-[var(--accent)] transition-colors">
+                  <button onClick={c.onClick} className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-[var(--accent)] transition-colors">
                     {c.label}
                   </button>
                 ) : (
@@ -764,11 +773,11 @@ function HeaderStrip({
           </div>
         )}
         {viewType === "drill" && (
-          <div className="flex items-center gap-0.5 ml-1">
+          <div className="flex items-center gap-2 ml-1">
             <button
               data-testid="timeline-prev-year"
               onClick={() => shiftYear(-1)}
-              className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Previous year"
               aria-label="Previous year"
             >
@@ -777,7 +786,7 @@ function HeaderStrip({
             <button
               data-testid="timeline-next-year"
               onClick={() => shiftYear(1)}
-              className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Next year"
               aria-label="Next year"
             >
@@ -797,28 +806,32 @@ function HeaderStrip({
         )}
 
         <div
-          className="ml-auto flex items-center gap-x-3 sm:gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] flex-wrap"
+          className="ml-auto flex items-center gap-x-3 sm:gap-x-4 gap-y-1 tabular-nums text-xs text-[var(--text-muted)] flex-wrap"
           data-testid="timeline-stats"
         >
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
             <span className="text-[var(--text-secondary)] tabular-nums">{stats.goals}</span>
-            <span className="hidden sm:inline">goals</span>
+            <span className="hidden sm:inline" aria-hidden="true">goals</span>
+            <span className="sr-only">goals</span>
           </span>
           <span className="flex items-center gap-1.5">
             <MilestoneIcon className="w-2.5 h-2.5 text-[var(--warning)]" aria-hidden="true" />
             <span className="text-[var(--text-secondary)] tabular-nums">{stats.milestones}</span>
-            <span className="hidden sm:inline">ms</span>
+            <span className="hidden sm:inline" aria-hidden="true">milestones</span>
+            <span className="sr-only">milestones</span>
           </span>
           <span className="flex items-center gap-1.5">
             <Flag className="w-2.5 h-2.5 text-[var(--accent)]" aria-hidden="true" />
             <span className="text-[var(--text-secondary)] tabular-nums">{stats.commitments}</span>
-            <span className="hidden sm:inline">open</span>
+            <span className="hidden sm:inline" aria-hidden="true">commitments</span>
+            <span className="sr-only">open commitments</span>
           </span>
           <span className="flex items-center gap-1.5">
             <AlertOctagon className="w-2.5 h-2.5 text-[var(--warning)]" aria-hidden="true" />
             <span className="text-[var(--text-secondary)] tabular-nums">{stats.blockers}</span>
-            <span className="hidden sm:inline">blockers</span>
+            <span className="hidden sm:inline" aria-hidden="true">blockers</span>
+            <span className="sr-only">blockers</span>
           </span>
           {stats.drift > 0 && (
             <span
@@ -828,11 +841,20 @@ function HeaderStrip({
             >
               <Circle className="w-2 h-2 fill-current" aria-hidden="true" />
               <span className="tabular-nums">{stats.drift}</span>
-              <span className="hidden sm:inline">past due</span>
+              <span className="hidden sm:inline" aria-hidden="true">past due</span>
+              <span className="sr-only">past due</span>
             </span>
           )}
         </div>
       </div>
+
+      {/* One-line orientation — the founder read Timeline as "goals only";
+          make it explicit that commitments/milestones (the things that
+          actually move a goal) live here too. */}
+      <p className="text-xs text-[var(--text-muted)] px-1">
+        Your goals and the commitments &amp; milestones that move them, laid out
+        across the days they're due.
+      </p>
     </div>
   );
 }
@@ -844,6 +866,39 @@ function HeaderStrip({
 function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
   const preset = CAL_SPANS.find((s) => s.key === span) || CAL_SPANS[2];
   const stepDays = preset.days;
+  // Mobile-first (Wave B decision #5): the span pills are a contextual
+  // option set, so below sm they render as a select-options button —
+  // never a wrapping/scrolling pill row. From sm up the original
+  // tablist chips stay, visually unchanged.
+  const showSpanSelect = !useMediaQuery("(min-width: 640px)");
+
+  // Date picker opened from the month label — jump straight to a day
+  // instead of clicking prev/next across months.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickMonth, setPickMonth] = useState(() => startOfDay(anchor));
+
+  const openPicker = (open) => {
+    if (open) setPickMonth(startOfDay(anchor));
+    setPickerOpen(open);
+  };
+
+  const pickDays = useMemo(() => {
+    const first = new Date(pickMonth.getFullYear(), pickMonth.getMonth(), 1);
+    const offset = (first.getDay() + 6) % 7; // Mon-first, matches startOfWeek
+    const count = new Date(pickMonth.getFullYear(), pickMonth.getMonth() + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < offset; i++) cells.push(null);
+    for (let d = 1; d <= count; d++) {
+      cells.push(new Date(pickMonth.getFullYear(), pickMonth.getMonth(), d));
+    }
+    return cells;
+  }, [pickMonth]);
+
+  const jumpToDay = (d) => {
+    setAnchor(startOfDay(d));
+    setSpan("day");
+    setPickerOpen(false);
+  };
 
   const label = useMemo(() => {
     const a = anchor;
@@ -857,7 +912,7 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
     if (span === "quarter") {
       const q = Math.floor(a.getMonth() / 3) * 3;
       const qEnd = new Date(a.getFullYear(), q + 3, 0);
-      return `Q${Math.floor(a.getMonth() / 3) + 1} ${a.getFullYear()} · ${MONTHS[q]} – ${MONTHS[qEnd.getMonth()]}`;
+      return `Q${Math.floor(a.getMonth() / 3) + 1} ${a.getFullYear()} (${MONTHS[q]} – ${MONTHS[qEnd.getMonth()]})`;
     }
     return `${a.getFullYear()}`;
   }, [anchor, span]);
@@ -876,49 +931,142 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <div
-        className="inline-flex rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] p-0.5"
-        role="tablist"
-        aria-label="Calendar span"
-      >
-        {CAL_SPANS.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            data-testid={`timeline-cal-span-${s.key}`}
-            onClick={() => setSpan(s.key)}
-            role="tab"
-            aria-selected={span === s.key}
-            className={`h-8 sm:h-9 px-2 sm:px-2.5 text-[10px] font-mono uppercase tracking-widest transition-colors rounded ${
-              span === s.key
-                ? "bg-[var(--accent)] text-[var(--bg-primary)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
-            }`}
+      {showSpanSelect ? (
+        <Select value={span} onValueChange={setSpan}>
+          <SelectTrigger
+            data-testid="timeline-cal-span-select"
+            aria-label="Calendar span"
+            className="h-11 w-auto min-w-36 text-xs font-medium border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] text-[var(--text-primary)] rounded-md"
           >
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-0.5">
+            <SelectValue placeholder="Span" />
+          </SelectTrigger>
+          <SelectContent>
+            {CAL_SPANS.map((s) => (
+              <SelectItem key={s.key} value={s.key} className="min-h-11 text-sm">
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <div
+          className="inline-flex rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] p-0.5"
+          role="tablist"
+          aria-label="Calendar span"
+        >
+          {CAL_SPANS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              data-testid={`timeline-cal-span-${s.key}`}
+              onClick={() => setSpan(s.key)}
+              role="tab"
+              aria-selected={span === s.key}
+              className={`font-medium h-11 sm:h-9 min-w-11 px-2 sm:px-2.5 text-xs transition-colors rounded ${
+                span === s.key
+                  ? "bg-[var(--accent)] text-[var(--bg-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => setAnchor((a) => addDays(a, -stepDays))}
-          className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           title="Previous"
           aria-label="Previous"
         >
           <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
-        <h2
-          className="font-display text-[15px] sm:text-[17px] font-semibold text-[var(--text-primary)] tracking-tight min-w-[140px] sm:min-w-[200px] text-center"
-          aria-live="polite"
-        >
-          {label}
-        </h2>
+        <Popover open={pickerOpen} onOpenChange={openPicker}>
+          <h2
+            className="text-[15px] sm:text-[17px] font-semibold text-[var(--text-primary)] tracking-tight min-w-[140px] sm:min-w-[200px] text-center"
+            aria-live="polite"
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="timeline-month-label"
+                aria-label={`${label} — pick a day to jump to`}
+                className="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 -mx-1.5 hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              >
+                {label}
+                <CalendarClock className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+          </h2>
+          <PopoverContent align="center" className="w-[280px] p-3">
+            <div className="flex items-center justify-between mb-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setPickMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
+                }
+                className="h-8 w-8 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                title="Previous month"
+                aria-label="Previous month"
+              >
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                {fmtMonth(pickMonth)}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setPickMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
+                }
+                className="h-8 w-8 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                title="Next month"
+                aria-label="Next month"
+              >
+                <ChevronRight className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-0.5 mb-1" aria-hidden="true">
+              {DOW_SHORT.map((d, i) => (
+                <span
+                  key={`${d}-${i}`}
+                  className="h-6 flex items-center justify-center text-[10px] font-medium text-[var(--text-muted)]"
+                >
+                  {d}
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {pickDays.map((d, i) =>
+                d ? (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    onClick={() => jumpToDay(d)}
+                    className={`h-8 rounded text-xs tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                      sameDay(d, anchor)
+                        ? "bg-[var(--accent)] text-[var(--bg-primary)] font-semibold"
+                        : sameDay(d, today)
+                        ? "border border-[var(--accent)] text-[var(--accent)] font-semibold"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                    }`}
+                    aria-label={`Jump to ${fmtMonth(d)} ${d.getDate()}`}
+                  >
+                    {d.getDate()}
+                  </button>
+                ) : (
+                  <span key={`pad-${i}`} className="h-8" aria-hidden="true" />
+                ),
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
         <button
           type="button"
           onClick={() => setAnchor((a) => addDays(a, stepDays))}
-          className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           title="Next"
           aria-label="Next"
         >
@@ -926,10 +1074,13 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
         </button>
         <button
           type="button"
-          onClick={() => setAnchor(startOfDay(new Date()))}
-          disabled={isToday}
-          className="h-8 sm:h-9 px-2.5 rounded font-mono text-[10px] uppercase tracking-widest border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          data-testid="timeline-today-button"
+          onClick={() => {
+            setAnchor(startOfDay(new Date()));
+          }}
+          className="font-medium h-11 sm:h-9 px-2.5 rounded text-xs border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           style={{ background: "var(--bg-secondary)" }}
+          title="Jump to today in this view"
         >
           Today
         </button>
@@ -952,6 +1103,8 @@ function EmptyState({ onPrefill, onOpenChatWith }) {
       "What does a realistic timeline look like for my goals — proposed target dates and 2-4 milestones each, with buffer for real life.";
     if (typeof onOpenChatWith === "function") {
       onOpenChatWith("", {
+        scope: "generic",
+        kind: "plan_day",
         title: "Build my timeline",
         helperText,
       });
@@ -1001,20 +1154,20 @@ function EmptyState({ onPrefill, onOpenChatWith }) {
         </div>
 
         <h2 className="text-base sm:text-lg font-medium text-[var(--text-primary)] font-display">
-          Your timeline is a blank page
+          Nothing on your timeline yet
         </h2>
         <p className="mt-2 text-sm text-[var(--text-secondary)] leading-relaxed max-w-md mx-auto">
-          No dates on the map yet. Ask the coach to sketch a realistic timeline — it'll propose
-          target dates and a few milestones per goal, with buffer built in.
+          Ask the coach to sketch a realistic timeline — it'll propose target dates and a few
+          milestones per goal, with buffer built in.
         </p>
 
         {(onOpenChatWith || onPrefill) && (
           <button
             data-testid="timeline-prefill-button"
             onClick={onBuildTimeline}
-            className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+            className="font-medium min-h-11 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
           >
-            Ask the coach to build my timeline →
+            Ask the coach to build my timeline
           </button>
         )}
       </div>
@@ -1074,16 +1227,16 @@ function DrillView({ buckets, itemsIn, blockersIn, today, level, drill, stats })
                     {b.label}
                   </span>
                   {isNow && (
-                    <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--accent)] text-[var(--bg-primary)]">
+                    <span className="text-xs uppercase px-1.5 py-0.5 rounded bg-[var(--accent)] text-[var(--bg-primary)]">
                       now
                     </span>
                   )}
                 </div>
-                <span className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">{b.sub}</span>
+                <span className="text-xs text-[var(--text-muted)] shrink-0">{b.sub}</span>
               </div>
 
               {(goalsInBucket.length + msInBucket.length + csInBucket.length + bsInBucket.length) > 0 && (
-                <div className="flex items-center gap-3 px-3 mt-1.5 font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)]">
+                <div className="flex items-center gap-3 px-3 mt-1.5 tabular-nums text-xs text-[var(--text-muted)]">
                   {goalsInBucket.length > 0 && (
                     <span className="flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
@@ -1119,7 +1272,7 @@ function DrillView({ buckets, itemsIn, blockersIn, today, level, drill, stats })
                   <div key={'g-' + it.id} className="flex items-center gap-1.5 text-xs">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: HORIZON_COLOR[it.horizon] || "var(--accent)" }} />
                     <span className="truncate text-[var(--text-primary)]">{it.title}</span>
-                    <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] shrink-0">
+                    <span className="ml-auto tabular-nums text-xs text-[var(--text-muted)] shrink-0">
                       {fmtIso(it.date)}
                     </span>
                   </div>
@@ -1128,7 +1281,7 @@ function DrillView({ buckets, itemsIn, blockersIn, today, level, drill, stats })
                   <div key={'m-' + it.id} className="flex items-center gap-1.5 text-xs">
                     <MilestoneIcon className="w-3 h-3 text-[var(--warning)] shrink-0" aria-hidden="true" />
                     <span className="truncate text-[var(--text-secondary)]">{it.title}</span>
-                    <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] shrink-0">
+                    <span className="ml-auto tabular-nums text-xs text-[var(--text-muted)] shrink-0">
                       {fmtIso(it.date)}
                     </span>
                   </div>
@@ -1137,7 +1290,7 @@ function DrillView({ buckets, itemsIn, blockersIn, today, level, drill, stats })
                   <div key={'c-' + it.id} className="flex items-center gap-1.5 text-xs">
                     <Flag className="w-3 h-3 text-[var(--accent)] shrink-0" aria-hidden="true" />
                     <span className="truncate text-[var(--text-secondary)]">{it.title}</span>
-                    <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] shrink-0">
+                    <span className="ml-auto tabular-nums text-xs text-[var(--text-muted)] shrink-0">
                       {fmtIso(it.date)}
                     </span>
                   </div>
@@ -1149,7 +1302,7 @@ function DrillView({ buckets, itemsIn, blockersIn, today, level, drill, stats })
                   </div>
                 ))}
                 {its.length === 0 && bsInBucket.length === 0 && (
-                  <div className="text-[11px] text-[var(--text-muted)] italic">nothing scheduled</div>
+                  <div className="text-xs text-[var(--text-muted)] italic">nothing scheduled</div>
                 )}
               </div>
             </div>
@@ -1228,29 +1381,28 @@ function StripView({ state, today, openChat, onPrefill }) {
   }
 
   const handlers = {
-    goal: (g) =>
-      openChat(
-        `Let's focus on the goal "${g.title}". What's the next small step I should take this week?`,
-      ),
+    // Scoped openers — empty input, entity pinned in the conversation
+    // (same pattern as CalendarTile). No canned "Let's focus on…" prefills.
+    goal: (g) => openChat("", scopeForItem({ ...g, kind: "goal" })),
     commitment: (c) =>
-      openChat(
-        `I want to follow through on: "${c.text}". What's the best way to start?`,
-      ),
-    milestone: (m) =>
-      openChat(
-        `Let's check in on the milestone "${m.title}"${m.goal_title ? ` for ${m.goal_title}` : ""}.`,
-      ),
-    blocker: (b) =>
-      openChat(`I'm stuck on "${b.title}". Can you help me unblock this?`),
+      openChat("", scopeForItem({ ...c, kind: "commitment", title: c.text || c.title })),
+    milestone: (m) => openChat("", scopeForItem({ ...m, kind: "milestone" })),
+    blocker: (b) => openChat("", scopeForItem({ ...b, kind: "blocker" })),
+    // Horizon cards have no entity — open a scoped "plan" chat instead of
+    // passing the horizon object as a prefill value (it used to render as
+    // an object React child).
     horizon: (h) =>
-      openChat(
-        `Help me plan something for ${h.label.toLowerCase()} — what should I commit to?`,
-      ),
+      openChat("", {
+        scope: "generic",
+        kind: "plan_day",
+        title: `Plan my ${h.label.toLowerCase()}`,
+        helperText: `What should I commit to in the ${h.label.toLowerCase()} horizon?`,
+      }),
   };
 
   return (
     <div className="flex flex-col gap-5 gc-fade-in" aria-label="Timeline — at a glance">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1 tabular-nums text-xs text-[var(--text-muted)]">
         <span>
           <strong className="text-[var(--text-primary)] font-semibold">{totals.goals}</strong>{" "}
           goals
@@ -1273,14 +1425,19 @@ function StripView({ state, today, openChat, onPrefill }) {
         <span aria-hidden="true" className="hidden sm:inline">·</span>
         <button
           type="button"
+          data-testid="timeline-replan-button"
           onClick={() =>
-            openChat(
-              "Look at my whole timeline and suggest where to focus this week.",
-            )
+            openChat("", {
+              scope: "generic",
+              kind: "plan_day",
+              title: "Re-plan my timeline",
+              helperText:
+                "Look at my whole timeline and suggest where to focus this week.",
+            })
           }
           className="hidden sm:inline ml-auto text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
         >
-          Ask the coach to re-plan →
+          Ask the coach to re-plan
         </button>
       </div>
 
@@ -1296,15 +1453,15 @@ function StripView({ state, today, openChat, onPrefill }) {
             >
               <div id={`strip-${h.key}`} className="flex items-baseline justify-between gap-2 mb-2 px-1">
                 <div className="flex items-baseline gap-2 min-w-0">
-                  <h3 className="font-display text-[15px] font-semibold text-[var(--text-primary)] truncate">
+                  <h3 className="text-[15px] font-semibold text-[var(--text-primary)] truncate">
                     {h.label}
                   </h3>
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] truncate">
+                  <span className="text-xs text-[var(--text-muted)] truncate">
                     {h.sub}
                   </span>
                 </div>
                 <span
-                  className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-secondary)] shrink-0"
+                  className="tabular-nums text-xs text-[var(--text-secondary)] shrink-0"
                   aria-label={`${items.length} item${items.length === 1 ? "" : "s"}`}
                 >
                   {items.length}
@@ -1384,9 +1541,9 @@ function StripEmptyState({ onAsk }) {
       >
         <CalendarClock size={22} style={{ color: "var(--accent)" }} aria-hidden="true" />
       </div>
-      <div className="space-y-1.5 max-w-md">
+      <div className="space-y-2 max-w-md">
         <h3 className="font-display text-[18px] font-semibold text-[var(--text-primary)]">
-          Nothing to glance at yet
+          No goals or commitments yet
         </h3>
         <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
           Once you and your coach set a goal or commitment, it'll appear here organized by when
@@ -1398,11 +1555,15 @@ function StripEmptyState({ onAsk }) {
           type="button"
           data-testid="timeline-prefill-button"
           onClick={() =>
-            onAsk(
-              "Help me set my first goal and a small commitment for this week.",
-            )
+            onAsk("", {
+              scope: "generic",
+              kind: "plan_day",
+              title: "Set my first goal",
+              helperText:
+                "Help me set my first goal and a small commitment for this week.",
+            })
           }
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-[13px] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] transition-all"
+          className="min-h-11 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-[13px] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] transition-all"
         >
           <Sparkles size={14} aria-hidden="true" />
           Ask the coach to start
@@ -1443,18 +1604,18 @@ function EmptyStrip({ horizon, onAsk }) {
     <div
       className="snap-start shrink-0 min-w-[260px] w-[280px] sm:w-[300px] rounded-md border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] px-3.5 py-4 flex flex-col items-start gap-2"
       role="note"
-      aria-label={`No items in ${horizon.label.toLowerCase()}`}
+      aria-label={`Nothing due ${horizon.label.toLowerCase()}`}
     >
       <Inbox size={14} style={{ color: "var(--text-muted)" }} aria-hidden="true" />
-      <div className="font-display text-[13px] leading-snug text-[var(--text-secondary)]">
-        Nothing in {horizon.label.toLowerCase()} yet.
+      <div className="text-[13px] leading-snug text-[var(--text-secondary)]">
+        Nothing due {horizon.label.toLowerCase()}.
       </div>
       <button
         type="button"
         onClick={() => onAsk(horizon)}
-        className="mt-1 font-mono text-[10px] uppercase tracking-widest text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
+        className="font-medium mt-1 min-h-11 inline-flex items-center text-xs text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
       >
-        Ask the coach →
+        Ask the coach
       </button>
     </div>
   );
@@ -1465,7 +1626,7 @@ function HorizonPill({ horizon }) {
   if (!t) return null;
   return (
     <span
-      className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded"
+      className="text-xs uppercase px-1.5 py-0.5 rounded"
       style={{ background: t.bg, color: t.fg }}
       aria-label={`horizon: ${horizon}`}
     >
@@ -1495,7 +1656,7 @@ function StripStatusDot({ status, kind }) {
 function StripMetaLine({ icon: Icon, children, tone = "var(--text-muted)" }) {
   return (
     <span
-      className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest"
+      className="inline-flex items-center gap-1 tabular-nums text-xs"
       style={{ color: tone }}
     >
       <Icon size={11} aria-hidden="true" />
@@ -1546,7 +1707,7 @@ function GoalCard({ goal, today, onActivate }) {
         <HorizonPill horizon={goal.horizon} />
         <StripStatusDot status={goal.status} />
       </div>
-      <div className="font-display text-[14px] leading-snug font-semibold text-[var(--text-primary)] line-clamp-2">
+      <div className="text-[14px] leading-snug font-semibold text-[var(--text-primary)] line-clamp-2">
         {goal.title}
       </div>
       {goal.next_action && (
@@ -1585,16 +1746,16 @@ function CommitmentCard({ c, today, onActivate }) {
       onActivate={() => onActivate(c)}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-secondary)]">
-          commitment
+        <span className="font-medium text-xs text-[var(--text-secondary)]">
+          Commitment
         </span>
         <StripStatusDot status={c.status} kind="commitment" />
       </div>
-      <div className="font-display text-[14px] leading-snug text-[var(--text-primary)] line-clamp-3">
+      <div className="text-[14px] leading-snug text-[var(--text-primary)] line-clamp-3">
         {c.text}
       </div>
       {c.goal_title && (
-        <div className="text-[11px] text-[var(--text-muted)] line-clamp-1">↳ {c.goal_title}</div>
+        <div className="text-xs text-[var(--text-muted)] line-clamp-1">↳ {c.goal_title}</div>
       )}
       <div className="mt-auto pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2">
         {due ? (
@@ -1602,7 +1763,7 @@ function CommitmentCard({ c, today, onActivate }) {
             {days < 0 ? `${Math.abs(days)}d late` : days === 0 ? "today" : `${days}d`}
           </StripMetaLine>
         ) : (
-          <StripMetaLine icon={Flag}>no due</StripMetaLine>
+          <StripMetaLine icon={Flag}>no due date</StripMetaLine>
         )}
       </div>
     </StripCardBase>
@@ -1627,16 +1788,16 @@ function MilestoneCard({ m, today, onActivate }) {
       onActivate={() => onActivate(m)}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-secondary)]">
-          milestone
+        <span className="font-medium text-xs text-[var(--text-secondary)]">
+          Milestone
         </span>
         <StripStatusDot status={m.status} kind="milestone" />
       </div>
-      <div className="font-display text-[14px] leading-snug font-semibold text-[var(--text-primary)] line-clamp-2">
+      <div className="text-[14px] leading-snug font-semibold text-[var(--text-primary)] line-clamp-2">
         {m.title}
       </div>
       {m.goal_title && (
-        <div className="text-[11px] text-[var(--text-muted)] line-clamp-1">↳ {m.goal_title}</div>
+        <div className="text-xs text-[var(--text-muted)] line-clamp-1">↳ {m.goal_title}</div>
       )}
       <div className="mt-auto pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2">
         {target ? (
@@ -1660,12 +1821,12 @@ function BlockerCard({ b, onActivate }) {
       onActivate={() => onActivate(b)}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--danger)]">
-          blocker
+        <span className="font-medium text-xs text-[var(--danger)]">
+          Blocker
         </span>
         <AlertOctagon size={11} style={{ color: "var(--danger)" }} aria-hidden="true" />
       </div>
-      <div className="font-display text-[14px] leading-snug text-[var(--text-primary)] line-clamp-3">
+      <div className="text-[14px] leading-snug text-[var(--text-primary)] line-clamp-3">
         {b.title}
       </div>
       <div className="mt-auto pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2">
@@ -1863,10 +2024,10 @@ function CalendarView({
     const yearStart = new Date(anchor.getFullYear(), 0, 1);
     const yearEnd = new Date(anchor.getFullYear() + 1, 0, 1);
     const quarters = [
-      { label: "Q1 · Jan – Mar", start: new Date(anchor.getFullYear(), 0, 1) },
-      { label: "Q2 · Apr – Jun", start: new Date(anchor.getFullYear(), 3, 1) },
-      { label: "Q3 · Jul – Sep", start: new Date(anchor.getFullYear(), 6, 1) },
-      { label: "Q4 · Oct – Dec", start: new Date(anchor.getFullYear(), 9, 1) },
+      { label: "Q1 (Jan – Mar)", start: new Date(anchor.getFullYear(), 0, 1) },
+      { label: "Q2 (Apr – Jun)", start: new Date(anchor.getFullYear(), 3, 1) },
+      { label: "Q3 (Jul – Sep)", start: new Date(anchor.getFullYear(), 6, 1) },
+      { label: "Q4 (Oct – Dec)", start: new Date(anchor.getFullYear(), 9, 1) },
     ];
 
     const buildQuarterRows = (qStart) => {
@@ -1899,12 +2060,16 @@ function CalendarView({
           className="rounded-lg border border-[var(--border-accent)] overflow-hidden"
           style={{ background: "var(--bg-primary)" }}
         >
+          {/* B4#7 — below md each quarter column is ~86px wide, leaving
+              ~6px/day in the week rows. Scroll horizontally on phones
+              (620px floor) instead of crushing; md+ keeps the 4-up grid. */}
+          <div className="overflow-x-auto md:overflow-visible">
+          <div className="min-w-[620px] md:min-w-0">
           <div
-            role="row"
-            className="grid grid-cols-4 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
+            className="font-medium grid grid-cols-4 text-xs text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
           >
             {quarters.map((q, qi) => (
-              <div key={qi} role="columnheader" className="px-2 py-2 text-center select-none border-r last:border-r-0 border-[var(--border-accent)]">
+              <div key={qi} className="px-2 py-2 text-center select-none border-r last:border-r-0 border-[var(--border-accent)]">
                 {q.label}
               </div>
             ))}
@@ -1923,12 +2088,11 @@ function CalendarView({
                     return (
                       <div
                         key={ri}
-                        role="row"
                         data-testid={`timeline-cal-year-row-${qi}-${ri}`}
                         className="grid grid-cols-[44px_1fr] border-b last:border-b-0 border-[var(--border)]"
                         style={{ minHeight: `${rowHeight}px`, background: isToday ? "color-mix(in srgb, var(--accent) 8%, var(--bg-primary))" : undefined }}
                       >
-                        <div className={`px-1.5 py-1 font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] flex items-center ${isToday ? "text-[var(--accent)] font-semibold" : ""}`}>
+                        <div className={`px-1.5 py-1 text-xs font-medium text-[var(--text-muted)] flex items-center ${isToday ? "text-[var(--accent)] font-semibold" : ""}`}>
                           {wkLabel}
                         </div>
                         <div className="relative px-1 py-0.5" style={{ minHeight: `${rowHeight}px` }}>
@@ -1963,7 +2127,7 @@ function CalendarView({
                                     onClick={() => openChat("", scoped)}
                                     title={it.title}
                                     aria-label={`${it.kind}: ${it.title}`}
-                                    className="group block h-3.5 rounded-[2px] text-left text-[10px] px-1 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                                    className="group block min-h-11 rounded-[2px] text-left text-xs px-1 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                                     style={{
                                       marginLeft: `${offset * 100}%`,
                                       width: `${width * 100}%`,
@@ -1987,15 +2151,33 @@ function CalendarView({
               );
             })}
           </div>
+          </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
           <span>
-            <span className="text-[var(--text-secondary)]">← →</span> year ·{" "}
-            <span className="text-[var(--text-secondary)]">T</span> today ·{" "}
+            <span className="text-[var(--text-secondary)]">← →</span> year, {" "}
+            <span className="text-[var(--text-secondary)]">T</span> today, {" "}
             <span className="text-[var(--text-secondary)]">1–5</span> change span
           </span>
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ background: "var(--accent)" }}
+              />
+              <span>goals</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" className="text-[var(--accent)]">▸</span>
+              <span>commitments</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" className="text-[var(--warning)]">◆</span>
+              <span>milestones</span>
+            </span>
             <BarLegendSwatch hue="var(--success)" label="on track" />
             <BarLegendSwatch hue="var(--warning)" label="in progress" />
             <BarLegendSwatch hue="var(--danger)" label="overdue" />
@@ -2049,11 +2231,10 @@ function CalendarView({
           style={{ background: "var(--bg-primary)" }}
         >
           <div
-            role="row"
-            className="grid grid-cols-[88px_1fr] font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
+            className="font-medium grid grid-cols-[88px_1fr] text-[12px] text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
           >
-            <div role="columnheader" className="px-2 py-2">Week</div>
-            <div role="columnheader" className="px-2 py-2">Items · status-colored bars</div>
+            <div className="px-2 py-2">Week</div>
+            <div className="px-2 py-2">Items (status-colored bars)</div>
           </div>
           <div className="divide-y divide-[var(--border)]">
             {rows.map((r, ri) => {
@@ -2061,12 +2242,11 @@ function CalendarView({
               return (
                 <div
                   key={ri}
-                  role="row"
                   data-testid={`timeline-cal-quarter-row-${ri}`}
                   className="grid grid-cols-[88px_1fr]"
                   style={{ minHeight: `${rowHeight}px` }}
                 >
-                  <div className="px-2 py-2 font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-r border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] flex items-center">
+                  <div className="font-medium px-2 py-2 text-[12px] text-[var(--text-muted)] border-r border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] flex items-center">
                     {wkLabel}
                   </div>
                   <div
@@ -2085,7 +2265,7 @@ function CalendarView({
                     </div>
                     <div className="relative space-y-1">
                       {r.items.length === 0 ? (
-                        <span className="font-mono text-[12px] text-[var(--text-muted)] italic">nothing scheduled</span>
+                        <span className="text-[12px] text-[var(--text-muted)] italic">nothing scheduled</span>
                       ) : (
                         r.items.slice(0, 4).map((it) => {
                           const s = startOfDay(it.start || it.date);
@@ -2107,7 +2287,7 @@ function CalendarView({
                               onClick={() => openChat("", scoped)}
                               title={it.title}
                               aria-label={`${it.kind}: ${it.title}`}
-                              className="group block h-5 rounded-[3px] text-left text-[12px] px-2 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                              className="group block min-h-11 rounded-[3px] text-left text-[12px] px-2 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                               style={{
                                 marginLeft: `${offset * 100}%`,
                                 width: `${width * 100}%`,
@@ -2132,10 +2312,26 @@ function CalendarView({
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
-            ← → 3 months · T today · 1–5 change span
+          <div className="text-[12px] text-[var(--text-muted)]">
+            ← → 3 months, T today, 1–5 change span
           </div>
-          <div className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] flex flex-wrap items-center gap-x-2 gap-y-1">
+          <div className="text-[12px] text-[var(--text-muted)] flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ background: "var(--accent)" }}
+              />
+              <span>goals</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" className="text-[var(--accent)]">▸</span>
+              <span>commitments</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" className="text-[var(--warning)]">◆</span>
+              <span>milestones</span>
+            </span>
             <BarLegendSwatch hue="var(--success)" label="on track" />
             <BarLegendSwatch hue="var(--warning)" label="in progress" />
             <BarLegendSwatch hue="var(--danger)" label="overdue" />
@@ -2161,9 +2357,14 @@ function CalendarView({
         <div className="border border-[var(--border-accent)] rounded p-4" style={{ background: "var(--bg-secondary)" }}>
           <div className="flex items-baseline justify-between mb-3">
             <h3 className="font-display text-[16px] font-semibold text-[var(--text-primary)]">
-              {fmtDay(anchor)}, {MONTHS_FULL[anchor.getMonth()]} {anchor.getDate()}
+              {anchor.toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
             </h3>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+            <span className="tabular-nums text-xs text-[var(--text-muted)]">
               {its.length} item{its.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -2176,14 +2377,19 @@ function CalendarView({
             ))}
           </div>
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-          ← → day · T today · 1–5 change span
+        <div className="text-xs text-[var(--text-muted)]">
+          ← → day, T today, 1–5 change span
         </div>
       </div>
     );
   }
 
-  const baseBarHeight = 26;
+  // Lane height for the week/month grids. Must fit a full tap target:
+  // CalendarTile is min-h-11 (44px) and its grid item carries 2px
+  // vertical padding on each side, so 44 + 4 = 48. At the old 26px the
+  // 44px tiles overflowed the lane and painted over the next week's
+  // day-number row.
+  const baseBarHeight = 48;
 
   return (
     <div className="space-y-3">
@@ -2192,11 +2398,10 @@ function CalendarView({
         style={{ background: "var(--bg-primary)" }}
       >
         <div
-          role="row"
-          className="grid grid-cols-7 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
+          className="font-medium grid grid-cols-7 text-xs text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
         >
           {DOW.map((d, i) => (
-            <div key={d} role="columnheader" className="px-2 py-2 text-center select-none">
+            <div key={d} className="px-2 py-2 text-center select-none">
               <span className="hidden sm:inline">{DOW[i]}</span>
               <span className="sm:hidden">{DOW_SHORT[i]}</span>
             </div>
@@ -2212,7 +2417,7 @@ function CalendarView({
               gridTemplateRows: `auto repeat(${maxLanes}, ${baseBarHeight}px)`,
             };
             return (
-              <div key={wi} role="row" className="grid relative" style={gridStyle}>
+              <div key={wi} className="grid relative" style={gridStyle}>
                 {/* Column guides span the FULL row height, including the
                     tile lanes. Previously only the day-number row (gridRow
                     1) drew a right border, so the day columns visually
@@ -2233,8 +2438,8 @@ function CalendarView({
                     return (
                       <div
                         key={ci}
-                        role="gridcell"
-                        className="relative px-1.5 pt-1 pb-1 min-h-[36px] opacity-40"
+
+                        className="relative px-1.5 pt-1 pb-1 min-h-[36px] opacity-70"
                         style={{ gridColumn: ci + 1, gridRow: 1 }}
                       />
                     );
@@ -2245,11 +2450,11 @@ function CalendarView({
                   return (
                     <div
                       key={ci}
-                      role="gridcell"
+
                       aria-label={`${MONTHS_FULL[cell.date.getMonth()]} ${cell.date.getDate()}${isToday ? ", today" : ""}${count ? `, ${count} item${count === 1 ? "" : "s"}` : ""}`}
                       className={[
                         "relative px-1.5 pt-1 pb-1 min-h-[36px]",
-                        cell.inSpan ? "" : "opacity-40",
+                        cell.inSpan ? "" : "opacity-70",
                         isToday
                           ? "ring-1 ring-inset ring-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-primary))]"
                           : "",
@@ -2259,7 +2464,7 @@ function CalendarView({
                       <div className="flex items-start justify-between">
                         <span
                           className={[
-                            "font-mono text-[10px] tabular-nums leading-none",
+                            "text-xs tabular-nums leading-none",
                             isToday ? "font-bold text-[var(--accent)]" : "text-[var(--text-secondary)]",
                           ].join(" ")}
                         >
@@ -2289,13 +2494,31 @@ function CalendarView({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
         <span>
-          <span className="text-[var(--text-secondary)]">← →</span> {span === "week" ? "week" : span === "month" ? "month" : "3 months"} ·{" "}
-          <span className="text-[var(--text-secondary)]">T</span> today ·{" "}
+          <span className="text-[var(--text-secondary)]">← →</span> {span === "week" ? "week" : span === "month" ? "month" : "3 months"}, {" "}
+          <span className="text-[var(--text-secondary)]">T</span> today, {" "}
           <span className="text-[var(--text-secondary)]">1–5</span> change span
         </span>
-        <span>click a tile to chat with the coach</span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ background: "var(--accent)" }}
+            />
+            <span>goals</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="text-[var(--accent)]">▸</span>
+            <span>commitments</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="text-[var(--warning)]">◆</span>
+            <span>milestones</span>
+          </span>
+          <span>— click a tile to chat with the coach</span>
+        </span>
       </div>
     </div>
   );
@@ -2320,15 +2543,15 @@ function CalendarTile({ item, today, openChat }) {
   // so the bar's width is legible as a duration, not just a block.
   const range =
     spanDays > 1 && item.start && item.end
-      ? ` · ${fmtDay(startOfDay(item.start))} – ${fmtDay(startOfDay(item.end))}`
+      ? `, ${fmtDay(startOfDay(item.start))} – ${fmtDay(startOfDay(item.end))}`
       : "";
-  const inferredNote = item.inferredSpan ? " · estimated from horizon" : "";
+  const inferredNote = item.inferredSpan ? ", estimated from horizon" : "";
   const tip = item.kind === "goal"
-    ? `Goal: ${item.title}${item.horizon ? ` · ${HORIZON_LABEL[item.horizon] || ""}` : ""}${range}${inferredNote}`
+    ? `Goal: ${item.title}${item.horizon ? `, ${HORIZON_LABEL[item.horizon] || ""}` : ""}${range}${inferredNote}`
     : item.kind === "milestone"
-    ? `Milestone: ${item.title}${item.goalTitle ? ` · ${item.goalTitle}` : ""}`
+    ? `Milestone: ${item.title}${item.goalTitle ? `, ${item.goalTitle}` : ""}`
     : item.kind === "commitment"
-    ? `Commitment: ${item.title}${item.goalTitle ? ` · ${item.goalTitle}` : ""}`
+    ? `Commitment: ${item.title}${item.goalTitle ? `, ${item.goalTitle}` : ""}`
     : `Blocker: ${item.title}`;
 
   // Iteration 5 (Issue 7+8) — thread scoped chat context. No more
@@ -2356,7 +2579,7 @@ function CalendarTile({ item, today, openChat }) {
         onClick={onActivate}
         title={tip}
         aria-label={tip}
-        className="h-full w-full rounded-[3px] flex items-center gap-1.5 px-1.5 font-mono text-[10px] uppercase tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
+        className="min-h-11 w-full rounded-[3px] flex items-center gap-1.5 px-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
         style={{
           background: paint.background,
           // Keep the diagonal-stripe treatment that flags blockers as
@@ -2367,6 +2590,7 @@ function CalendarTile({ item, today, openChat }) {
           color: paint.color,
           opacity: isPast ? 0.85 : 1,
           fontWeight: 500,
+          minHeight: "44px",
           // Pad the label off the leading-edge stripe (if any).
           paddingLeft: paint.stripe ? 10 : undefined,
         }}
@@ -2385,8 +2609,8 @@ function CalendarTile({ item, today, openChat }) {
         onClick={onActivate}
         title={tip}
         aria-label={tip}
-        className="h-full w-full rounded-[3px] px-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--bg-primary)] flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
-        style={{ background: color, opacity: isDone ? 0.55 : 1, fontWeight: 500 }}
+        className="min-h-11 w-full rounded-[3px] px-1.5 text-xs text-[var(--bg-primary)] flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
+        style={{ background: color, opacity: isDone ? 0.55 : 1, fontWeight: 500, minHeight: "44px" }}
       >
         <Target size={9} aria-hidden="true" />
         <span className="truncate">{item.title}</span>
@@ -2401,13 +2625,14 @@ function CalendarTile({ item, today, openChat }) {
       onClick={onActivate}
       title={tip}
       aria-label={tip}
-      className="group h-full w-full text-left rounded-[3px] px-1.5 truncate font-mono text-[10px] uppercase tracking-widest transition-all hover:brightness-110 hover:z-10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)]"
+      className="group min-h-11 w-full text-left rounded-[3px] px-1.5 truncate text-xs transition-all hover:brightness-110 hover:z-10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)]"
       style={{
         background: paint.background,
         boxShadow: paint.boxShadow,
         color: paint.color,
         opacity: isDone ? 0.55 : isPast ? 0.85 : 1,
         fontWeight: 500,
+        minHeight: "44px",
         // Pad the label off the leading-edge stripe (if any).
         paddingLeft: paint.stripe ? 10 : undefined,
       }}
@@ -2429,7 +2654,7 @@ function CalendarMiniItem({ item, today }) {
     : "var(--danger)";
 
   return (
-    <div className="flex items-center gap-1.5 text-[11px] leading-tight">
+    <div className="flex items-center gap-1.5 text-xs leading-tight">
       <span className="w-1 h-1 rounded-full shrink-0" style={{ background: color }} />
       <span className="truncate text-[var(--text-secondary)]">{item.title}</span>
     </div>
@@ -2447,11 +2672,11 @@ function CalendarDayItem({ item, today, openChat }) {
     <button
       type="button"
       onClick={onActivate}
-      className="w-full flex items-center gap-3 p-2 rounded border border-[var(--border)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-tertiary)] transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      className="min-h-11 w-full flex items-center gap-3 p-2 rounded border border-[var(--border)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-tertiary)] transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
       style={{ background: "var(--bg-primary)" }}
     >
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-      <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] shrink-0">
+      <span className="font-medium text-xs text-[var(--text-muted)] shrink-0">
         {item.kind}
       </span>
       <span className="truncate text-[var(--text-primary)] text-[13px]">{item.title}</span>
@@ -2473,7 +2698,7 @@ function CalendarEmptyState({ onAsk }) {
         <CalendarClock size={22} className="text-[var(--accent)]" aria-hidden="true" />
       </div>
       <h3 className="font-display text-[18px] font-semibold text-[var(--text-primary)]">
-        Nothing on the calendar yet
+        Nothing scheduled yet
       </h3>
       <p className="text-[13px] text-[var(--text-secondary)] mt-1.5 max-w-sm">
         Goals, milestones, and commitments will appear here as colored tiles across the days they cover.
@@ -2485,8 +2710,16 @@ function CalendarEmptyState({ onAsk }) {
         <button
           type="button"
           data-testid="timeline-prefill-button"
-          onClick={() => onAsk("")}
-          className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md font-mono text-[11px] uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
+          onClick={() =>
+            onAsk("", {
+              scope: "generic",
+              kind: "plan_day",
+              title: "Schedule my goals",
+              helperText:
+                "Goals, milestones, and commitments will appear here as colored tiles across the days they cover.",
+            })
+          }
+          className="font-medium mt-4 inline-flex items-center gap-1.5 h-11 sm:h-9 px-3.5 rounded-md text-xs text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
           style={{ background: "var(--accent)" }}
         >
           <Sparkles size={13} aria-hidden="true" />

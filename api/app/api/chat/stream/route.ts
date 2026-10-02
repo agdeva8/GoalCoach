@@ -32,6 +32,7 @@
 
 import { randomUUID } from 'node:crypto'
 
+import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 
 import {
@@ -39,13 +40,16 @@ import {
   getModel,
   parseProposals,
   splitProseAndTools,
+  splitProseAndToolsAndImpact,
   proposeGoalFromMessage,
   parseDropIntent,
   streamChat,
   TOOL_START,
   TOOL_END,
+  IMPACT_START,
   type ProviderId,
   type Proposal,
+  type StateImpact,
 } from '@/lib/emergent/llm'
 import { SYSTEM_PROMPT } from '@/lib/llm/prompts'
 import { resolveRequestUser } from '@/lib/request-user'
@@ -188,6 +192,13 @@ export async function POST(req: NextRequest) {
   // `refId`, mint a per-entity conversation (`conv_<kind>_<refId>`) so
   // later messages keep the title + context. Falls back to the user's
   // general bucket when no scope is provided.
+  //
+  // Iteration N — defensive redirect: if the requested conversation is
+  // already `status='closed'` (sealed on first confirm), mint a fresh
+  // `refId` server-side and create a new conversation row. The original
+  // conversation is read-only for new messages. The frontend already
+  // swaps `refId` on confirm, but this firewall ensures the LLM never
+  // sees the sealed bucket's history even if the client is buggy.
   const clientScope = typeof body.scope === 'string' ? body.scope : null
   const clientRefId = typeof body.refId === 'string' ? body.refId : null
   const clientKindRaw = typeof body.kind === 'string' ? body.kind : null
@@ -197,13 +208,49 @@ export async function POST(req: NextRequest) {
       : null
   const scopedKind: ConvKind =
     clientKind ?? (clientScope ? SCOPE_TO_KIND[clientScope] ?? 'general' : 'general')
-  const conversationId =
+  const requestedConversationId =
     clientScope && clientRefId
       ? `conv_${scopedKind}_${clientRefId}`
       : `conv_general_${caller.userId}`
+
+  let conversationId = requestedConversationId
+  let effectiveRefId: string | null = clientRefId
+  let serverRedirected = false
+
+  // goalId to store on the conversation row. clientRefId may be a real
+  // goal id OR a new_goal_<uuid> placeholder minted by AddGoalDialog.
+  // Placeholders never exist in the goals table — carry null for those.
+  let conversationGoalId: string | null =
+    clientScope === 'goal' && clientRefId && !clientRefId.startsWith('new_goal_')
+      ? clientRefId
+      : null
+
+  if (clientScope && clientRefId) {
+    // Only scoped conversations can be sealed — `conv_general_<userId>`
+    // is the long-lived default and never gets closed.
+    const existing = await db
+      .select({ id: conversations.id, status: conversations.status })
+      .from(conversations)
+      .where(eq(conversations.id, requestedConversationId))
+      .limit(1)
+
+    if (existing[0]?.status === 'closed') {
+      effectiveRefId = `new_goal_${randomUUID().slice(0, 8)}`
+      conversationId = `conv_${scopedKind}_${effectiveRefId}`
+      serverRedirected = true
+      // The original goalId (clientRefId) was a placeholder that never
+      // existed in the goals table — do NOT carry it forward.
+      conversationGoalId = null
+    }
+  }
+
   const convTitle =
     typeof body.title === 'string' && body.title.trim().length > 0
       ? body.title.trim().slice(0, 200)
+      : ''
+  const convHelper =
+    typeof body.helperText === 'string' && body.helperText.trim().length > 0
+      ? body.helperText.trim().slice(0, 500)
       : ''
   await db
     .insert(conversations)
@@ -213,7 +260,7 @@ export async function POST(req: NextRequest) {
       kind: scopedKind,
       title: convTitle,
       status: 'open',
-      goalId: clientScope === 'goal' && clientRefId ? clientRefId : null,
+      goalId: conversationGoalId,
     })
     .onConflictDoNothing({ target: conversations.id })
 
@@ -227,8 +274,19 @@ export async function POST(req: NextRequest) {
   })
 
   const [contextString, historyRows, userState] = await Promise.all([
-    buildContext(caller.userId, message, autoAnswer),
-    loadHistory(caller.userId, HISTORY_LIMIT),
+    buildContext(
+      caller.userId,
+      conversationId,
+      scopedKind,
+      message,
+      autoAnswer,
+      { title: convTitle, helperText: convHelper },
+    ),
+    loadHistory(
+      caller.userId,
+      conversationId,
+      scopedKind === 'general' ? HISTORY_LIMIT : 12,
+    ),
     loadState(caller.userId),
   ])
 
@@ -257,6 +315,14 @@ export async function POST(req: NextRequest) {
         let proseEmitted = 0
         let inTools = false
 
+        // Operation-mode hint now lives in the SYSTEM_PROMPT itself (see
+        // lib/llm/prompts.ts — "=== OPERATION MODE ==="). When
+        // `proactive_propose` is true (frontend's signal that the user
+        // wants a goal created NOW), we append an inline `=== ADD GOAL
+        // MODE ===` block as a strong nudge. The prompt's permanent
+        // ADD GOAL MODE section handles the general guidance; this inline
+        // block forces the "create + milestones now, not a clarifying
+        // question" path even when the LLM might otherwise hesitate.
         const addGoalHint = proactive_propose
           ? '\n\n=== ADD GOAL MODE ===\nThe user has opened the Add Goal dialog and wants a goal created now. State your single biggest assumption in one short line, then emit a [[TOOLS]] block with a create_goal + 2-3 add_milestone actions. Use TODAY + ~90 days as the default target_date if no deadline was given.'
           : ''
@@ -271,26 +337,36 @@ export async function POST(req: NextRequest) {
             fullText += ev.content
 
             if (inTools) {
-              // Once in the tools block, never emit more prose deltas.
+              // Once in any delimiter block ([[TOOLS]] or [[IMPACT]]),
+              // never emit more prose deltas.
               continue
             }
 
-            const idx = fullText.indexOf(TOOL_START)
-            if (idx === -1) {
-              // No [[TOOLS]] seen yet — be conservative and hold back the
-              // last `len(TOOL_START)` chars in case a boundary is split
+            // Track both delimiters independently. Whichever appears
+            // first in the accumulated text becomes the prose boundary;
+            // once we've crossed it we suppress further delta events.
+            const toolIdx = fullText.indexOf(TOOL_START)
+            const impactIdx = fullText.indexOf(IMPACT_START)
+            const firstDelimIdx = [toolIdx, impactIdx]
+              .filter((i) => i !== -1)
+              .sort((a, b) => a - b)[0] ?? -1
+
+            if (firstDelimIdx === -1) {
+              // No delimiter yet — be conservative and hold back the
+              // last `max(len(start))` chars in case a boundary is split
               // across chunks.
-              const safeUpTo = Math.max(proseEmitted, fullText.length - TOOL_START.length)
+              const safeLen = Math.max(TOOL_START.length, IMPACT_START.length)
+              const safeUpTo = Math.max(proseEmitted, fullText.length - safeLen)
               if (safeUpTo > proseEmitted) {
                 enqueue({ type: 'delta', content: fullText.slice(proseEmitted, safeUpTo) })
                 proseEmitted = safeUpTo
               }
             } else {
-              // [[TOOLS]] found — emit only the prose before it.
-              if (idx > proseEmitted) {
-                enqueue({ type: 'delta', content: fullText.slice(proseEmitted, idx) })
+              // First delimiter reached — emit only the prose before it.
+              if (firstDelimIdx > proseEmitted) {
+                enqueue({ type: 'delta', content: fullText.slice(proseEmitted, firstDelimIdx) })
               }
-              proseEmitted = idx
+              proseEmitted = firstDelimIdx
               inTools = true
             }
           } else if (ev.type === 'stream_done') {
@@ -302,8 +378,11 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Parse proposals from the accumulated text.
-        let { prose, proposals } = splitProseAndTools(fullText)
+        // Parse proposals + state impact from the accumulated text.
+        // Iteration N: `splitProseAndToolsAndImpact` handles both
+        // `[[TOOLS]]` and `[[IMPACT]]` blocks (last-occurrence-wins for
+        // impact, identical to Python's tools semantics).
+        let { prose, proposals, impact } = splitProseAndToolsAndImpact(fullText)
         assistantMessageId = `msg_${Date.now()}_${randomUUID().slice(0, 8)}`
 
         // Option B fallback — safety net behind the prompt strengthening in
@@ -482,6 +561,9 @@ export async function POST(req: NextRequest) {
         if (proposals.length > 0) {
           enqueue({ type: 'tools', message_id: assistantMessageId, proposals })
         }
+        if (impact) {
+          enqueue({ type: 'impact', message_id: assistantMessageId, impact })
+        }
         if (needsClarification && clarifyingQuestions.length > 0) {
           enqueue({
             type: 'needs_clarification',
@@ -490,7 +572,19 @@ export async function POST(req: NextRequest) {
             questions: clarifyingQuestions,
           })
         }
-        enqueue({ type: 'done', message_id: assistantMessageId, provider: requestedProvider })
+        enqueue({
+          type: 'done',
+          message_id: assistantMessageId,
+          provider: requestedProvider,
+          // Iteration N — these three fields let the frontend track which
+          // bucket the response landed in. `redirected: true` means the
+          // server fired the defensive redirect (sealed bucket → fresh
+          // bucket); the client should swap `refId` to `data.ref_id` if
+          // it wasn't already.
+          ref_id: effectiveRefId,
+          conversation_id: conversationId,
+          redirected: serverRedirected,
+        })
       } catch (e) {
         enqueue({ type: 'error', content: `Model error: ${(e as Error).message ?? String(e)}` })
       } finally {

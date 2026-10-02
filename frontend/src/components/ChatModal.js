@@ -54,15 +54,51 @@ export default function ChatModal({
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // Sources attached during THIS chat session. Kept locally so the chips
+  // render above the composer and an X on a chip can delete the row it
+  // stands for — previously the parent passed `sources={[]}` and a no-op
+  // delete, so a dismissed attachment quietly stayed on the server.
+  const [sources, setSources] = useState([]);
   const streamIdRef = useRef(0);
+  // Operation-scoped context (spec §10) — the current conversation
+  // bucket. Seeded from the `refId` prop the parent passes (entity id
+  // for scoped opens, null for the general chat) and swapped only on
+  // confirm (server pre-mints the next bucket) or on a defensive
+  // redirect in the `done` SSE event.
+  const refIdRef = useRef(refId ?? null);
 
-  // When the modal opens with a prefillMessage, drop it into the
-  // textarea — used by the Today Timetable's "I can't do this" /
-  // "Break it down with coach" buttons. Only fires when the prop
-  // changes while the modal is open.
+  // Re-seed the bucket whenever the modal reopens or the parent swaps
+  // the scoped context. Falls back to a kind-appropriate mint when a
+  // kind was given without an entity id (spec §10.1).
   useEffect(() => {
-    if (!open || !prefillMessage) return;
-    setInput(prefillMessage);
+    if (!open) return;
+    if (refId) {
+      refIdRef.current = refId;
+    } else if (kind === "add_goal") {
+      refIdRef.current = `new_goal_${crypto.randomUUID()}`;
+    } else if (kind === "plan_day") {
+      refIdRef.current = `plan_${new Date().toISOString().slice(0, 10)}`;
+    } else if (kind === "review_progress") {
+      // Daily read / accountability check-ins get their own per-day
+      // bucket so yesterday's read doesn't bleed into today's.
+      refIdRef.current = `review_${new Date().toISOString().slice(0, 10)}`;
+    } else {
+      // General / unscoped chat — server falls back to
+      // conv_general_<userId>; no client-side bucket.
+      refIdRef.current = null;
+    }
+  }, [open, refId, kind]);
+
+  // Seed the input whenever the modal opens or the opener swaps the
+  // prefill. Two jobs:
+  //   - opener passed text → drop it in (Today's free-text box, etc.);
+  //   - opener passed ""   → CLEAR whatever was left from the last
+  //     open. The old early-return on falsy prefill is what left
+  //     "For \"Investor email batch 2\"…" sitting in a chat that had
+  //     since been reopened about a different commitment.
+  useEffect(() => {
+    if (!open) return;
+    setInput(prefillMessage || "");
   }, [open, prefillMessage]);
 
   // Load conversation history when the user changes (and we've never
@@ -77,7 +113,9 @@ export default function ChatModal({
         setHistoryLoaded(true);
       })
       .catch(() => {
-        // Mock auth or temporary failure — leave the chat empty.
+        // Temporary failure — start fresh but say so; an empty chat
+        // is otherwise indistinguishable from lost history.
+        toast.error("Couldn't load chat history. Starting fresh — new messages still send.");
         setHistoryLoaded(true);
       });
   }, [open, user, historyLoaded]);
@@ -115,7 +153,9 @@ export default function ChatModal({
             auto_answer: autoAnswer,
             clarify: grillMe,
             scope,
-            refId,
+            // Same refId for every turn in this bucket; swapped by
+            // confirm / done-redirect (spec §10.3).
+            refId: refIdRef.current,
             kind,
             title,
             helperText,
@@ -158,7 +198,18 @@ export default function ChatModal({
               prompt: data.prompt,
               questions: data.questions || [],
             });
+          } else if (data.type === "impact") {
+            // Structured impact block (spec §10.6) — attach to the
+            // assistant message that produced it.
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === (finalId || streamId) ? { ...m, impact: data.impact } : m,
+              ),
+            );
           } else if (data.type === "done") {
+            // Defensive redirect (spec §10.2) — server detected we
+            // sent to a closed bucket and minted a fresh one.
+            if (data.redirected && data.ref_id) refIdRef.current = data.ref_id;
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === (finalId || streamId)
@@ -167,7 +218,7 @@ export default function ChatModal({
               ),
             );
           } else if (data.type === "error") {
-            toast.error(data.content || "Model error");
+            toast.error(data.content || "The coach hit an error. Try again.");
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === streamId
@@ -199,7 +250,7 @@ export default function ChatModal({
           }
         }
       } catch {
-        toast.error("Connection interrupted");
+        toast.error("Connection dropped. Try sending that again.");
       } finally {
         setSending(false);
         setMessages((prev) =>
@@ -207,30 +258,64 @@ export default function ChatModal({
         );
       }
     },
-    [autoAnswer, grillMe, scope, refId, kind, title, helperText],
+    [autoAnswer, grillMe, scope, kind, title, helperText],
   );
 
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
       setBusyProposal(proposalId);
       try {
-        const { result, state } = await api.confirm(messageId, proposalId);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId
-              ? {
-                  ...m,
-                  proposals: m.proposals.map((p) =>
-                    p.id === proposalId ? { ...p, status: "confirmed" } : p,
-                  ),
-                }
-              : m,
-          ),
+        const { result, state, ref_id } = await api.confirm(
+          messageId,
+          proposalId,
         );
+        // Spec §10.4 — server closed this bucket and (for add_goal)
+        // pre-minted the next. Swap so the next send lands fresh.
+        if (ref_id) refIdRef.current = ref_id;
+        setMessages((prev) => {
+          const proposal = prev
+            .find((m) => m.id === messageId)
+            ?.proposals?.find((p) => p.id === proposalId);
+          const title =
+            proposal?.args?.title ||
+            proposal?.args?.goal_title ||
+            proposal?.args?.new_title ||
+            proposal?.title;
+          const verb = proposal?.action === "create_goal" ? "Created" : "Confirmed";
+          const content = title ? `${verb} "${title}"` : result || "Change applied";
+          const goalId =
+            proposal?.action === "create_goal" && title
+              ? state?.goals?.find(
+                  (g) => g.title === title && g.status === "active",
+                )?.id
+              : undefined;
+          return [
+            ...prev.map((m) =>
+              m.id === messageId
+                ? {
+                    ...m,
+                    proposals: m.proposals.map((p) =>
+                      p.id === proposalId ? { ...p, status: "confirmed" } : p,
+                    ),
+                  }
+                : m,
+            ),
+            // Success divider inline in the stream (spec §10.5) — the
+            // visible messages are NOT cleared on confirm.
+            {
+              id: `success_${Date.now()}`,
+              role: "success",
+              content,
+              goalId,
+              goalTitle: title,
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
         toast.success(result);
         onStateChange?.(state);
       } catch (e) {
-        toast.error(e?.message || "Could not apply");
+        toast.error(typeof e?.message === 'string' ? e.message : "Couldn't apply the change. Try again.");
       } finally {
         setBusyProposal(null);
       }
@@ -255,7 +340,7 @@ export default function ChatModal({
         ),
       );
     } catch (e) {
-      toast.error(e?.message || "Could not reject");
+      toast.error(typeof e?.message === 'string' ? e.message : "Couldn't reject the change. Try again.");
     } finally {
       setBusyProposal(null);
     }
@@ -294,12 +379,13 @@ export default function ChatModal({
     async (file) => {
       toast.message(`Uploading ${file.name}…`);
       try {
-        await api.uploadSource(file, "");
+        const created = await api.uploadSource(file, "");
+        if (created?.id) setSources((prev) => [...prev, created]);
         toast.success(`Added ${file.name} as a source`);
         const fresh = await api.state();
         onStateChange?.(fresh);
       } catch (e) {
-        toast.error(e?.message || "Upload failed");
+        toast.error(typeof e?.message === 'string' ? e.message : "Couldn't upload that file. Try again.");
       }
     },
     [onStateChange],
@@ -307,14 +393,33 @@ export default function ChatModal({
 
   const addLink = useCallback(
     async (url) => {
-      if (!url) return;
+      if (!url || typeof url !== "string") return;
       try {
-        await api.addLink({ url, goal_id: "" });
+        const created = await api.addLink({ url, goal_id: "" });
+        if (created?.id) setSources((prev) => [...prev, created]);
         toast.success("Link added as a source");
         const fresh = await api.state();
         onStateChange?.(fresh);
       } catch (e) {
-        toast.error(e?.message || "Could not add link");
+        toast.error(typeof e?.message === 'string' ? e.message : "Couldn't add the link. Try again.");
+      }
+    },
+    [onStateChange],
+  );
+
+  // Dismissing an attachment chip must actually remove the row — the chip
+  // is only a view of a source that was uploaded the moment the paperclip
+  // was hit. Drop it from local state AND the server so a file the user
+  // never sent doesn't linger in Sources.
+  const deleteSource = useCallback(
+    async (id) => {
+      setSources((prev) => prev.filter((s) => s.id !== id));
+      try {
+        await api.deleteSource(id);
+        const fresh = await api.state();
+        onStateChange?.(fresh);
+      } catch {
+        // Offline / already gone — the chip is dismissed either way.
       }
     },
     [onStateChange],
@@ -346,7 +451,7 @@ export default function ChatModal({
       maxWidth="max-w-3xl"
       testId="chat-modal"
     >
-      <div className="-mx-5 -mb-4 h-[68vh] min-h-[440px] max-h-[760px] border-t border-[var(--border)]">
+      <div className="-mx-5 -mb-4 h-[68vh] min-h-[min(440px,60dvh)] max-h-[760px] border-t border-[var(--border)]">
         <ChatConsole
           messages={messages}
           onSend={send}
@@ -363,8 +468,8 @@ export default function ChatModal({
           setGrillMe={setGrillMe}
           onUploadFile={uploadFile}
           onAddLink={addLink}
-          sources={[]}
-          onDeleteSource={() => {}}
+          sources={sources}
+          onDeleteSource={deleteSource}
           focusOnMount={open}
           scopeLabel={scoped ? title : ""}
           scopeIntent={scoped ? (helperText || "Talk to the coach about this —") : ""}
@@ -385,15 +490,15 @@ export default function ChatModal({
         <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
           <span className="flex-1">
-            Log in to persist this session and access all advanced features.
+            Sign in to keep this session and unlock every feature.
           </span>
           <button
             type="button"
             data-testid="chat-modal-signin"
             onClick={onSignInFromChat}
-            className="font-medium text-[var(--accent)] hover:underline"
+            className="min-h-11 font-medium text-[var(--accent)] hover:underline"
           >
-            Sign in →
+            Sign in
           </button>
         </div>
       )}

@@ -1,17 +1,17 @@
 /**
  * GET /api/motivation/recommend
  *
- * Returns 1-3 motivation items for the current user. When the
- * `MOTIVATION_AGENT_ENABLED` flag is off (dev/test default at MVP)
- * the route returns hand-curated catalogue items directly. When the
- * flag is on, the route delegates to `recommend()` in
- * `api/lib/motivation/recommend.ts` which runs the full search →
- * fetch → critique → picker → frame pipeline with a 60m cache and a
- * deterministic fallback to the catalogue on any failure.
+ * Returns 1-3 motivation items for the current user. Delegates to
+ * `recommend()` in `api/lib/motivation/recommend.ts` which runs the
+ * full search → fetch → critique → picker → frame pipeline with a
+ * 24h cache. The route blocks on the cold-miss path (no hand-curated
+ * catalogue fallback for MVP); the `maxDuration` export bounds the
+ * user-visible wait.
  *
- * The card-side contract is unchanged: `{ bucket, items,
- * generated_at, cache }`. `MotivationCard` ignores the new `cache`
- * field; it exists for ops/telemetry.
+ * The card-side contract is `{ bucket, items, generated_at, cache }`.
+ * `MotivationCard` polls every 10s while `cache === 'stale'` (a
+ * background refresh is in flight) and retries up to 2 more times
+ * with backoff on errors / `cache: 'miss'`.
  */
 
 import { NextResponse, type NextRequest } from 'next/server'
@@ -22,10 +22,7 @@ import { goals, commitments } from '@/db/schema'
 import { resolveRequestUser } from '@/lib/request-user'
 
 import {
-  MOTIVATION_AGENT_ENABLED,
   type Bucket,
-  catalogueFallbackFrame,
-  pickFromCatalogue,
   computeStateHash,
   extractLackingSignals,
   recommend,
@@ -33,6 +30,14 @@ import {
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+/**
+ * Cold-miss calls block on the pipeline (up to ~25s typical, 35s
+ *  timeout). Bound the route at 60s to leave headroom for retries and
+ *  cold-start latency. Vercel's default is 10s on Hobby, 60s on Pro
+ *  for Node runtimes — pinning this explicitly so production doesn't
+ *  silently truncate the request.
+ */
+export const maxDuration = 60
 
 /**
  * Dev-only remap: bearer auth (`Authorization: Bearer dev_*`) creates
@@ -117,40 +122,19 @@ export async function GET(req: NextRequest) {
     bucket = 'stuck'
   }
 
-  // Compute the state hash here so the catalogue fast-path can write
-  // a cache row too (when the flag flips on later, the same hash will
-  // hit the cache from past catalogue writes).
+  // Extract lacking signals and compute the cache key. The signal
+  // extract is best-effort — a DB hiccup shouldn't take down the
+  // recommendation; we fall through to the orchestrator with whatever
+  // we have, which itself falls through to `emptyFallback` on
+  // failure.
   const signals = await extractLackingSignals({ userId, bucket }).catch(
     () => ({ bucket, themes: [] }),
   )
   const stateHash = computeStateHash(signals)
 
-  // Fast path — when the agent is off (MVP default), skip the
-  // orchestrator and return the catalogue directly. The orchestrator
-  // itself would short-circuit to the same shape, but going direct
-  // saves the cache lookup roundtrip on every dev refresh.
-  if (!MOTIVATION_AGENT_ENABLED) {
-    const seeds = pickFromCatalogue(bucket, count)
-    const items = seeds.map((s) => ({
-      id: s.id,
-      kind: s.kind,
-      title: s.title,
-      author: s.author,
-      url: s.url,
-      duration: s.duration,
-      frame: catalogueFallbackFrame(s, bucket),
-      excerpt: s.excerpt,
-      score_total: 0,
-    }))
-    return NextResponse.json({
-      bucket,
-      items,
-      generated_at: new Date().toISOString(),
-      cache: 'miss' as const,
-    })
-  }
-
-  // Agent path — delegate to the orchestrator.
+  // Cold-miss calls block on the pipeline (up to ~25s typical, 35s
+  // timeout). The route's `maxDuration = 60` bounds the request at
+  // the platform layer.
   const response = await recommend({
     userId,
     bucket,
