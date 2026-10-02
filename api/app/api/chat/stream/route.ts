@@ -40,16 +40,13 @@ import {
   getModel,
   parseProposals,
   splitProseAndTools,
-  splitProseAndToolsAndImpact,
   proposeGoalFromMessage,
   parseDropIntent,
   streamChat,
   TOOL_START,
   TOOL_END,
-  IMPACT_START,
   type ProviderId,
   type Proposal,
-  type StateImpact,
 } from '@/lib/emergent/llm'
 import { SYSTEM_PROMPT } from '@/lib/llm/prompts'
 import { resolveRequestUser } from '@/lib/request-user'
@@ -337,36 +334,29 @@ export async function POST(req: NextRequest) {
             fullText += ev.content
 
             if (inTools) {
-              // Once in any delimiter block ([[TOOLS]] or [[IMPACT]]),
-              // never emit more prose deltas.
+              // Once in the tools block, suppress further prose deltas.
               continue
             }
 
-            // Track both delimiters independently. Whichever appears
-            // first in the accumulated text becomes the prose boundary;
-            // once we've crossed it we suppress further delta events.
+            // Track the tools delimiter. Once we've crossed it we
+            // suppress further delta events.
             const toolIdx = fullText.indexOf(TOOL_START)
-            const impactIdx = fullText.indexOf(IMPACT_START)
-            const firstDelimIdx = [toolIdx, impactIdx]
-              .filter((i) => i !== -1)
-              .sort((a, b) => a - b)[0] ?? -1
-
-            if (firstDelimIdx === -1) {
+            if (toolIdx === -1) {
               // No delimiter yet — be conservative and hold back the
               // last `max(len(start))` chars in case a boundary is split
               // across chunks.
-              const safeLen = Math.max(TOOL_START.length, IMPACT_START.length)
+              const safeLen = TOOL_START.length
               const safeUpTo = Math.max(proseEmitted, fullText.length - safeLen)
               if (safeUpTo > proseEmitted) {
                 enqueue({ type: 'delta', content: fullText.slice(proseEmitted, safeUpTo) })
                 proseEmitted = safeUpTo
               }
             } else {
-              // First delimiter reached — emit only the prose before it.
-              if (firstDelimIdx > proseEmitted) {
-                enqueue({ type: 'delta', content: fullText.slice(proseEmitted, firstDelimIdx) })
+              // Tools delimiter reached — emit only the prose before it.
+              if (toolIdx > proseEmitted) {
+                enqueue({ type: 'delta', content: fullText.slice(proseEmitted, toolIdx) })
               }
-              proseEmitted = firstDelimIdx
+              proseEmitted = toolIdx
               inTools = true
             }
           } else if (ev.type === 'stream_done') {
@@ -378,11 +368,8 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Parse proposals + state impact from the accumulated text.
-        // Iteration N: `splitProseAndToolsAndImpact` handles both
-        // `[[TOOLS]]` and `[[IMPACT]]` blocks (last-occurrence-wins for
-        // impact, identical to Python's tools semantics).
-        let { prose, proposals, impact } = splitProseAndToolsAndImpact(fullText)
+        // Parse proposals from the accumulated text.
+        let { prose, proposals } = splitProseAndTools(fullText)
         assistantMessageId = `msg_${Date.now()}_${randomUUID().slice(0, 8)}`
 
         // Option B fallback — safety net behind the prompt strengthening in
@@ -560,9 +547,6 @@ export async function POST(req: NextRequest) {
 
         if (proposals.length > 0) {
           enqueue({ type: 'tools', message_id: assistantMessageId, proposals })
-        }
-        if (impact) {
-          enqueue({ type: 'impact', message_id: assistantMessageId, impact })
         }
         if (needsClarification && clarifyingQuestions.length > 0) {
           enqueue({
