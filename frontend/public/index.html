@@ -7,6 +7,15 @@
         <meta name="description" content="Sutra - let's sort your life - together." />
         <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
         <link rel="alternate icon" href="%PUBLIC_URL%/favicon.ico" />
+        <!-- PWA: manifest makes the site installable (Chrome/Edge fire
+             beforeinstallprompt; Safari/iOS uses the Share → Add to Home
+             Screen path instead). Icons live in public/icons/. -->
+        <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+        <link rel="apple-touch-icon" href="%PUBLIC_URL%/icons/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Sutra" />
         <script>
             // Apply the persisted theme before React mounts so we don't
             // get a flash of the wrong theme on every reload. Light is
