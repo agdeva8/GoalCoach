@@ -8,9 +8,10 @@ import { localDateKey } from "../lib/utils";
  *
  * Per-item controls:
  *   - Clickable circle checkbox → mark done (PATCH /api/commitments/:id)
- *   - Two CTA buttons that open the chat with a prefill:
- *       · "I can't do this"   → asks the coach to renegotiate
- *       · "Break it down with coach" → asks the coach to break it down
+ *   - Two CTA buttons that open a SCOPED chat (blank composer, the modal
+ *     is titled after the action + the item):
+ *       · "I can't do this"   → renegotiate it (keep / shrink / drop)
+ *       · "Break it down with coach" → smallest first step
  *
  * Per-item "what you did" note + per-item free-text chat input were
  * removed in Iteration 7 (Ask 1) — they cluttered every row and the
@@ -103,15 +104,22 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
     }
   };
 
+  // Both openers below pass an EMPTY prefill on purpose. The button has
+  // already named the action and the entity, so the modal titles itself
+  // ("About: Renegotiate \"Investor email batch 2\"") and the composer
+  // opens blank for the user's own words. The long canned paragraph that
+  // used to be dropped in the box was the "prompt autofilled" complaint —
+  // and because ChatModal only overwrote the input when a prefill was
+  // non-empty, the previous chat's text leaked into the next one.
   const cantDoThis = (item) => {
     const title = item.text || item.title || "this commitment";
     onOpenChat?.(
-      `I'm having trouble with: "${title}". Can we renegotiate — keep, shrink, or drop it?`,
+      "",
       {
         scope: item._kind === "blocker" ? "blocker" : "commitment",
         refId: item.id,
-        kind: item._kind === "blocker" ? "plan_day" : "plan_day",
-        title,
+        kind: "plan_day",
+        title: `Renegotiate "${title}"`,
         helperText:
           "What part feels off? Be specific — the coach will suggest a keep / shrink / drop.",
       },
@@ -120,12 +128,12 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
   const addToPlan = (item) => {
     const title = item.text || item.title || "this commitment";
     onOpenChat?.(
-      `For "${title}" — break it into the smallest possible first step and slot it into my week.`,
+      "",
       {
         scope: item._kind === "blocker" ? "blocker" : "commitment",
         refId: item.id,
         kind: "plan_day",
-        title,
+        title: `Break down "${title}"`,
         helperText: "Describe the smallest concrete next step and the rough when.",
       },
     );
@@ -162,7 +170,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
           className="min-h-11 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
         >
           <RefreshCw className="w-3 h-3" />
-          Couldn't load — retry
+          Try again
         </button>
       </div>
     );
@@ -180,10 +188,10 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
       {!compact && (
         <header className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
           <Calendar className="w-3.5 h-3.5 text-[var(--accent)]" aria-hidden="true" />
-          <h2 className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-secondary)]">
-            {fullTimetable ? "Today · full timetable" : "Today · tasks"}
+          <h2 className="font-medium text-xs text-[var(--text-secondary)]">
+            {fullTimetable ? "Today's full timetable" : "Today's tasks"}
           </h2>
-          <span className="ml-auto font-mono text-[10px] text-[var(--text-muted)]">
+          <span className="ml-auto tabular-nums text-xs text-[var(--text-muted)]">
             {items.length} item{items.length === 1 ? "" : "s"}
           </span>
         </header>
@@ -204,16 +212,16 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
           data-testid="today-dayband"
           className="px-4 py-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_50%,transparent)]"
         >
-          <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-            <span>07:00 · Wake</span>
-            <span>23:00 · Sleep</span>
+          <div className="flex items-center justify-between tabular-nums text-xs text-[var(--text-muted)] mb-2">
+            <span>Wake at 07:00</span>
+            <span>Sleep at 23:00</span>
           </div>
           <div className="relative h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden" role="img" aria-label="Day shape: routine, available, rest">
             <div className="absolute left-0 top-0 h-full w-[8%] bg-[var(--accent)]" aria-hidden="true" />
             <div className="absolute left-[8%] top-0 h-full w-[78%] bg-[color-mix(in_srgb,var(--accent)_25%,transparent)]" aria-hidden="true" />
             <div className="absolute left-[86%] top-0 h-full w-[14%] bg-[color-mix(in_srgb,var(--border-accent)_60%,transparent)]" aria-hidden="true" />
           </div>
-          <div className="mt-2 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest">
+          <div className="mt-2 flex items-center gap-3 text-xs">
             <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
               <span className="inline-block h-1.5 w-3 bg-[var(--accent)] rounded-sm" /> Routine
             </span>
@@ -262,9 +270,9 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
                   <p className={`text-sm leading-snug ${done ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)]"}`}>
                     {item.text || item.title}
                   </p>
-                  <div className="mt-1 flex items-center gap-2 flex-wrap font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                  <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-[var(--text-muted)]">
                     {item.goal_title && (
-                      <span className="px-1.5 py-0.5 border border-[var(--border)] rounded normal-case tracking-normal text-[var(--text-secondary)]">
+                      <span className="px-1.5 py-0.5 border border-[var(--border)] rounded text-[var(--text-secondary)]">
                         {item.goal_title}
                       </span>
                     )}
@@ -274,9 +282,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
                     {overdue && (
                       <span className="text-[var(--danger)] font-semibold">Overdue</span>
                     )}
-                    {isCommitment && !overdue && item.due === todayKey && (
-                      <span className="text-[var(--accent)] font-semibold">Today</span>
-                    )}
+                    {isCommitment && !overdue && item.due === todayKey && "Today"}
                   </div>
                 </div>
               </div>
@@ -368,7 +374,7 @@ function NeedHelpActions({ item, onCant, onAddToPlan }) {
           className="h-11 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden="true" />
-          Break it down with coach
+          Break it down with the coach
         </button>
       </div>
     </div>
