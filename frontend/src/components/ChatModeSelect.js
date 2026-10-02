@@ -15,9 +15,9 @@ import { ChevronDown, Sparkles, HelpCircle, Zap } from "lucide-react";
  *     enough specifics to propose something concrete.
  */
 const MODES = [
-  { id: "coach", label: "coach may ask", description: "Light — 1–2 questions only when truly needed", icon: HelpCircle },
-  { id: "auto",  label: "answering for you", description: "Auto — assumes and proposes", icon: Sparkles },
-  { id: "grill", label: "grill me", description: "Intense — keeps pushing until specifics land", icon: Zap },
+  { id: "coach", label: "coach may ask", shortLabel: "may ask", description: "Light — 1–2 questions only when truly needed", icon: HelpCircle },
+  { id: "auto",  label: "answering for you", shortLabel: "auto", description: "Auto — assumes and proposes", icon: Sparkles },
+  { id: "grill", label: "grill me", shortLabel: "grill", description: "Intense — keeps pushing until specifics land", icon: Zap },
 ];
 
 export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, setGrillMe, initialOpen = false }) {
@@ -62,6 +62,7 @@ export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, set
         data-testid="chat-mode-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
+        title={`Coach mode: ${current.label}`}
         onClick={() => setOpen((v) => !v)}
         className={`h-11 w-full flex items-center justify-around gap-1.5 font-mono text-[10px] uppercase tracking-wider px-2 py-2 rounded border whitespace-nowrap transition-colors overflow-hidden ${
           open
@@ -74,7 +75,7 @@ export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, set
         }`}
       >
         <CurrentIcon className="w-3.5 h-3.5 shrink-0" />
-        <span className="truncate">{current.label}</span>
+        <span className="truncate">{current.shortLabel || current.label}</span>
         <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 

@@ -692,7 +692,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               Founder feedback: dropdown left, all four action icons
               right. */}
           <div className="flex items-center justify-between gap-2 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
-            <div className="flex-1 min-w-0 max-w-[190px]">
+            <div className="flex-1 min-w-0 max-w-[150px]">
               <ChatModeSelect
                 autoAnswer={autoAnswer}
                 grillMe={grillMe}

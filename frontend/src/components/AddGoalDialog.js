@@ -145,8 +145,14 @@ export default function AddGoalDialog({
   // Each modal owns its own input; the dialog owns the lifecycle.
   const [refiningProposal, setRefiningProposal] = useState(null);
   const [rejectingProposal, setRejectingProposal] = useState(null);
-  // Iteration 9 — back button closes this dialog.
-  useDialogBack(open, onClose, "add-goal-dialog");
+  // Step-aware back ref. `useDialogBack` is called before
+  // `handleStepBack` is defined, so we hand it a stable wrapper that
+  // reads this ref. When the browser/system back button fires, it
+  // retreats chat → tiles (category still selected) instead of
+  // closing the dialog. Only a back press on the tiles step closes.
+  const stepBackRef = useRef(null);
+  // Iteration 9+ — back button peels one layer: chat → tiles → close.
+  useDialogBack(open, () => stepBackRef.current?.(), "add-goal-dialog");
 
   // Nested closer registration — the Refine / Reject modals live
   // inside this dialog and own their own input. When the global back
@@ -326,6 +332,11 @@ export default function AddGoalDialog({
       onClose?.();
     }
   };
+  // Keep the ref current so useDialogBack always sees the latest step.
+  useEffect(() => {
+    stepBackRef.current = handleStepBack;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, onClose]);
 
   // Expose handleStepBack to the parent via the optional `onStepBack`
   // prop. Coach.js's back button can call this directly (skipping
