@@ -180,6 +180,9 @@ export const conversations = pgTable('conversations', {
   lastMessageAt: timestamp('last_message_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
+  // Iteration N — sealed on first confirm; chat route refuses to append
+  // to closed buckets (defensive redirect). See migration 0009.
+  closedAt: timestamp('closed_at', { withTimezone: true }),
 })
 
 export const messages = pgTable('messages', {
