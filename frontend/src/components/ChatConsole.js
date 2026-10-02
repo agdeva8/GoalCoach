@@ -609,7 +609,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 border-t border-[var(--border)] px-3 pt-2.5 sm:px-4 sm:pt-3 pb-[max(0.25rem,env(safe-area-inset-bottom))] bg-[var(--bg-primary)]">
+      <div className="shrink-0 border-t border-[var(--border)] px-3 pt-2.5 sm:px-4 sm:pt-3 pb-[env(safe-area-inset-bottom)] bg-[var(--bg-primary)]">
         {sources.length > 0 && (
           <div data-testid="attached-sources" className="mb-2 flex flex-wrap gap-1.5">
             {sources.map((s) => (
@@ -688,7 +688,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             // Auto-grow handled by the useLayoutEffect above: empty → one
             // slim 40px row (same as the Today tab), grows with content
             // to a 200px ceiling, then scrolls. Clears back to 40px on send.
-            className="block w-full bg-transparent resize-none overflow-y-auto px-3 py-2 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none border-0 transition-[height] duration-150 ease-out"
+            className={`block w-full bg-transparent resize-none ${input ? "overflow-y-auto" : "overflow-hidden"} px-3 py-2 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none border-0 transition-[height] duration-150 ease-out`}
             style={{ minHeight: "40px", maxHeight: "200px", height: "40px" }}
           />
           {/* Composer action row — Iteration 9+ final layout:
