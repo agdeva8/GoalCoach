@@ -500,6 +500,21 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     }
   };
 
+  // Iteration 9+ — auto-grow textarea to actual content height.
+  // We measure scrollHeight after every input change (layout effect)
+  // and set the element's height explicitly, clamped between 36px
+  // (1 line, idle) and ~200px (8 lines, max). Empty input → 1 row;
+  // typing expands smoothly; clearing snaps back. The browser does the
+  // wrap math, we just read its work.
+  useLayoutEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    const next = Math.min(200, Math.max(36, el.scrollHeight));
+    if (el.style.height !== `${next}px`) {
+      el.style.height = `${next}px`;
+    }
+  }, [input]);
+
   return (
     <div
       data-testid="chat-console"
@@ -633,13 +648,12 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             rows={1}
             placeholder={voiceListening ? "Listening…" : "Think out loud…"}
             aria-label="Message the coach"
-            className="block w-full bg-transparent resize-none px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-t-md"
-            style={{
-              minHeight: "36px",
-              maxHeight: "224px",
-              // Auto-expand as content grows past 1 line.
-              height: `${Math.min(36, Math.max(36, input.split("\n").length * 22 + 18))}px`,
-            }}
+            // Auto-grow handled by the useLayoutEffect above (read
+            // scrollHeight, clamp 36–200px). Empty → 36px (1 row);
+            // typing expands up to 8 rows. Composer stays anchored
+            // to the bottom of the dialog.
+            className="block w-full bg-transparent resize-none overflow-y-auto px-3 py-2 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-t-md"
+            style={{ minHeight: "36px", maxHeight: "200px", height: "36px" }}
           />
           <div className="flex items-center justify-between gap-1 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
             <div className="flex items-center gap-0.5">
