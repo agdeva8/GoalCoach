@@ -210,11 +210,6 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   const fileRef = useRef(null);
   const [empty] = useState(messages.length === 0);
   const [isTyping, setIsTyping] = useState(false);
-  // Iteration 9+ — composer focus/expand. Tapping the box opens a
-  // comfortable writing area (~120px min); clearing/sending snaps it
-  // back to a slim 36px bar. Founders feedback: "on clicking the text
-  // box it should open ... with good height, collapsed after send".
-  const [composerFocused, setComposerFocused] = useState(false);
   const typingTimeoutRef = useRef(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
@@ -545,16 +540,19 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   useLayoutEffect(() => {
     const el = taRef.current;
     if (!el) return;
-    el.style.height = "auto";
-    // Iteration 9+ — when the composer is focused the floor is a
-    // comfortable writing area (~120px); when idle it's one slim row
-    // (36px). Content can still push it to the 200px ceiling.
-    const floor = composerFocused ? 120 : 36;
-    const next = Math.min(200, Math.max(floor, el.scrollHeight));
-    if (el.style.height !== `${next}px`) {
-      el.style.height = `${next}px`;
+    // Iteration 9+ — mirror the Today tab's composer exactly:
+    //   - empty   → one slim row (40px)
+    //   - typing  → grows with the content, up to a 200px ceiling
+    //   - at max  → the textarea scrolls
+    //   - send    → input clears, height snaps back to 40px
+    if (!input) {
+      el.style.height = "40px";
+      return;
     }
-  }, [input, composerFocused]);
+    el.style.height = "auto";
+    const next = Math.min(200, Math.max(40, el.scrollHeight));
+    el.style.height = `${next}px`;
+  }, [input]);
 
   return (
     <div
@@ -684,15 +682,14 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
-            onFocus={() => setComposerFocused(true)}
-            onBlur={() => setComposerFocused(false)}
             rows={1}
             placeholder={voiceListening ? "Listening…" : "Think out loud…"}
             aria-label="Message the coach"
-            // Auto-grow handled by the useLayoutEffect above (read
-            // scrollHeight, clamp 36–200px, floor 120 while focused).
-            className="block w-full bg-transparent resize-none overflow-y-auto px-3 py-2.5 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none border-0 transition-[height] duration-200 ease-out"
-            style={{ minHeight: "36px", maxHeight: "200px", height: "36px" }}
+            // Auto-grow handled by the useLayoutEffect above: empty → one
+            // slim 40px row (same as the Today tab), grows with content
+            // to a 200px ceiling, then scrolls. Clears back to 40px on send.
+            className="block w-full bg-transparent resize-none overflow-y-auto px-3 py-2.5 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none border-0 transition-[height] duration-150 ease-out"
+            style={{ minHeight: "40px", maxHeight: "200px", height: "40px" }}
           />
           {/* Composer action row — Iteration 9+ final layout:
               - LEFT: Coach-mode dropdown in a flexible slot
