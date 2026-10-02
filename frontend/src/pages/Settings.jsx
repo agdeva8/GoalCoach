@@ -3,11 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  Sun,
-  Moon,
   LogIn,
   LogOut,
-  ShieldCheck,
+  Type,
   Check,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
@@ -16,6 +14,22 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import useMediaQuery from "../hooks/useMediaQuery";
 import HonestyAuditView from "../components/HonestyAuditView";
+
+// Text size — 5 options, with the 3rd as the product default (16px,
+// the platform browser default). The CSS variable `--sutra-font-scale`
+// is the same number in px, applied to <html> so every rem-based
+// Tailwind text utility scales with it. Persisted to localStorage so
+// the choice survives reloads and is restored pre-paint via
+// public/index.html — no flash of the previous size on first load.
+const FONT_SIZE_OPTIONS = [
+  { value: 14, label: "Small", short: "S", hint: "Compact" },
+  { value: 15, label: "Default small", short: "S+", hint: "Tight" },
+  { value: 16, label: "Medium", short: "M", hint: "Default" },
+  { value: 17, label: "Default large", short: "L+", hint: "Comfortable" },
+  { value: 18, label: "Large", short: "L", hint: "Easy reading" },
+];
+const FONT_SIZE_DEFAULT_PX = 16;
+const FONT_SIZE_STORAGE_KEY = "sutra_font_size";
 
 // Settings sections. Mobile renders them as a vertical list (the
 // horizontal tab strip only makes room below 640px) — see the Tabs
@@ -86,6 +100,31 @@ export default function Settings() {
   // catch below revert the optimistic selection.
   const [switchingProvider, setSwitchingProvider] = useState(false);
 
+  // Text size — read from localStorage at mount (the index.html
+  // pre-paint script already applied it to <html>, so this only
+  // drives the Settings control). Falls back to the 3rd option
+  // (16px) which matches the product default — see FONT_SIZE_OPTIONS.
+  const [fontSizePx, setFontSizePx] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
+      const parsed = raw ? Number(raw) : NaN;
+      if (Number.isFinite(parsed) && FONT_SIZE_OPTIONS.some((o) => o.value === parsed)) {
+        return parsed;
+      }
+    } catch { /* localStorage blocked — keep default */ }
+    return FONT_SIZE_DEFAULT_PX;
+  });
+
+  // Apply the choice live: write to the CSS variable on <html>
+  // (the variable `index.css` reads as the root font-size, so every
+  // rem-based Tailwind text utility scales together) AND mirror to
+  // localStorage so the next reload boots at the same scale with no
+  // flash (the index.html pre-paint script does the read side).
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sutra-font-scale", `${fontSizePx}px`);
+    try { window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, String(fontSizePx)); } catch { /* ignore */ }
+  }, [fontSizePx]);
+
   const providers = useProviders();
   const cur = providers.find((p) => p.id === provider);
   const displayLabel = cur?.label || provider || "…";
@@ -148,17 +187,11 @@ export default function Settings() {
 
         {/* B2#5 — labelled landmark for the account/session cluster. */}
         <nav aria-label="Account" className="ml-auto flex items-center gap-2">
-          {/* Audit — the label is `hidden sm:inline`, so below 640px this
-              is an icon-only control and needs its own accessible name. */}
-          <button
-            onClick={() => setAuditOpen(true)}
-            aria-label="Honesty audit"
-            className="h-11 flex items-center gap-1.5 px-2.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs">Honesty audit</span>
-          </button>
-
+          {/* The honesty audit shortcut used to live here as a duplicate
+              of the dedicated Audit tab inside the page (where it still
+              lives). One canonical surface per breakpoint, matching the
+              pattern Header.js establishes: the Settings cog is the entry
+              point, the Audit tab inside Settings is the audit surface. */}
           {/* Theme toggle lives in the main header (Coach.js) so it's
               reachable on every page; this Settings page no longer
               duplicates it. */}
@@ -241,8 +274,69 @@ export default function Settings() {
               </section>
             </TabsContent>
 
-            {/* Account tab — sign in/out (theme moved to main header) */}
+            {/* Account tab — display (text size) + sign in/out (theme moved to main header) */}
             <TabsContent value="account" className="space-y-6">
+              <section className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Type className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+                  <h2 className="font-medium text-xs text-[var(--text-muted)]">Text size</h2>
+                </div>
+                {/* 5 button list — same shape as the model provider list so
+                    the page has one consistent selection vocabulary. Each
+                    option previews the actual rendered size in the right
+                    column so the user can compare before tapping. */}
+                <div
+                  role="radiogroup"
+                  aria-label="Text size"
+                  className="space-y-2"
+                  data-testid="text-size-options"
+                >
+                  {FONT_SIZE_OPTIONS.map((opt) => {
+                    const selected = opt.value === fontSizePx;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setFontSizePx(opt.value)}
+                        className={`w-full flex items-center justify-between px-4 py-3 border rounded-lg transition-colors touch-manipulation ${
+                          selected
+                            ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
+                            : "border-[var(--border)] hover:border-[var(--border-accent)]"
+                        }`}
+                      >
+                        <div className="text-left">
+                          <div className="text-sm font-medium">{opt.label}</div>
+                          <div className="text-xs text-[var(--text-muted)]">{opt.hint}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {/* Preview rendered at the option's own size in
+                              px (so it doesn't shift when the live scale
+                              changes around it). Clamped to 12–18px so the
+                              row never blows out at Large or shrinks at
+                              Small — the actual setting the user picks is
+                              still stored in full. */}
+                          <span
+                            className="text-[var(--text-muted)] tabular-nums"
+                            style={{ fontSize: `clamp(12px, ${opt.value}px, 18px)` }}
+                            aria-hidden="true"
+                          >
+                            Aa
+                          </span>
+                          {selected && (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)]">
+                              <Check className="w-4 h-4" aria-hidden="true" />
+                              <span className="sr-only">Selected: </span>Current
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
               <section className="space-y-4">
                 <h2 className="font-medium text-xs text-[var(--text-muted)]">Session</h2>
                 {isGuest ? (

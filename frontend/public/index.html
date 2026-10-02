@@ -26,6 +26,17 @@
                     if (t === "light") document.documentElement.classList.add("light");
                 } catch (e) { /* localStorage blocked — keep default light */ }
             })();
+            // Same idea for the user-chosen text size: pin
+            // --sutra-font-scale on <html> before paint so all rem-based
+            // Tailwind text utilities scale together without a one-frame
+            // flash. The Settings page owns the writing side; this just
+            // hydrates the CSS variable from localStorage.
+            (function () {
+                try {
+                    var s = localStorage.getItem("sutra_font_size");
+                    if (s) document.documentElement.style.setProperty("--sutra-font-scale", s + "px");
+                } catch (e) { /* localStorage blocked — fall back to 16px (the default in index.css) */ }
+            })();
         </script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

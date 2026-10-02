@@ -9,6 +9,14 @@
    * native selection color must render dark rather than the
    * platform light default. `.light` flips it back below. */
   color-scheme: dark;
+  /* User-chosen base font size — read from localStorage in
+   * public/index.html's pre-paint script and written onto this
+   * variable on <html>. All rem-based Tailwind utilities
+   * (text-xs … text-3xl) scale against this, so a single
+   * preference rescales every text run on every screen without
+   * any per-component changes. 16px matches the platform default;
+   * Settings lets the user pick 14/15/17/18 too. */
+  --sutra-font-scale: 16px;
   /* Apple-clean dark mode: near-black surfaces, Apple's dark system blue
    * accent (#0A84FF). Pure black for the deepest surface; Apple
    * system gray 6 (#1C1C1E) for raised cards; gray 5 (#2C2C2E) for
@@ -57,6 +65,14 @@
 
 * {
   border-color: var(--border);
+}
+
+/* Pin the root font-size to the user-chosen scale. Set on `html`
+ * (not `body`) so Tailwind's rem-based text utilities inherit the
+ * scale directly — `text-sm` becomes 14 × (scale/16) without us
+ * touching a single component. */
+html {
+  font-size: var(--sutra-font-scale);
 }
 
 /* Mobile-native tap hygiene. Scoped to interactive elements only —
@@ -117,7 +133,11 @@ a[href]:active,
   input:not([type="checkbox"]):not([type="radio"]),
   textarea,
   select {
-    font-size: 16px;
+    /* iOS Safari's zoom-prevention floor is 16px, but with the
+     * user-chosen text scale `1rem` can be 17-18px. Take the larger
+     * of the two so the floor still holds at small scales AND the
+     * form controls grow with the rest of the text at large scales. */
+    font-size: max(16px, 1rem);
   }
 }
 
