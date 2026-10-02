@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import { CalendarDays, MessageSquare, Send, Sparkles } from "lucide-react";
 import { localDateKey } from "../lib/utils";
 import TodayTimetable from "./TodayTimetable";
@@ -80,6 +80,17 @@ export default function Today({ state, onChange, onOpenChat }) {
  * stranded half-filled input.
  */
 function SectionChatInput({ text, setText, onSubmit }) {
+  const taRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const next = Math.min(200, Math.max(36, el.scrollHeight));
+    if (el.style.height !== `${next}px`) {
+      el.style.height = `${next}px`;
+    }
+  }, [text]);
   return (
     <form
       onSubmit={onSubmit}
@@ -95,6 +106,7 @@ function SectionChatInput({ text, setText, onSubmit }) {
       </label>
       <div className="flex items-start gap-2">
         <textarea
+          ref={taRef}
           id="today-section-chat-input"
           data-testid="today-section-chat-input"
           value={text}

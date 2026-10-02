@@ -56,7 +56,7 @@ function FieldRow({ icon: Icon, label, value, accent }) {
             {label}
           </div>
         )}
-        <div className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"}`}>
+        <div className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"} ${!label && "font-semibold"}`}>
           {value}
         </div>
       </div>

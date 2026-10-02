@@ -682,18 +682,14 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             style={{ minHeight: "36px", maxHeight: "200px", height: "36px" }}
           />
           <div className="flex items-center justify-between gap-1 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
-            {/* Iteration 9+ fix: Coach-mode dropdown lives on the LEFT
-                with a locked width (148px) so picking a different mode
-                ('coach may ask' / 'answering for you' / 'grill me') does
-                NOT shift the icon buttons to the right. The previous
-                layout had icons on the left and the dropdown next to
-                send, which visibly pushed send when the label grew. */}
-            <ChatModeSelect
-              autoAnswer={autoAnswer}
-              grillMe={grillMe}
-              setAutoAnswer={setAutoAnswer}
-              setGrillMe={setGrillMe}
-            />
+            <div className="flex items-center gap-0.5">
+              <ChatModeSelect
+                autoAnswer={autoAnswer}
+                grillMe={grillMe}
+                setAutoAnswer={setAutoAnswer}
+                setGrillMe={setGrillMe}
+              />
+            </div>
             <div className="flex items-center gap-0.5">
               {showSources && (
                 <>

@@ -177,7 +177,7 @@ export default function RefineModal({
       <div className="space-y-3">
         {preview ? (
           <div>
-            <p className="text-sm text-[var(--text-secondary)] mb-2">The coach proposes these changes. Happy with them?</p>
+            <p className="text-xs font-medium text-[var(--text-muted)] mb-1">Preview</p>
             <ProposalPreview proposal={preview} />
           </div>
         ) : (
