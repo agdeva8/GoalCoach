@@ -4161,6 +4161,11 @@
   resolved "https://registry.yarnpkg.com/@valibot/to-json-schema/-/to-json-schema-1.8.0.tgz#c8f267dd8556ada802c07fa1c8c3c201d9a45ca3"
   integrity sha512-a0M+uwCuQZEPAo65NYkFSJ14O5c213KoSZmPdoCfuFvUhfULi4T2Z6Tpjv6lTVMW9RoLm74RpRAjNEa43KcN+g==
 
+"@vercel/analytics@^2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@vercel/analytics/-/analytics-2.0.1.tgz#d7d7bd37af7cfbeea95db5f132ae4889f4d26407"
+  integrity sha512-MTQG6V9qQrt1tsDeF+2Uoo5aPjqbVPys1xvnIftXSJYG2SrwXRHnqEvVoYID7BTruDz4lCd2Z7rM1BdkUehk2g==
+
 "@vitest/expect@3.2.4":
   version "3.2.4"
   resolved "https://registry.yarnpkg.com/@vitest/expect/-/expect-3.2.4.tgz#8362124cd811a5ee11c5768207b9df53d34f2433"
