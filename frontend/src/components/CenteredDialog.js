@@ -164,10 +164,10 @@ export default function CenteredDialog({
             <X className="w-4 h-4" />
           </button>
         )}
-        <div className={`px-5 py-4 overflow-y-auto overscroll-contain ${
+        <div className={`overscroll-contain ${
           mobileAnchor === "sheet" && fullHeightMobile
-            ? "sm:max-h-[70vh] flex-1 min-h-0"
-            : "max-h-[70vh]"
+            ? "px-5 pt-4 pb-0 flex-1 min-h-0 flex flex-col overflow-hidden"
+            : "px-5 py-4 max-h-[70vh] overflow-y-auto"
         }`}>{children}</div>
         {footer && (
           <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)]">

@@ -210,6 +210,11 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   const fileRef = useRef(null);
   const [empty] = useState(messages.length === 0);
   const [isTyping, setIsTyping] = useState(false);
+  // Iteration 9+ — composer focus/expand. Tapping the box opens a
+  // comfortable writing area (~120px min); clearing/sending snaps it
+  // back to a slim 36px bar. Founders feedback: "on clicking the text
+  // box it should open ... with good height, collapsed after send".
+  const [composerFocused, setComposerFocused] = useState(false);
   const typingTimeoutRef = useRef(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
@@ -517,6 +522,11 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     const text = input.trim();
     if (!text || sending) return;
     onSend(text);
+    // Iteration 9+ — collapse the composer after send. The parent
+    // clears `input`, and blurring here resets the focus-expanded
+    // height back to the slim 1-row bar.
+    setComposerFocused(false);
+    try { taRef.current?.blur(); } catch { /* ignore */ }
   };
 
   const onKey = (e) => {
@@ -535,11 +545,16 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   useLayoutEffect(() => {
     const el = taRef.current;
     if (!el) return;
-    const next = Math.min(200, Math.max(36, el.scrollHeight));
+    el.style.height = "auto";
+    // Iteration 9+ — when the composer is focused the floor is a
+    // comfortable writing area (~120px); when idle it's one slim row
+    // (36px). Content can still push it to the 200px ceiling.
+    const floor = composerFocused ? 120 : 36;
+    const next = Math.min(200, Math.max(floor, el.scrollHeight));
     if (el.style.height !== `${next}px`) {
       el.style.height = `${next}px`;
     }
-  }, [input]);
+  }, [input, composerFocused]);
 
   return (
     <div
@@ -596,7 +611,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 border-t border-[var(--border)] p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[var(--bg-primary)]">
+      <div className="shrink-0 border-t border-[var(--border)] px-3 pt-2.5 sm:px-4 sm:pt-3 pb-[max(0.25rem,env(safe-area-inset-bottom))] bg-[var(--bg-primary)]">
         {sources.length > 0 && (
           <div data-testid="attached-sources" className="mb-2 flex flex-wrap gap-1.5">
             {sources.map((s) => (
@@ -657,28 +672,26 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             </button>
           </form>
         )}
-        {/* Composer — Iteration 9+ mobile layout. Textarea starts SLIM
-            (1 row, ~36px) and expands to max-h-56 as the user types
-            more, giving the chat log the maximum vertical space when
-            the field is empty. The attach / link / mic / Coach-mode
-            / send buttons all live in ONE row beneath. The standalone
-            "Enter to send" status line was removed — it ate ~30px of
-            vertical space and the buttons themselves are the affordance. */}
-        <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
+        {/* Composer — Iteration 9+ final. The textarea + the action row
+            below are ONE visual box: the wrapper owns the border and
+            the focus highlight, the textarea has no outline of its own.
+            Tapping it expands to a comfortable writing area; send /
+            clear collapses it back to one slim row. */}
+        <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors rounded-md overflow-hidden">
           <textarea
             ref={taRef}
             data-testid="chat-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
+            onFocus={() => setComposerFocused(true)}
+            onBlur={() => setComposerFocused(false)}
             rows={1}
             placeholder={voiceListening ? "Listening…" : "Think out loud…"}
             aria-label="Message the coach"
             // Auto-grow handled by the useLayoutEffect above (read
-            // scrollHeight, clamp 36–200px). Empty → 36px (1 row);
-            // typing expands up to 8 rows. Composer stays anchored
-            // to the bottom of the dialog.
-            className="block w-full bg-transparent resize-none overflow-y-auto px-3 py-2 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-t-md"
+            // scrollHeight, clamp 36–200px, floor 120 while focused).
+            className="block w-full bg-transparent resize-none overflow-y-auto px-3 py-2.5 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none border-0 transition-[height] duration-200 ease-out"
             style={{ minHeight: "36px", maxHeight: "200px", height: "36px" }}
           />
           {/* Composer action row — Iteration 9+ final layout:
@@ -691,7 +704,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                 `shrink-0`.
               Founder feedback: dropdown left, all four action icons
               right. */}
-          <div className="flex items-center justify-between gap-2 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between gap-2 px-1 py-1 border-t border-[var(--border)]">
             <div className="flex-1 min-w-0 max-w-[150px]">
               <ChatModeSelect
                 autoAnswer={autoAnswer}
@@ -700,11 +713,11 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                 setGrillMe={setGrillMe}
               />
             </div>
-            <div className="flex items-center gap-0.5 shrink-0">
+            <div className="flex items-center gap-0 shrink-0">
               {showSources && (
                 <>
                   <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
-                  <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" aria-label="Attach a file as a source" className="h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
+                  <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" aria-label="Attach a file as a source" className="h-11 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
                     <Paperclip className="w-4 h-4" />
                   </button>
                   <button
@@ -714,7 +727,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                     aria-controls="chat-link-row"
                     title="Add a link as a source"
                     aria-label="Add a link as a source"
-                    className={`h-11 w-11 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
+                    className={`h-11 w-9 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
                       linkOpen
                         ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
                         : "text-[var(--text-muted)] hover:text-[var(--accent)]"
@@ -732,7 +745,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                   title={voiceListening ? "Stop listening (or wait 60s for auto-pause)" : "Dictate with your voice"}
                   aria-label={voiceListening ? "Stop dictating" : "Dictate with your voice"}
                   aria-pressed={voiceListening}
-                  className={`h-11 w-11 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
+                  className={`h-11 w-9 flex items-center justify-center transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded ${
                     voiceListening
                       ? "bg-[var(--danger)] text-[var(--bg-primary)]"
                       : "text-[var(--text-muted)] hover:text-[var(--accent)]"
@@ -746,7 +759,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                 onClick={submit}
                 disabled={sending || !input.trim()}
                 aria-label="Send"
-                className="h-11 w-11 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0 rounded"
+                className="h-11 w-11 ml-0.5 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0 rounded"
               >
                 <ArrowUp className="w-4 h-4" aria-hidden="true" />
               </button>
