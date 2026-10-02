@@ -114,6 +114,13 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const count = Math.min(3, Math.max(1, Number(url.searchParams.get('n')) || 3))
+  // `?refresh=true` is set by the manual refresh button in
+  // MotivationCard — bypasses the cache read so the user gets a
+  // fresh LLM-curated row, not a stale or catalogue fallback. The
+  // SWR poller never sets this (it polls without a query string).
+  // The dedup map still ensures a force-refresh and a stray poll
+  // arriving 200ms apart share one pipeline.
+  const forceRefresh = url.searchParams.get('refresh') === 'true'
 
   let bucket: Bucket = 'stuck'
   try {
@@ -140,6 +147,7 @@ export async function GET(req: NextRequest) {
     bucket,
     stateHash,
     n: count,
+    forceRefresh,
   })
   return NextResponse.json(response)
 }

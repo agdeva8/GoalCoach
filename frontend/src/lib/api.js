@@ -98,7 +98,8 @@ export const api = {
   createMemory: (body) => req("/memories", { method: "POST", body: JSON.stringify(body) }),
   deleteMemory: (id) => req(`/memories/${id}`, { method: "DELETE" }),
   // Motivation
-  motivation: () => req("/motivation/recommend"),
+  motivation: ({ refresh = false } = {}) =>
+    req(refresh ? "/motivation/recommend?refresh=true" : "/motivation/recommend"),
 };
 
 export function exportUrl() {

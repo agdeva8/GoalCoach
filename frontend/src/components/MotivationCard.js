@@ -110,12 +110,12 @@ export default function MotivationCard({ state }) {
     }, POLL_INTERVAL_MS)
   }
 
-  const fetchRecommendations = () => {
+  const fetchRecommendations = (opts = {}) => {
     setLoading(true)
     setError(null)
     setPollGaveUp(false)
     api
-      .motivation()
+      .motivation({ refresh: opts.forceRefresh === true })
       .then((d) => {
         setItems(d.items || [])
         if (d.cache === "hit") {
@@ -124,7 +124,9 @@ export default function MotivationCard({ state }) {
         } else {
           // 'miss' or 'stale' — server kicked off a background
           // refresh; start (or continue) polling until it lands
-          // (or the poll cap fires).
+          // (or the poll cap fires). Manual refresh (forceRefresh)
+          // also lands here, since the fresh pipeline is still
+          // running in the background.
           setAwaitingFresh(true)
           startPolling()
         }
@@ -171,7 +173,7 @@ export default function MotivationCard({ state }) {
         <button
           data-testid="motivation-refresh"
           type="button"
-          onClick={fetchRecommendations}
+          onClick={() => fetchRecommendations({ forceRefresh: true })}
           disabled={loading}
           className="h-11 w-11 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] border border-transparent transition-colors"
           title="Refresh"

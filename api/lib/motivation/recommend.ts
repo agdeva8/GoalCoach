@@ -77,6 +77,59 @@ import type {
 } from './schema'
 
 /* -------------------------------------------------------------------------- */
+/* In-flight pipeline dedup                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Concurrent polls for the same (user, bucket, stateHash) used to
+ * each `void runPipeline()` independently. The first one did the
+ * real work; subsequent ones raced the cache write and either
+ * overwrote each other or short-circuited via the cost cap
+ * (whichever lost the race). Now the orchestrator registers the
+ * in-flight promise here, and any concurrent caller awaits the
+ * SAME promise instead of starting a duplicate pipeline.
+ *
+ * Keyed by `userId:bucket:stateHash` so different fingerprints get
+ * their own pipeline runs (cache hashes are independent).
+ *
+ * Memory bound: the map only holds in-flight promises. Once the
+ * pipeline settles (success or failure), the entry is deleted in
+ * `.finally()` so the map never grows past the number of currently
+ * running pipelines. Serverless caveat: this map is per-process, so
+ * a Vercel cold-start loses it; the next caller just starts a
+ * fresh pipeline. That's the correct behaviour — the dedup only
+ * matters within a single warm instance.
+ */
+const inFlightPipelines = new Map<string, Promise<RecommendationResponse>>()
+
+function pipelineKey(args: { userId: string; bucket: Bucket; stateHash: string }): string {
+  return `${args.userId}:${args.bucket}:${args.stateHash}`
+}
+
+async function triggerPipelineOnce(args: {
+  userId: string
+  bucket: Bucket
+  stateHash: string
+  n: number
+}): Promise<RecommendationResponse> {
+  const key = pipelineKey(args)
+  const existing = inFlightPipelines.get(key)
+  if (existing) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[motivation] pipeline dedup hit for ${key.slice(0, 32)}… — ` +
+        `awaiting in-flight run instead of starting a duplicate`,
+    )
+    return existing
+  }
+  const p = runPipeline(args).finally(() => {
+    inFlightPipelines.delete(key)
+  })
+  inFlightPipelines.set(key, p)
+  return p
+}
+
+/* -------------------------------------------------------------------------- */
 /* Orchestrator                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -88,36 +141,46 @@ import type {
 export async function recommend(
   req: RecommendationRequest,
 ): Promise<RecommendationResponse> {
-  const { userId, bucket, stateHash, n } = req
+  const { userId, bucket, stateHash, n, forceRefresh = false } = req
 
   // Flag off → straight to catalogue. Same shape, same response.
   if (!MOTIVATION_AGENT_ENABLED) {
     return fromCatalogue(bucket, n)
   }
 
-  // 1. Cache lookup.
-  const cached = await readCache({ userId, bucket, stateHash })
-  if (cached.status === 'hit') {
-    return {
-      bucket,
-      items: cached.items,
-      generated_at: cached.generated_at,
-      cache: 'hit',
+  // 1. Cache lookup — skipped when the caller asked for a forced
+  //    refresh (e.g. user clicked the manual refresh button in
+  //    MotivationCard). Force bypasses both `hit` and `stale` so a
+  //    fresh pipeline always runs; the catalogue/SWR fallback path
+  //    below still serves the user immediately, with a real
+  //    pipeline landing in the background.
+  if (!forceRefresh) {
+    const cached = await readCache({ userId, bucket, stateHash })
+    if (cached.status === 'hit') {
+      return {
+        bucket,
+        items: cached.items,
+        generated_at: cached.generated_at,
+        cache: 'hit',
+      }
     }
-  }
 
-  // 2. Stale cache — serve stale, refresh async.
-  if (cached.status === 'stale') {
-    // Fire-and-forget — don't await.
-    void runPipeline({ userId, bucket, stateHash, n }).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.warn('[motivation] stale refresh failed:', err)
-    })
-    return {
-      bucket,
-      items: cached.items,
-      generated_at: cached.generated_at,
-      cache: 'stale',
+    // 2. Stale cache — serve stale, refresh async.
+    if (cached.status === 'stale') {
+      // Dedup: if a pipeline is already running for this fingerprint,
+      // join it; don't start a second one.
+      void triggerPipelineOnce({ userId, bucket, stateHash, n }).catch(
+        (err) => {
+          // eslint-disable-next-line no-console
+          console.warn('[motivation] stale refresh failed:', err)
+        },
+      )
+      return {
+        bucket,
+        items: cached.items,
+        generated_at: cached.generated_at,
+        cache: 'stale',
+      }
     }
   }
 
@@ -137,14 +200,13 @@ export async function recommend(
   //    loader, and the eventual transition into the LLM-fresh item
   //    is a quiet swap of one item for another, not a layout shift.
   //
-  //    Dedup with other in-flight refreshes for the same (user, bucket,
-  //    stateHash): `runPipeline` writes to the cache by `stateHash`, so
-  //    two concurrent callers for the same fingerprint would race to
-  //    overwrite each other's row. The cost cap inside the pipeline
-  //    keeps the duplicate work cheap (second wave hits `overBudget`),
-  //    but if this ever becomes a hot path, swap the `void` for a
-  //    `Map<stateHash, Promise>` so the second caller awaits the first.
-  void runPipeline({ userId, bucket, stateHash, n }).catch((err) => {
+  //    Dedup with other in-flight refreshes: `triggerPipelineOnce`
+  //    checks the in-flight map and returns the existing promise
+  //    if one is already running for this (user, bucket, stateHash).
+  //    The second caller of a force-refresh or a stale poll
+  //    arrives 200ms later and just `await`s the same pipeline
+  //    instead of starting a duplicate.
+  void triggerPipelineOnce({ userId, bucket, stateHash, n }).catch((err) => {
     // eslint-disable-next-line no-console
     console.warn('[motivation] cold-miss refresh failed:', err)
   })
@@ -174,8 +236,25 @@ async function runPipeline(args: {
     PIPELINE_TIMEOUT_MS,
   )
 
-  // Live cost counter.
+  // Live cost counter. Exposed via getter so the stage-level
+  // short-circuit log below can report the running total when it
+  // fires — without that, "we short-circuited here" is a guess.
   const cost = new CostTracker()
+
+  // Stage-level short-circuit log. Fires once per short-circuit;
+  // tells us how often a duplicate-poll wave (or a bad LLM key, or
+  // a runaway Tavily query) is hitting the cap. A spike here is
+  // either "user's LLM is down" (expect 100% of short-circuits) or
+  // "many users polled at once and we OOB'd" (expect a cluster
+  // correlated with frontend poll traffic).
+  const shortCircuit = (stage: 'tavily' | 'critique') => {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[motivation] pipeline short-circuit at stage=${stage} ` +
+        `cost=$${cost.getTotal().toFixed(4)} cap=$${COST_CAP_USD} ` +
+        `userId=${userId.slice(0, 16)}… bucket=${bucket}`,
+    )
+  }
 
   try {
     // 1. Extract state (themes + overdue stats) for search queries.
@@ -189,7 +268,10 @@ async function runPipeline(args: {
       signal: masterCtrl.signal,
     })
     cost.recordTavily(tavilyCostUsd(queries.length))
-    if (cost.overBudget()) return fromCatalogue(bucket, n)
+    if (cost.overBudget()) {
+      shortCircuit('tavily')
+      return fromCatalogue(bucket, n)
+    }
 
     if (raw.length === 0) {
       // No search results → catalogue (probably Tavily key missing).
@@ -212,7 +294,10 @@ async function runPipeline(args: {
       onCost: (usd) => cost.recordLlm('reasoning', usd),
       onCap: () => cost.overBudget(),
     })
-    if (critiqueSignals.overBudget) return fromCatalogue(bucket, n)
+    if (critiqueSignals.overBudget) {
+      shortCircuit('critique')
+      return fromCatalogue(bucket, n)
+    }
     if (critiqueSignals.scored.length === 0) return fromCatalogue(bucket, n)
 
     // 5. Pick.
@@ -528,15 +613,19 @@ function parseItems(raw: unknown): RecommendationItem[] {
 /* -------------------------------------------------------------------------- */
 
 class CostTracker {
-  private total = 0
+  private totalUsd = 0
   recordTavily(usd: number) {
-    this.total += usd
+    this.totalUsd += usd
   }
   recordLlm(_kind: 'reasoning' | 'cheap', usd: number) {
-    this.total += usd
+    this.totalUsd += usd
   }
   overBudget(): boolean {
-    return this.total >= COST_CAP_USD
+    return this.totalUsd >= COST_CAP_USD
+  }
+  /** Exposed for the stage-level short-circuit log. */
+  getTotal(): number {
+    return this.totalUsd
   }
 }
 
