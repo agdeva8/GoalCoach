@@ -54,7 +54,12 @@ export default function PersonaMenu({ currentName, currentUserId, initialOpen = 
       .then(async (r) => {
         if (r.status === 404) { setPersonas([]); return }
         if (!r.ok) throw new Error(`${r.status}`)
-        const data = await r.json()
+        // `r.json()` throws on non-JSON (HTML 404 page, dev-server proxy
+        // 502, etc). The other fetch sites in this file already use
+        // `.catch(() => ({}))` for exactly this reason — keep it
+        // consistent so a missing endpoint doesn't surface as a
+        // "Unexpected token '<'" parse error to the user.
+        const data = await r.json().catch(() => ({}))
         setPersonas(data.personas || [])
       })
       .catch((e) => setError(e?.message || "Couldn't load personas"))
