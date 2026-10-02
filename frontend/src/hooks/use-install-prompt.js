@@ -22,12 +22,12 @@ import { useCallback, useEffect, useState } from "react";
  * Guards:
  *  - Already installed (display-mode standalone / iOS navigator.standalone)
  *    → never prompt again.
- *  - Dismissed → localStorage timestamp; re-prompt allowed after REPROMPT_MS
- *    so a single "Not now" isn't permanent but also never nags.
+ *  - Dismissed → dialog closes, no persistence. Chrome's own anti-spam
+ *    (once per ~30 days per site for `beforeinstallprompt`) does the
+ *    throttling — a separate localStorage snooze would only add friction
+ *    for users who change their mind or are testing. If Chrome ever
+ *    fires the event again, we'll show the dialog again.
  */
-
-const DISMISS_KEY = "sutra_install_prompt_dismissed_at";
-const REPROMPT_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
 export function isStandalone() {
   if (typeof window === "undefined") return false;
@@ -51,20 +51,17 @@ export function isIosSafari() {
 }
 
 function recentlyDismissed() {
-  try {
-    const at = Number(localStorage.getItem(DISMISS_KEY) || 0);
-    return at > 0 && Date.now() - at < REPROMPT_MS;
-  } catch {
-    // Private mode / storage blocked — treat as not dismissed, we'd rather
-    // prompt once per session than never.
-    return false;
-  }
+  // Snooze removed — see Guards note in the file header. Chrome's
+  // `beforeinstallprompt` is rate-limited at the browser level; we don't
+  // need our own. Keeping the function as a stub for the `dismissed`
+  // return below so the call site stays readable.
+  return false;
 }
 
 export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
   const [deferred, setDeferred] = useState(null);
   const [installed, setInstalled] = useState(isStandalone);
-  const [dismissed, setDismissed] = useState(recentlyDismissed);
+  const [, setDismissed] = useState(false); // kept for API compatibility, no-op
   const [ready, setReady] = useState(false); // show-delay elapsed
 
   const iosSafari = isIosSafari();
@@ -87,9 +84,10 @@ export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
     };
   }, []);
 
-  // Eligible = not installed, not recently dismissed, and actually capable
-  // (a captured Chromium prompt, or the iOS Safari manual path).
-  const eligible = !installed && !dismissed && (deferred !== null || iosSafari);
+  // Eligible = not installed and actually capable (Chromium captured a
+  // prompt, or iOS Safari) — no snooze. Chrome throttles
+  // `beforeinstallprompt` itself (~once per 30 days per site).
+  const eligible = !installed && (deferred !== null || iosSafari);
 
   useEffect(() => {
     if (!eligible) {
@@ -118,9 +116,8 @@ export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
 
   const dismiss = useCallback(() => {
     setDismissed(true);
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    } catch { /* storage blocked — dismissal lasts this session only */ }
+    // No localStorage persistence — closing just hides the dialog. If
+    // Chrome fires `beforeinstallprompt` again later, we'll show it again.
   }, []);
 
   return {

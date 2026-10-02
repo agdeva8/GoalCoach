@@ -59,6 +59,30 @@ function AppRouter() {
   );
 }
 
+// Registers the service worker shipped from /sw.js (see public/sw.js).
+// Chrome's URL-bar install icon + `beforeinstallprompt` both still
+// require an SW with a fetch handler — without it the PWA is invisible
+// to Chrome's installer regardless of how perfect the manifest is.
+function ServiceWorkerRegistrar() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+    // Defer registration until after first paint so SW install can't
+    // block the critical path. /sw.js is served from the CRA `public/`
+    // folder, so the scope is the whole app.
+    const register = () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // Silent failure — a missing SW means no install icon, but the
+        // app still works as a regular website.
+      });
+    };
+    if (document.readyState === "complete") register();
+    else window.addEventListener("load", register, { once: true });
+    return () => window.removeEventListener("load", register);
+  }, []);
+  return null;
+}
+
 function App() {
   return (
     <div className="App">
@@ -73,6 +97,7 @@ function App() {
         <ToasterBridge />
       </BrowserRouter>
       <Analytics />
+      <ServiceWorkerRegistrar />
     </div>
   );
 }
