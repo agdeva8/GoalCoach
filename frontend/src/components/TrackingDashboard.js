@@ -246,6 +246,7 @@ export default function TrackingDashboard({
   autoAnswer = false,
   grillMe = false,
   isGuest = false,
+  registerCloser = null,
 }) {
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [memoryGoal, setMemoryGoal] = useState(null); // { id, title } | null
@@ -268,6 +269,17 @@ export default function TrackingDashboard({
     const t = setTimeout(() => setAddGoalOpen(true), 600);
     return () => clearTimeout(t);
   }, [state, visibleGoals.length]);
+
+  // Register / deregister the AddGoalDialog's closer with Coach.js so
+  // the global back button (mobile panel-back-arrow AND browser back)
+  // closes the topmost layer instead of walking history / app exit.
+  // Refine / Reject modals nest inside AddGoalDialog and push their
+  // own closers via the parent dialog's `pushCloser` plumbing.
+  useEffect(() => {
+    if (!addGoalOpen || !registerCloser) return;
+    return registerCloser(() => closeAddGoalDialog());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addGoalOpen, registerCloser]);
 
   if (!state) {
     return (
@@ -372,6 +384,7 @@ export default function TrackingDashboard({
       <AddGoalDialog
         open={addGoalOpen}
         onClose={closeAddGoalDialog}
+        registerCloser={registerCloser}
         autoAnswer={autoAnswer}
         grillMe={grillMe}
         onUploadSource={onUploadSource}

@@ -132,11 +132,11 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
           </button>
         </nav>
 
-        {/* Goals menu — present on every breakpoint as the nav entry.
-            On mobile it lives next to the active screen title bar (Coach.js);
-            on desktop it sits right of the avatar. The trigger is always
-            labelled "Goals" — that's the canonical landing. */}
-        <div className="hidden sm:block">
+        {/* Goals menu — mobile / space-constrained only. On desktop
+            the horizontal tab strip (Coach.js) is the nav; showing both
+            was duplicating surface (founder feedback). The trigger is
+            always labelled "Goals" — that's the canonical landing. */}
+        <div className="sm:hidden">
           <GoalMenu />
         </div>
 

@@ -71,6 +71,26 @@ export default function Coach() {
   const [auditOpen, setAuditOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
+  // Dialog closer stack — registered by nested dialogs (e.g. the
+  // AddGoalDialog rendered inside TrackingDashboard) so the global
+  // back button can peel layers in the order they opened. The top of
+  // the stack is the most recently registered closer.
+  const closerStackRef = useRef([]);
+  const pushCloser = useCallback((fn) => {
+    closerStackRef.current.push(fn);
+    return () => {
+      const i = closerStackRef.current.lastIndexOf(fn);
+      if (i >= 0) closerStackRef.current.splice(i, 1);
+    };
+  }, []);
+  const popCloser = useCallback(() => {
+    const stack = closerStackRef.current;
+    while (stack.length > 0) {
+      const fn = stack.pop();
+      try { fn?.(); return true; } catch { /* try the next one */ }
+    }
+    return false;
+  }, []);
   const [actionModal, setActionModal] = useState(null);
   // Focused-task dialog (per-action isolated chat). When set, opens
   // a fresh chat scoped to a single goal-edit / pause / drop /
@@ -329,11 +349,41 @@ export default function Coach() {
     setSearchParams(searchForScreen(key));
   };
 
-  // Mobile back affordance: pop real history when we have any (every
-  // in-app navigation pushes), otherwise deep-links land back on Goals —
-  // the canonical screen — instead of walking out of the app.
-  const canGoBack = location.key !== "default" || panelView !== "state";
+  // Mobile back affordance: when ANY dialog is open, close the topmost
+  // one first instead of walking history / exiting the app. The user
+  // expects back to peel layers: dialog → scoped screen → home, not
+  // jump straight out. (Founder feedback, Iteration 9+.)
+  const isAnyDialogOpen =
+    chatOpen ||
+    focusedTask ||
+    actionModal ||
+    sourceDialogMode ||
+    boundaryConfirm ||
+    signInOpen ||
+    auditOpen ||
+    aboutOpen ||
+    closerStackRef.current.length > 0;
+  const closeTopmostDialog = () => {
+    // The stack wins — it knows about nested dialogs (AddGoalDialog
+    // owns the refine/reject modals and the parent dialog itself; the
+    // topmost closer is whichever opened last).
+    if (popCloser()) return true;
+    if (chatOpen) { setChatOpen(false); setChatPrefill(""); setChatScope(null); return true; }
+    if (focusedTask) { setFocusedTask(null); return true; }
+    if (actionModal) { setActionModal(null); return true; }
+    if (sourceDialogMode || sourceDialogSource) { closeSourceDialog(); return true; }
+    if (boundaryConfirm) { setBoundaryConfirm(null); return true; }
+    if (signInOpen) { setSignInOpen(false); return true; }
+    if (auditOpen) { setAuditOpen(false); return true; }
+    if (aboutOpen) { setAboutOpen(false); return true; }
+    return false;
+  };
+  const canGoBack =
+    isAnyDialogOpen ||
+    location.key !== "default" ||
+    panelView !== "state";
   const goBack = () => {
+    if (closeTopmostDialog()) return;
     if (location.key !== "default") navigate(-1);
     else goPanel("state");
   };
@@ -458,6 +508,7 @@ export default function Coach() {
                 autoAnswer={autoAnswer}
                 grillMe={grillMe}
                 isGuest={isGuest}
+                registerCloser={pushCloser}
               />
             ) : panelView === "today" ? (
               <Today state={state} onChange={refreshState} onOpenChat={openChatWith} />

@@ -339,7 +339,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   // (Firefox desktop, older Safari). On the unsupported path, the
   // user can still type — no broken UI.
   //
-  // Iteration 9 — voice behaviour:
+  // Iteration 9+ voice behaviour:
   //   1. continuous: TRUE so the model keeps listening after the first
   //      final result (the default `false` cut off after one pause).
   //   2. interimResults: TRUE so the user sees partial words while
@@ -348,6 +348,15 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   //      single-pause behaviour was too aggressive — users mid-thought
   //      were being cut off. The 60s timer is the fallback; the user
   //      can ALWAYS hit the red stop button to end early.
+  //   4. Auto-restart on unexpected end (Iteration 9+): Chromium's
+  //      SpeechRecognition auto-stops itself after roughly 60s of
+  //      no-input regardless of our silence timer. If `onend` fires
+  //      while voiceListening is still true, we restart the recognition
+  //      within 250ms. The user only sees a brief "Reconnecting…"
+  //      status. This eliminates the "I want to add gold I want to
+  //      add gold" duplication bug where the browser cut off, the user
+  //      saw the stop, and the next tap replayed the buffer.
+  const expectedStopRef = useRef(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -370,7 +379,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
       // user can re-tap the mic to resume from a fresh slate.
       if (silenceTimerId) clearTimeout(silenceTimerId);
       silenceTimerId = setTimeout(() => {
-        setVoiceListening(false);
+        expectedStopRef.current = true;
         try { recognition.stop(); } catch { /* ignore */ }
       }, SILENCE_LIMIT_MS);
     };
@@ -385,32 +394,72 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
       }
       // Reset the 60s timer on every result — the user is still active.
       armSilenceTimer();
+
       setInput((prev) => {
-        // Drop any prefix the model echoed back from a prior interim.
-        const base = interimText ? "" : prev;
-        const merged = `${base}${finalText || interimText}`.trim();
-        return merged;
+        // Dedupe: if the new interim already appears in `prev` (the
+        // browser sometimes re-emits the last interim on every event),
+        // keep `prev` as-is. Otherwise concatenate. Fixes the
+        // "I want to add gold I want to add gold" duplication bug.
+        const incoming = (finalText || interimText).trim();
+        if (!incoming) return prev;
+        const cur = prev.trim();
+        if (cur === incoming) return prev;
+        if (cur.endsWith(incoming)) return prev;
+        if (!cur) return incoming;
+        // Append with a space if neither already ends/begins with it.
+        return `${cur} ${incoming}`;
       });
     };
 
     recognition.onerror = (event) => {
       if (silenceTimerId) { clearTimeout(silenceTimerId); silenceTimerId = null; }
-      setVoiceListening(false);
       const err = event?.error || "unknown";
-      if (err === "no-speech") setVoiceError("Didn't catch that. Try again.");
-      else if (err === "not-allowed" || err === "service-not-allowed") setVoiceError("Microphone access is blocked — allow it in your browser settings.");
-      else if (err === "aborted") { /* user pressed stop; no error needed */ }
-      else setVoiceError("Voice input stopped unexpectedly. Tap the mic to try again.");
+      if (err === "no-speech") {
+        // Not fatal — Chromium fires this on natural pauses. Don't
+        // surface a visible error; let onend handle the auto-restart.
+      } else if (err === "not-allowed" || err === "service-not-allowed") {
+        setVoiceError("Microphone access is blocked — allow it in your browser settings.");
+        expectedStopRef.current = true;
+        setVoiceListening(false);
+      } else if (err !== "aborted") {
+        setVoiceError("Voice input stopped unexpectedly. Tap the mic to try again.");
+        expectedStopRef.current = true;
+        setVoiceListening(false);
+      }
     };
 
     recognition.onend = () => {
       if (silenceTimerId) { clearTimeout(silenceTimerId); silenceTimerId = null; }
-      setVoiceListening(false);
+      if (expectedStopRef.current) {
+        // User tapped stop OR our silence timer fired. Honour it.
+        expectedStopRef.current = false;
+        setVoiceListening(false);
+        return;
+      }
+      // Unexpected end — Chromium stopped us. If the user is still in
+      // "listening" mode, restart in 250ms. This is the bug fix for
+      // the founder's "voice stops in the middle" report.
+      // We can't read the latest voiceListening here without re-binding
+      // the listener; instead, use a small trick: peek at the DOM
+      // button's aria-pressed (set by us) to detect intent.
+      try {
+        const btn = document.querySelector('[data-testid="chat-voice-button"]');
+        if (btn?.getAttribute("aria-pressed") === "true") {
+          setTimeout(() => {
+            try { recognition.start(); } catch { /* still in flight */ }
+          }, 250);
+        } else {
+          setVoiceListening(false);
+        }
+      } catch {
+        setVoiceListening(false);
+      }
     };
 
     recognitionRef.current = recognition;
     return () => {
       if (silenceTimerId) clearTimeout(silenceTimerId);
+      expectedStopRef.current = true;
       try { recognition.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
     };
@@ -420,10 +469,14 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     const r = recognitionRef.current;
     if (!r) return;
     if (voiceListening) {
+      // Manual stop — set the expected flag so the onend path takes
+      // the "user wanted to stop" branch and doesn't auto-restart.
+      expectedStopRef.current = true;
       try { r.stop(); } catch { /* ignore */ }
       setVoiceListening(false);
     } else {
       setVoiceError("");
+      expectedStopRef.current = false;
       try {
         r.start();
         setVoiceListening(true);

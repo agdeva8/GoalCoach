@@ -61,7 +61,7 @@ function recentlyDismissed() {
 export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
   const [deferred, setDeferred] = useState(null);
   const [installed, setInstalled] = useState(isStandalone);
-  const [, setDismissed] = useState(false); // kept for API compatibility, no-op
+  const [dismissed, setDismissed] = useState(false);
   const [ready, setReady] = useState(false); // show-delay elapsed
 
   const iosSafari = isIosSafari();
@@ -84,10 +84,11 @@ export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
     };
   }, []);
 
-  // Eligible = not installed and actually capable (Chromium captured a
-  // prompt, or iOS Safari) — no snooze. Chrome throttles
-  // `beforeinstallprompt` itself (~once per 30 days per site).
-  const eligible = !installed && (deferred !== null || iosSafari);
+  // Eligible = not installed, not dismissed, and actually capable
+  // (Chromium captured a prompt, or iOS Safari). Once dismissed we
+  // stay hidden until the browser fires beforeinstallprompt again —
+  // Chrome throttles that itself (~once per 30 days per site).
+  const eligible = !installed && !dismissed && (deferred !== null || iosSafari);
 
   useEffect(() => {
     if (!eligible) {

@@ -116,6 +116,7 @@ export default function AddGoalDialog({
   onAddLink,
   onDeleteSource,
   onGoalConfirmed,
+  registerCloser = null,
 }) {
   // Dialog-internal chat state — completely isolated from the parent.
   const [messages, setMessages] = useState([]);
@@ -145,6 +146,20 @@ export default function AddGoalDialog({
   const [rejectingProposal, setRejectingProposal] = useState(null);
   // Iteration 9 — back button closes this dialog.
   useDialogBack(open, onClose, "add-goal-dialog");
+
+  // Nested closer registration — the Refine / Reject modals live
+  // inside this dialog and own their own input. When the global back
+  // button is pressed while one of them is open, it must close THAT
+  // modal before it closes the parent AddGoalDialog. Register the
+  // closer here so Coach.js's back-stack knows the layer exists.
+  useEffect(() => {
+    if (!refiningProposal || !registerCloser) return;
+    return registerCloser(() => setRefiningProposal(null));
+  }, [refiningProposal, registerCloser]);
+  useEffect(() => {
+    if (!rejectingProposal || !registerCloser) return;
+    return registerCloser(() => setRejectingProposal(null));
+  }, [rejectingProposal, registerCloser]);
   const enterChat = (next) => {
     setStep(next ?? "chat");
     setFocusToken((t) => t + 1);
@@ -624,7 +639,7 @@ export default function AddGoalDialog({
               showSources={false} hides the attach / link buttons —
               sources don't apply to a goal-add chat, and the no-op
               stubs were surfacing as a confusing dead UI. */}
-          <div className="h-[55vh] min-h-[min(420px,60dvh)] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)] flex flex-col">
+          <div className="h-[68vh] min-h-[min(520px,72dvh)] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)] flex flex-col">
             <ChatConsole
               key={focusToken}
               messages={messages}

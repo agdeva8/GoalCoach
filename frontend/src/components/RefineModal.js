@@ -134,11 +134,17 @@ export default function RefineModal({
     }
   };
 
+  // No auto-submit on Enter — founder feedback (Iteration 9+, mid-slice):
+  // free-text typing shouldn't fire the LLM round-trip until the user
+  // explicitly clicks "Ask for changes" below. Shift+Enter still inserts
+  // a newline; Enter is reserved for the explicit button.
   const onKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submit();
+    if (e.key === "Enter" && e.shiftKey) {
+      // Default behaviour — insert newline at caret.
+      return;
     }
+    // Plain Enter does NOT submit. The user types freely and clicks the
+    // button below when ready.
   };
 
   return (
@@ -187,7 +193,7 @@ export default function RefineModal({
           className="block w-full bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none resize-none disabled:opacity-50"
         />
         <p className="text-xs text-[var(--text-muted)]">
-          Enter to send · Shift+Enter for a new line
+          Enter for a new line · Shift+Enter for a new line · Tap <span className="text-[var(--accent)] font-medium">Ask for changes</span> below to send
         </p>
         {error && (
           <p data-testid="refine-modal-error" role="alert" className="text-xs text-[var(--danger)]">
@@ -217,7 +223,7 @@ export default function RefineModal({
               </>
             ) : (
               <>
-                <Send className="w-3.5 h-3.5" aria-hidden="true" /> Re-propose
+                <Send className="w-3.5 h-3.5" aria-hidden="true" /> Ask for changes
               </>
             )}
           </button>

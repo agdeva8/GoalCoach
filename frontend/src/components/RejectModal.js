@@ -131,11 +131,16 @@ export default function RejectModal({
     }
   };
 
+  // No auto-submit on Enter — founder feedback (Iteration 9+, mid-slice):
+  // free-text typing shouldn't fire the reject until the user explicitly
+  // taps "Reject" below. Shift+Enter still inserts a newline; Enter is
+  // reserved for the explicit button.
   const onKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !skipReason) {
-      e.preventDefault();
-      submit();
+    if (e.key === "Enter" && e.shiftKey) {
+      // Default behaviour — insert newline at caret.
+      return;
     }
+    // Plain Enter does NOT submit.
   };
 
   return (
