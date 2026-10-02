@@ -9,70 +9,50 @@
    * native selection color must render dark rather than the
    * platform light default. `.light` flips it back below. */
   color-scheme: dark;
-  --bg-primary: #17120E;
-  --bg-secondary: #211A14;
-  --bg-tertiary: #2C231B;
-  --border: #3A2E24;
-  --border-accent: #574636;
-  --text-primary: #F6EEE3;
-  --text-secondary: #C6B5A1;
-  /* Raised from #94806B. --text-muted is the workhorse token (calendar
-   * day numbers, captions, counts, stat labels, footers) and it sits on
-   * --bg-tertiary cards far more often than on --bg-primary, so the
-   * binding surface is bg-tertiary: 4.08 -> 5.01 (still a clear step
-   * below --text-secondary's 7.72 so the hierarchy survives). */
-  --text-muted: #A3907B;
-  --accent: #E8925C;
-  --warning: #E0A458;
-  --danger: #D9705A;
-  --success: #8FB98A;
-  --tool-bg: #241C15;
-  --popover: 27 25% 11%;
-  --popover-foreground: 34 50% 93%;
+  /* Apple-clean dark mode: near-black surfaces, Apple's dark system blue
+   * accent (#0A84FF). Pure black for the deepest surface; Apple
+   * system gray 6 (#1C1C1E) for raised cards; gray 5 (#2C2C2E) for
+   * chips. Text ladder mirrors Apple's HIG: white primary, ~92%
+   * secondary, ~60% muted. */
+  --bg-primary:   #000000;
+  --bg-secondary: #1C1C1E;
+  --bg-tertiary:  #2C2C2E;
+  --border:       #38383A;
+  --border-accent:#48484A;
+  --text-primary: #FFFFFF;
+  --text-secondary:#EBEBF5;
+  --text-muted:   #98989D;
+  --accent:       #0A84FF;
+  --warning:      #FF9F0A;
+  --danger:       #FF453A;
+  --success:      #30D158;
+  --tool-bg:      #1C1C1E;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 100%;
 }
 
 .light {
   color-scheme: light;
-  --bg-primary: #FBF6EF;
-  --bg-secondary: #F3EBDF;
-  --bg-tertiary: #EADFCF;
-  --border: #E0D3C0;
-  --border-accent: #C9B7A0;
-  --text-primary: #2B2118;
-  --text-secondary: #5E4F40;
-  /* Raised from #93806A, which sat at 2.88 on --bg-tertiary. Same warm
-   * sepia ramp, just stepped down the ramp: 4.92 on bg-tertiary, and a
-   * full step lighter than --text-secondary (#5E4F40, 5.98) so the
-   * primary / secondary / muted ladder still reads. */
-  --text-muted: #6E5B45;
-
-  /* Semantic hues do double duty: they are calendar/status BAR FILLS
-   * (with dark ink on top) *and* status text. In light mode the old
-   * values failed both jobs — #C4683A was 2.96 as text on bg-tertiary
-   * and 3.62 under #FBF6EF ink on its own fill.
-   *
-   * Rather than split into fill/on-surface pairs (which would leave
-   * ~140 `text-[var(--accent)]`-style call sites in components this
-   * change does not own pointing at the fill token), these are darkened
-   * to the band that satisfies BOTH at once. The binding constraint is
-   * the lighter of the two requirements, and it is met with headroom:
-   *
-   *   token    as text on bg-tertiary   ink on fill
-   *   accent   4.54                     5.56
-   *   warning  4.65                     5.70
-   *   danger   4.82                     5.89
-   *   success  4.79                     5.86
-   *
-   * So light-mode bars stay saturated and clean instead of going muddy,
-   * and status text clears AA. Dark mode already passed both tests and
-   * is deliberately left alone — it is the default look. */
-  --accent: #9E4C22;
-  --warning: #8C551A;
-  --danger: #A0422E;
-  --success: #3F6A3A;
-  --tool-bg: #F6EFE4;
-  --popover: 36 43% 91%;
-  --popover-foreground: 27 28% 13%;
+  /* Apple-clean light mode: pure white surfaces, Apple's system blue
+   * accent (#007AFF). Same HIG text ladder: #1D1D1F primary (Apple's
+   * "label"), #6E6E73 secondary, #86868B tertiary ("placeholder
+   * text"). Apple's semantic colors are taken straight from
+   * HIG/system colors. */
+  --bg-primary:   #FFFFFF;
+  --bg-secondary: #F5F5F7;
+  --bg-tertiary:  #EFEFF1;
+  --border:       #D2D2D7;
+  --border-accent:#A1A1A6;
+  --text-primary: #1D1D1F;
+  --text-secondary:#6E6E73;
+  --text-muted:   #86868B;
+  --accent:       #007AFF;
+  --warning:      #FF9500;
+  --danger:       #FF3B30;
+  --success:      #34C759;
+  --tool-bg:      #F5F5F7;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 11%;
 }
 
 * {

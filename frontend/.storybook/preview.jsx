@@ -70,10 +70,10 @@ const PLACEHOLDER_IMG =
   "data:image/svg+xml;charset=utf-8," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">' +
-      '<rect width="400" height="400" fill="#2C231B"/>' +
-      '<rect x="24" y="24" width="352" height="352" fill="none" stroke="#3A2E24" stroke-width="4"/>' +
-      '<circle cx="140" cy="150" r="26" fill="#A3907B" opacity="0.55"/>' +
-      '<path d="M96 288l72-72 56 56 48-48 72 72" fill="none" stroke="#A3907B" stroke-width="10" ' +
+      '<rect width="400" height="400" fill="#2C2C2E"/>' +
+      '<rect x="24" y="24" width="352" height="352" fill="none" stroke="#38383A" stroke-width="4"/>' +
+      '<circle cx="140" cy="150" r="26" fill="#98989D" opacity="0.55"/>' +
+      '<path d="M96 288l72-72 56 56 48-48 72 72" fill="none" stroke="#98989D" stroke-width="10" ' +
       'stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>' +
       "</svg>",
   );

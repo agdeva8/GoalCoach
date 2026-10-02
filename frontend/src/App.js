@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "./context/AuthContext";
 import AuthCallback from "./components/AuthCallback";
+import InstallPrompt from "./components/InstallPrompt";
 import Coach from "./pages/Coach";
 import Settings from "./pages/Settings";
 
@@ -64,6 +65,10 @@ function App() {
       <BrowserRouter>
         <AuthProvider>
           <AppRouter />
+          {/* PWA install sheet — renders null unless the browser is
+              actually installable (Chromium prompt captured, or iOS
+              Safari) and the user hasn't dismissed it recently. */}
+          <InstallPrompt />
         </AuthProvider>
         <ToasterBridge />
       </BrowserRouter>

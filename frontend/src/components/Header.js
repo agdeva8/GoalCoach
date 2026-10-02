@@ -43,7 +43,7 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
   useEffect(() => {
     const syncThemeColor = () => {
       const light = document.documentElement.classList.contains("light");
-      const color = light ? "#FBF6EF" : "#17120E";
+      const color = light ? "#FFFFFF" : "#000000";
       let meta = document.querySelector('meta[name="theme-color"]');
       if (!meta) {
         meta = document.createElement("meta");
