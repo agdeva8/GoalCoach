@@ -85,11 +85,17 @@ function SectionChatInput({ text, setText, onSubmit }) {
   useLayoutEffect(() => {
     const el = taRef.current;
     if (!el) return;
-    el.style.height = "auto";
-    const next = Math.min(200, Math.max(36, el.scrollHeight));
-    if (el.style.height !== `${next}px`) {
-      el.style.height = `${next}px`;
+    // Iteration 9+ — the textarea is a slim single row while empty; the
+    // long placeholder must not be measured into the height (Chrome
+    // includes a wrapped placeholder in scrollHeight). Only grow once
+    // the user has actually typed, up to the max-h-28 cap.
+    if (!text) {
+      el.style.height = "40px";
+      return;
     }
+    el.style.height = "auto";
+    const next = Math.min(112, Math.max(40, el.scrollHeight));
+    el.style.height = `${next}px`;
   }, [text]);
   return (
     <form
@@ -117,9 +123,10 @@ function SectionChatInput({ text, setText, onSubmit }) {
             }
           }}
           rows={1}
-          placeholder="Something specific you want to flag, or just 'plan my afternoon with me'…"
+          placeholder="Flag something about today…"
           aria-label="Tell the coach anything about today"
-          className="flex-1 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] resize-y max-h-28"
+          className="flex-1 min-w-0 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] resize-none overflow-y-auto"
+          style={{ minHeight: "40px", maxHeight: "112px", height: "40px" }}
         />
         <button
           type="submit"
