@@ -125,7 +125,7 @@ export default function CenteredDialog({
         data-testid={`${testId}-content`}
         className={`relative w-full overscroll-contain ${maxWidth} bg-[var(--bg-secondary)] border border-[color-mix(in_srgb,var(--border-accent)_30%,transparent)] shadow-2xl gc-fade-up outline-none ${
           mobileAnchor === "sheet"
-            ? `rounded-t-2xl sm:rounded-xl ${fullHeightMobile ? "h-[92dvh] sm:h-auto flex flex-col" : "max-h-[88dvh] sm:max-h-none"}`
+            ? `rounded-t-2xl sm:rounded-xl ${fullHeightMobile ? "h-[100dvh] sm:h-auto flex flex-col" : "max-h-[88dvh] sm:max-h-none"}`
             : "rounded-xl"
         }`}
       >
