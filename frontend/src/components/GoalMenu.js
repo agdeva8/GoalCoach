@@ -28,12 +28,12 @@ export default function GoalMenu({ align = "end", className = "" }) {
   const location = useLocation();
   const activeKey = screenKeyFromSearch(location.search);
   const activeScreen = SCREENS.find((s) => s.key === activeKey);
-  // Goals (state) is the default landing — the trigger label is always
-  // "Goals", not the active screen name. The dropdown items below show
-  // the OTHER four so users can jump between them without a tab strip on
-  // mobile.
-  const triggerLabel = "Goals";
-  const TriggerIcon = SCREENS[0].Icon; // LayoutDashboard
+  // Iteration 9+ fix: the trigger label should be the CURRENT active
+  // screen (e.g. "Timeline"), not hardcoded to "Goals". The user was
+  // seeing "Goals" in the dropdown trigger even when on the Timeline
+  // page.
+  const triggerLabel = activeScreen?.label || "Goals";
+  const TriggerIcon = activeScreen?.Icon || LayoutDashboard;
   const otherScreens = SCREENS.filter((s) => s.key !== "state");
 
   return (

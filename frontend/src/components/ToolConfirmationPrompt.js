@@ -51,10 +51,12 @@ function FieldRow({ icon: Icon, label, value, accent }) {
     <div className="flex items-start gap-2 py-1">
       <Icon className="w-3.5 h-3.5 text-[var(--text-muted)] mt-0.5 shrink-0" aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-0.5">
-          {label}
-        </div>
-        <div className={`text-sm leading-relaxed break-words ${accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"}`}>
+        {label && (
+          <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-0.5">
+            {label}
+          </div>
+        )}
+        <div className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"}`}>
           {value}
         </div>
       </div>
@@ -131,7 +133,7 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
           )}
         </div>
         {headlineTitle && (
-          <div data-testid="proposal-headline" className="mt-1 text-sm font-medium text-[var(--text-primary)] truncate">
+          <div data-testid="proposal-headline" className="mt-1 text-sm font-medium text-[var(--text-primary)] whitespace-pre-wrap break-words">
             {actionLabel}: {headlineTitle}
           </div>
         )}
@@ -142,7 +144,6 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
           <div className="space-y-2">
             <FieldRow
               icon={Target}
-              label="Title"
               value={d.title || d.new_title || d.goal_title}
             />
             <FieldRow
@@ -164,7 +165,7 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
 
         {showMilestoneFields && (
           <div className="space-y-2">
-            <FieldRow icon={Target} label="Title" value={d.title} />
+            <FieldRow icon={Target} value={d.title} />
             <FieldRow icon={FileText} label="Description" value={d.description || d.desc || d.note} />
             <FieldRow icon={FileText} label="Why" value={d.why} />
             <FieldRow

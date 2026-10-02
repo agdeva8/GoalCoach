@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pencil, Send, Loader2 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
+import ProposalPreview from "./ProposalPreview";
 
 // Per-action chip library — common refine instructions so users
 // don't have to write a sentence. Tapping a chip fills the textarea;
@@ -95,10 +96,12 @@ export default function RefineModal({
   proposalAction = "change",
   proposalActionKey = "",
   onSubmit,
+  onConfirm,
 }) {
   const [thought, setThought] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     if (open) {
@@ -125,10 +128,24 @@ export default function RefineModal({
     setBusy(true);
     setError("");
     try {
-      await onSubmit?.(t);
-      onClose?.();
+      const newProposal = await onSubmit?.(t);
+      setPreview(newProposal);
     } catch (e) {
       setError(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirm = async () => {
+    if (!preview || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onConfirm?.(preview);
+      onClose?.();
+    } catch (e) {
+      setError(typeof e?.message === "string" ? e.message : "Couldn't confirm the refined changes. Try again.");
     } finally {
       setBusy(false);
     }
@@ -158,43 +175,52 @@ export default function RefineModal({
       testId="refine-modal"
     >
       <div className="space-y-3">
-        {chips.length > 0 && (
-          <div data-testid="refine-modal-chips" className="flex flex-wrap gap-1.5">
-            {chips.map((c) => (
-              <button
-                key={c}
-                type="button"
-                data-testid={`refine-chip-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                onClick={() => tapChip(c)}
-                disabled={busy}
-                className="min-h-11 text-left text-xs px-2.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-50"
-              >
-                {c}
-              </button>
-            ))}
+        {preview ? (
+          <div>
+            <p className="text-sm text-[var(--text-secondary)] mb-2">The coach proposes these changes. Happy with them?</p>
+            <ProposalPreview proposal={preview} />
           </div>
+        ) : (
+          <>
+            {chips.length > 0 && (
+              <div data-testid="refine-modal-chips" className="flex flex-wrap gap-1.5">
+                {chips.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    data-testid={`refine-chip-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                    onClick={() => tapChip(c)}
+                    disabled={busy}
+                    className="min-h-11 text-left text-xs px-2.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-50"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+            <label
+              htmlFor="refine-modal-input"
+              className="block text-xs font-medium text-[var(--text-muted)]"
+            >
+              Your note
+            </label>
+            <textarea
+              id="refine-modal-input"
+              data-testid="refine-modal-input"
+              autoFocus
+              value={thought}
+              onChange={(e) => setThought(e.target.value)}
+              onKeyDown={onKey}
+              rows={3}
+              disabled={busy}
+              placeholder="e.g. Push the target date a month later, make the first step smaller, swap 'medium-term' for 'long-term'…"
+              className="block w-full bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none resize-none disabled:opacity-50"
+            />
+            <p className="text-xs text-[var(--text-muted)]">
+              Enter for a new line · Shift+Enter for a new line · Tap <span className="text-[var(--accent)] font-medium">Refine the changes</span> below to send
+            </p>
+          </>
         )}
-        <label
-          htmlFor="refine-modal-input"
-          className="block text-xs font-medium text-[var(--text-muted)]"
-        >
-          Your note
-        </label>
-        <textarea
-          id="refine-modal-input"
-          data-testid="refine-modal-input"
-          autoFocus
-          value={thought}
-          onChange={(e) => setThought(e.target.value)}
-          onKeyDown={onKey}
-          rows={3}
-          disabled={busy}
-          placeholder="e.g. Push the target date a month later, make the first step smaller, swap 'medium-term' for 'long-term'…"
-          className="block w-full bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none resize-none disabled:opacity-50"
-        />
-        <p className="text-xs text-[var(--text-muted)]">
-          Enter for a new line · Shift+Enter for a new line · Tap <span className="text-[var(--accent)] font-medium">Ask for changes</span> below to send
-        </p>
         {error && (
           <p data-testid="refine-modal-error" role="alert" className="text-xs text-[var(--danger)]">
             {error}
@@ -210,23 +236,43 @@ export default function RefineModal({
           >
             Cancel
           </button>
-          <button
-            type="button"
-            data-testid="refine-modal-submit"
-            onClick={submit}
-            disabled={!thought.trim() || busy}
-            className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-medium bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Refining…
-              </>
-            ) : (
-              <>
-                <Send className="w-3.5 h-3.5" aria-hidden="true" /> Refine the changes
-              </>
-            )}
-          </button>
+          {preview ? (
+            <button
+              type="button"
+              data-testid="refine-modal-confirm"
+              onClick={confirm}
+              disabled={busy}
+              className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-medium bg-[var(--success)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Confirming…
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" aria-hidden="true" /> Confirm Refine
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              data-testid="refine-modal-submit"
+              onClick={submit}
+              disabled={!thought.trim() || busy}
+              className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-medium bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Refining…
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" aria-hidden="true" /> Refine the changes
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </CenteredDialog>

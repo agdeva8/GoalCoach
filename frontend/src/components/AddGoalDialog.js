@@ -468,33 +468,39 @@ export default function AddGoalDialog({
     setBusyProposal(refiningProposal.id);
     try {
       const result = await api.refine(messageId, refiningProposal.id, thought);
-      // The server returns the new proposal; replace the OLD one in place
-      // (same proposal id, refreshed args + content).
       const newProposal = result?.proposal || result;
       if (!newProposal?.id) {
         throw new Error("The coach didn't return a new proposal.");
       }
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                proposals: m.proposals.map((p) =>
-                  p.id === refiningProposal.id
-                    ? { ...newProposal, id: refiningProposal.id, status: "pending" }
-                    : p,
-                ),
-              }
-            : m,
-        ),
-      );
-      toast.success("Proposal refined.");
+      return newProposal;
     } catch (e) {
       toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
-      throw e; // re-throw so the modal can show its own error state
+      throw e;
     } finally {
       setBusyProposal(null);
     }
+  };
+
+  const confirmRefine = (newProposal) => {
+    if (!refiningProposal) return;
+    const messageId = findProposalMessageId(refiningProposal);
+    if (!messageId) return;
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              proposals: m.proposals.map((p) =>
+                p.id === refiningProposal.id
+                  ? { ...newProposal, id: refiningProposal.id, status: "pending" }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+    toast.success("Proposal refined.");
   };
 
   const submitReject = async (reason) => {
@@ -741,6 +747,7 @@ export default function AddGoalDialog({
             proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
             proposalActionKey={refiningProposal?.action || ""}
             onSubmit={submitRefine}
+            onConfirm={confirmRefine}
           />
           <RejectModal
             open={!!rejectingProposal}

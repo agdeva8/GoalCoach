@@ -104,10 +104,10 @@ function SectionChatInput({ text, setText, onSubmit }) {
               onSubmit(e);
             }
           }}
-          rows={2}
+          rows={1}
           placeholder="Something specific you want to flag, or just 'plan my afternoon with me'…"
           aria-label="Tell the coach anything about today"
-          className="flex-1 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] resize-none"
+          className="flex-1 bg-[var(--bg-primary)] border border-[var(--border)] rounded px-2.5 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] resize-y max-h-28"
         />
         <button
           type="submit"

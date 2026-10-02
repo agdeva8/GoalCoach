@@ -209,6 +209,8 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   const taRef = useRef(null);
   const fileRef = useRef(null);
   const [empty] = useState(messages.length === 0);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
@@ -300,6 +302,30 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   const streamingNow = messages.some((m) => m.streaming);
   const wasStreamingRef = useRef(false);
   const [settledId, setSettledId] = useState(null);
+
+  useEffect(() => {
+    if (input) {
+      setIsTyping(true);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+      }, 2000); // 2 seconds of inactivity
+    } else {
+      setIsTyping(false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [input]);
+
   useLayoutEffect(() => {
     if (wasStreamingRef.current && !streamingNow) {
       for (let i = messages.length - 1; i >= 0; i--) {
@@ -656,6 +682,18 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             style={{ minHeight: "36px", maxHeight: "200px", height: "36px" }}
           />
           <div className="flex items-center justify-between gap-1 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
+            {/* Iteration 9+ fix: Coach-mode dropdown lives on the LEFT
+                with a locked width (148px) so picking a different mode
+                ('coach may ask' / 'answering for you' / 'grill me') does
+                NOT shift the icon buttons to the right. The previous
+                layout had icons on the left and the dropdown next to
+                send, which visibly pushed send when the label grew. */}
+            <ChatModeSelect
+              autoAnswer={autoAnswer}
+              grillMe={grillMe}
+              setAutoAnswer={setAutoAnswer}
+              setGrillMe={setGrillMe}
+            />
             <div className="flex items-center gap-0.5">
               {showSources && (
                 <>
@@ -697,26 +735,16 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                   {voiceListening ? <Square className="w-3.5 h-3.5" aria-hidden="true" /> : <Mic className="w-4 h-4" aria-hidden="true" />}
                 </button>
               )}
-              {/* Coach mode select moved inline next to the mic/clip — the
-                  stand-alone row below the composer ate ~30px of vertical
-                  space for a single-line status, which the founder wanted
-                  reclaimed for the chat log. */}
-              <ChatModeSelect
-                autoAnswer={autoAnswer}
-                grillMe={grillMe}
-                setAutoAnswer={setAutoAnswer}
-                setGrillMe={setGrillMe}
-              />
+              <button
+                data-testid="chat-send-button"
+                onClick={submit}
+                disabled={sending || !input.trim()}
+                aria-label="Send"
+                className="h-11 w-11 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0 rounded"
+              >
+                <ArrowUp className="w-4 h-4" aria-hidden="true" />
+              </button>
             </div>
-            <button
-              data-testid="chat-send-button"
-              onClick={submit}
-              disabled={sending || !input.trim()}
-              aria-label="Send"
-              className="h-11 w-11 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0 rounded"
-            >
-              <ArrowUp className="w-4 h-4" aria-hidden="true" />
-            </button>
           </div>
         </div>
         {/* Voice / coach state moves to a tiny floating status chip in
