@@ -591,7 +591,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         aria-live="polite"
         aria-label="Coaching conversation"
         tabIndex={0}
-        className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6 space-y-6"
+        className={`flex-1 min-h-0 ${messages.length ? "overflow-y-auto" : "overflow-hidden"} px-4 sm:px-6 py-6 space-y-6`}
       >
         {messages.length === 0 && (
           <EmptyState scopeLabel={scopeLabel} scopeIntent={scopeIntent} />
@@ -609,7 +609,8 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 border-t border-[var(--border)] px-3 pt-2.5 sm:px-4 sm:pt-3 pb-[env(safe-area-inset-bottom)] bg-[var(--bg-primary)]">
+      <div className="shrink-0 px-3 pt-2.5 pb-2 sm:px-4 sm:pt-3 sm:pb-2.5 bg-[var(--bg-primary)]"
+        style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
         {sources.length > 0 && (
           <div data-testid="attached-sources" className="mb-2 flex flex-wrap gap-1.5">
             {sources.map((s) => (
@@ -675,7 +676,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             the focus highlight, the textarea has no outline of its own.
             Tapping it expands to a comfortable writing area; send /
             clear collapses it back to one slim row. */}
-        <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors rounded-md overflow-hidden">
+        <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors rounded-2xl overflow-hidden">
           <textarea
             ref={taRef}
             data-testid="chat-input"

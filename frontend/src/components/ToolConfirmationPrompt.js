@@ -113,7 +113,7 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
     <div
       data-testid="tool-confirmation-prompt"
       data-section={section}
-      className={`border rounded-md overflow-hidden ${status === "pending" ? "border-[var(--accent)]" : "border-[var(--border)]"} bg-[var(--tool-bg)] my-2`}
+      className={`border rounded-2xl overflow-hidden ${status === "pending" ? "border-[var(--accent)]" : "border-[var(--border)]"} bg-[var(--tool-bg)] my-3`}
     >
       {/* Header — two-line layout per founder feedback (Iteration 9+):
           line 1 = section badge + GitCommit icon + status; line 2 =
