@@ -111,7 +111,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
             type="button"
             data-testid="goal-memory-kind-photo"
             onClick={() => { setKind("photo"); setSubmitError(""); }}
-            className={`px-3 h-8 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1.5 rounded ${
+            className={`px-3 h-11 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1.5 rounded ${
               kind === "photo"
                 ? "bg-[var(--accent)] text-[var(--bg-primary)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
@@ -123,7 +123,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
             type="button"
             data-testid="goal-memory-kind-instagram"
             onClick={() => { setKind("instagram"); setSubmitError(""); }}
-            className={`px-3 h-8 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1.5 rounded ${
+            className={`px-3 h-11 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1.5 rounded ${
               kind === "instagram"
                 ? "bg-[var(--accent)] text-[var(--bg-primary)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
@@ -183,7 +183,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
             onChange={(e) => setCaption(e.target.value)}
             rows={2}
             placeholder="What's the why behind this memory?"
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
           />
         </div>
 
@@ -204,7 +204,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
             type="button"
             onClick={close}
             data-testid="goal-memory-cancel"
-            className="h-10 px-4 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
+            className="h-11 px-4 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"
           >
             Cancel
           </button>
@@ -213,7 +213,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
             onClick={submit}
             disabled={!canSubmit}
             data-testid="goal-memory-save"
-            className="h-10 flex items-center gap-2 px-4 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs disabled:opacity-40 hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            className="h-11 flex items-center gap-2 px-4 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs disabled:opacity-40 hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
             {submitting ? "Saving…" : "Attach memory"}

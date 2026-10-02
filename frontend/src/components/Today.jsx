@@ -106,13 +106,13 @@ function SectionChatInput({ text, setText, onSubmit }) {
           type="submit"
           disabled={!text.trim()}
           aria-label="Send to coach"
-          className="h-9 px-3 inline-flex items-center gap-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 disabled:opacity-30 transition-opacity"
+          className="h-11 px-3 inline-flex items-center gap-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 disabled:opacity-30 transition-opacity"
         >
           <Send className="w-3.5 h-3.5" aria-hidden="true" />
           Send
         </button>
       </div>
-      <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] inline-flex items-center gap-1">
+      <p className="hidden sm:inline-flex text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] items-center gap-1">
         <MessageSquare className="w-2.5 h-2.5" aria-hidden="true" />
         ⌘/Ctrl + Enter to send
       </p>

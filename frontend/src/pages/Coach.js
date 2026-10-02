@@ -1,14 +1,39 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { toast } from "sonner";
 import { MessageSquare, Plus, CalendarClock, CalendarDays, LayoutDashboard, Image as ImageIcon, FileText, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import Header from "../components/Header";
 import TrackingDashboard from "../components/TrackingDashboard";
-import Timeline from "../components/Timeline";
-import Memories from "../components/Memories";
-import Sources from "../components/Sources";
-import Today from "../components/Today";
+// The four panel views are all gated behind `panelView`, so exactly one is
+// mounted at a time and none of them are on the first-paint path — the
+// default view renders TrackingDashboard alone. Importing them statically
+// shipped 155 kB of source (Timeline is 103 kB of that) into the initial
+// bundle regardless. Splitting each into its own chunk means the bundle
+// fetches a panel only when the user actually opens that tab. The modals
+// below stay eager on purpose: a dialog has to appear the instant it's
+// tapped, and a chunk fetch there would read as lag.
+const Timeline = lazy(() => import("../components/Timeline"));
+const Memories = lazy(() => import("../components/Memories"));
+const Sources = lazy(() => import("../components/Sources"));
+const Today = lazy(() => import("../components/Today"));
+
+// Fallback while a panel's chunk fetches. Declared at module level rather
+// than inside Coach — a component defined during render is a new component
+// type on every render and would remount the subtree. role="status" so the
+// wait is announced instead of the panel silently not appearing.
+function PanelSkeleton() {
+  return (
+    <div role="status" aria-live="polite" aria-label="Loading panel" className="flex flex-col gap-4">
+      <div className="gc-skeleton h-7 w-44 rounded" />
+      <div className="gc-skeleton h-36 w-full rounded" />
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+        <div className="gc-skeleton h-28 rounded" />
+        <div className="gc-skeleton h-28 rounded" />
+      </div>
+    </div>
+  );
+}
 import HonestyAuditView from "../components/HonestyAuditView";
 import SignInModal from "../components/SignInModal";
 import AboutModal from "../components/AboutModal";
@@ -153,6 +178,10 @@ export default function Coach() {
       subtitle: "This chat is scoped to the action you just described. It starts empty and resets when you close it.",
       prefillMessage: msg,
       icon: Sparkles,
+      // Spec §10.7 — focused-task chat runs as its own plan_day
+      // bucket; FocusedTaskChatDialog mints the per-open refId.
+      scope: "generic",
+      kind: "plan_day",
     });
   };
 
@@ -167,6 +196,10 @@ export default function Coach() {
       subtitle: `A source change affects ${goalList}. Ask the coach to replan.`,
       prefillMessage: `The source I just changed affects ${goalList}. Please replan.`,
       icon: Sparkles,
+      // Spec §10.7 — replan runs as its own plan_day bucket; the
+      // dialog mints the per-open refId.
+      scope: "generic",
+      kind: "plan_day",
     });
   };
 
@@ -177,7 +210,7 @@ export default function Coach() {
       await refreshState();
       toast.success(`Added ${file.name} as a source`);
     } catch (e) {
-      toast.error(e?.message || "Upload failed");
+      toast.error(typeof e?.message === 'string' ? e.message : "Upload failed");
     }
   };
 
@@ -206,7 +239,7 @@ export default function Coach() {
       }
       toast.success("Link added as a source");
     } catch (e) {
-      toast.error(e?.message || "Could not add link");
+      toast.error(typeof e?.message === 'string' ? e.message : "Could not add link");
     }
   };
 
@@ -281,14 +314,14 @@ export default function Coach() {
           <button
             data-testid="guest-banner-signin"
             onClick={openSignIn}
-            className="text-xs font-medium text-[var(--accent)] hover:underline shrink-0"
+            className="min-h-11 inline-flex items-center text-xs font-medium text-[var(--accent)] hover:underline shrink-0"
           >
             Log in →
           </button>
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <main className="flex-1 min-h-0 overflow-y-auto">
         <div className="shrink-0 flex items-center border-b border-[var(--border)] px-4 sm:px-6 pt-3 bg-[var(--bg-primary)] sticky top-0 z-10 backdrop-blur overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none]">
           <button
             data-testid="panel-tab-state"
@@ -348,32 +381,34 @@ export default function Coach() {
         </div>
 
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
-          {panelView === "state" ? (
-            <TrackingDashboard
-              state={state}
-              onAction={(goal, type) => openAction(goal, type)}
-              onUploadSource={uploadFile}
-              onAddLink={addLink}
-              onDeleteSource={deleteSource}
-              onCreated={refreshState}
-              onOpenChat={() => setChatOpen(true)}
-              onOpenChatWith={openChatWith}
-              onOpenToday={() => setPanelView("today")}
-              autoAnswer={autoAnswer}
-              grillMe={grillMe}
-              isGuest={isGuest}
-            />
-          ) : panelView === "today" ? (
-            <Today state={state} onChange={refreshState} onOpenChat={openChatWith} />
-          ) : panelView === "timeline" ? (
-            <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChatWith={openChatWith} />
-          ) : panelView === "sources" ? (
-            <Sources state={state} onChange={refreshState} />
-          ) : (
-            <Memories state={state} onChange={refreshState} />
-          )}
+          <Suspense fallback={<PanelSkeleton />}>
+            {panelView === "state" ? (
+              <TrackingDashboard
+                state={state}
+                onAction={(goal, type) => openAction(goal, type)}
+                onUploadSource={uploadFile}
+                onAddLink={addLink}
+                onDeleteSource={deleteSource}
+                onCreated={refreshState}
+                onOpenChat={() => setChatOpen(true)}
+                onOpenChatWith={openChatWith}
+                onOpenToday={() => setPanelView("today")}
+                autoAnswer={autoAnswer}
+                grillMe={grillMe}
+                isGuest={isGuest}
+              />
+            ) : panelView === "today" ? (
+              <Today state={state} onChange={refreshState} onOpenChat={openChatWith} />
+            ) : panelView === "timeline" ? (
+              <Timeline state={state} onPrefill={() => setChatOpen(true)} onOpenChatWith={openChatWith} />
+            ) : panelView === "sources" ? (
+              <Sources state={state} onChange={refreshState} />
+            ) : (
+              <Memories state={state} onChange={refreshState} />
+            )}
+          </Suspense>
         </div>
-      </div>
+      </main>
 
       {/* Floating chat button — always visible, opens the centered modal. */}
       <button
@@ -381,7 +416,7 @@ export default function Coach() {
         onClick={() => setChatOpen(true)}
         title="Chat with your coach"
         aria-label="Chat with your coach"
-        className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] shadow-2xl flex items-center justify-center hover:opacity-90 transition-opacity"
+        className="fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-40 h-14 w-14 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] shadow-2xl flex items-center justify-center hover:opacity-90 transition-opacity"
       >
         <MessageSquare className="w-6 h-6" />
       </button>

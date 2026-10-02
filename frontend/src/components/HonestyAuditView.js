@@ -47,7 +47,7 @@ export default function HonestyAuditView({ open, onClose }) {
         <a
           data-testid="export-audit-button"
           href={exportUrl()}
-          className="flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className="min-h-11 flex items-center gap-1.5 text-xs px-3 py-3 rounded border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export JSON
         </a>

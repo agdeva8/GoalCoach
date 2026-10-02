@@ -1,4 +1,4 @@
-import { fn } from "storybook/test";
+import { fn, expect } from "storybook/test";
 import ChatConsole from "./ChatConsole";
 
 const messages = [
@@ -64,6 +64,80 @@ export default {
 };
 
 export const Default = {};
+
+// Success divider after a confirm (spec §10.5) — the stream is NOT
+// cleared; the banner separates bucket 1 from bucket 2.
+export const WithSuccessBanner = {
+  args: {
+    messages: [
+      ...messages,
+      {
+        id: "s1",
+        role: "success",
+        content: 'Created "Ship the v2 landing page"',
+        goalId: "g_new",
+        goalTitle: "Ship the v2 landing page",
+        createdAt: new Date("2026-10-01T14:05:00").toISOString(),
+      },
+      {
+        id: "msg_4",
+        role: "user",
+        content: "Great — now add a workout goal too.",
+        proposals: [],
+      },
+      {
+        id: "msg_5",
+        role: "assistant",
+        content: "Here's what adding that would change:",
+        proposals: [],
+        streaming: false,
+      },
+    ],
+  },
+  play: async ({ canvas }) => {
+    expect(canvas.getByTestId("success-banner")).toBeInTheDocument();
+    expect(canvas.getByText('Created "Ship the v2 landing page"')).toBeInTheDocument();
+  },
+};
+
+// Structured [[IMPACT]] block attached to an assistant message
+// (spec §10.5) — load shift + conflicts + recommendation.
+export const WithImpactPanel = {
+  args: {
+    messages: [
+      {
+        id: "m1",
+        role: "user",
+        content: "add a marathon training goal",
+        proposals: [],
+      },
+      {
+        id: "m2",
+        role: "assistant",
+        content: "Here's how that lands against your week:",
+        proposals: [],
+        streaming: false,
+        impact: {
+          over_commitment: {
+            from: "18 h/week",
+            to: "26 h/week",
+            reason: "Five runs plus your two existing strength sessions.",
+          },
+          conflicts: [
+            { with: "Long run", type: "time", detail: "Overlaps Saturday family block." },
+          ],
+          buffer_warning: "Sunday has no recovery buffer left.",
+          recommendation: "Shift the long run to Friday and cap week one at three runs.",
+        },
+      },
+    ],
+  },
+  play: async ({ canvas }) => {
+    expect(canvas.getByTestId("impact-panel")).toBeInTheDocument();
+    expect(canvas.getByText(/Load: 18 h\/week → 26 h\/week/)).toBeInTheDocument();
+    expect(canvas.getByText(/Shift the long run to Friday/)).toBeInTheDocument();
+  },
+};
 
 // Empty state — scoped (the case from the screenshot: user opened
 // chat from a "Miso-eggplant dinner" commitment, no messages yet).

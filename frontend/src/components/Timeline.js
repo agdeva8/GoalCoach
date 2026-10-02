@@ -690,7 +690,7 @@ function HeaderStrip({
               type="button"
               data-testid="timeline-viewtype-trigger"
               aria-label="Choose how to view your timeline"
-              className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+              className="inline-flex items-center gap-2 h-11 sm:h-9 px-3 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
               <ActiveIcon className="w-3.5 h-3.5 text-[var(--accent)]" aria-hidden="true" />
               <span className="font-display text-[14px] font-semibold text-[var(--text-primary)]">
@@ -739,7 +739,7 @@ function HeaderStrip({
           <button
             data-testid="timeline-back"
             onClick={goBack}
-            className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
+            className="min-h-11 flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
           >
             <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" /> Back
           </button>
@@ -753,7 +753,7 @@ function HeaderStrip({
               <span key={i} className="flex items-center gap-1">
                 {i > 0 && <span className="opacity-40">/</span>}
                 {c.onClick ? (
-                  <button onClick={c.onClick} className="hover:text-[var(--accent)] transition-colors">
+                  <button onClick={c.onClick} className="min-h-11 min-w-11 inline-flex items-center justify-center hover:text-[var(--accent)] transition-colors">
                     {c.label}
                   </button>
                 ) : (
@@ -768,7 +768,7 @@ function HeaderStrip({
             <button
               data-testid="timeline-prev-year"
               onClick={() => shiftYear(-1)}
-              className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Previous year"
               aria-label="Previous year"
             >
@@ -777,7 +777,7 @@ function HeaderStrip({
             <button
               data-testid="timeline-next-year"
               onClick={() => shiftYear(1)}
-              className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               title="Next year"
               aria-label="Next year"
             >
@@ -889,7 +889,7 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
             onClick={() => setSpan(s.key)}
             role="tab"
             aria-selected={span === s.key}
-            className={`h-8 sm:h-9 px-2 sm:px-2.5 text-[10px] font-mono uppercase tracking-widest transition-colors rounded ${
+            className={`h-11 sm:h-9 min-w-11 px-2 sm:px-2.5 text-[10px] font-mono uppercase tracking-widest transition-colors rounded ${
               span === s.key
                 ? "bg-[var(--accent)] text-[var(--bg-primary)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
@@ -903,7 +903,7 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
         <button
           type="button"
           onClick={() => setAnchor((a) => addDays(a, -stepDays))}
-          className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           title="Previous"
           aria-label="Previous"
         >
@@ -918,7 +918,7 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
         <button
           type="button"
           onClick={() => setAnchor((a) => addDays(a, stepDays))}
-          className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           title="Next"
           aria-label="Next"
         >
@@ -928,7 +928,7 @@ function CalendarNav({ span, setSpan, anchor, setAnchor, today }) {
           type="button"
           onClick={() => setAnchor(startOfDay(new Date()))}
           disabled={isToday}
-          className="h-8 sm:h-9 px-2.5 rounded font-mono text-[10px] uppercase tracking-widest border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          className="h-11 sm:h-9 px-2.5 rounded font-mono text-[10px] uppercase tracking-widest border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           style={{ background: "var(--bg-secondary)" }}
         >
           Today
@@ -1012,7 +1012,7 @@ function EmptyState({ onPrefill, onOpenChatWith }) {
           <button
             data-testid="timeline-prefill-button"
             onClick={onBuildTimeline}
-            className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+            className="min-h-11 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
           >
             Ask the coach to build my timeline →
           </button>
@@ -1402,7 +1402,7 @@ function StripEmptyState({ onAsk }) {
               "Help me set my first goal and a small commitment for this week.",
             )
           }
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-[13px] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] transition-all"
+          className="min-h-11 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-[13px] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] transition-all"
         >
           <Sparkles size={14} aria-hidden="true" />
           Ask the coach to start
@@ -1452,7 +1452,7 @@ function EmptyStrip({ horizon, onAsk }) {
       <button
         type="button"
         onClick={() => onAsk(horizon)}
-        className="mt-1 font-mono text-[10px] uppercase tracking-widest text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
+        className="mt-1 min-h-11 inline-flex items-center font-mono text-[10px] uppercase tracking-widest text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
       >
         Ask the coach →
       </button>
@@ -1900,11 +1900,10 @@ function CalendarView({
           style={{ background: "var(--bg-primary)" }}
         >
           <div
-            role="row"
             className="grid grid-cols-4 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
           >
             {quarters.map((q, qi) => (
-              <div key={qi} role="columnheader" className="px-2 py-2 text-center select-none border-r last:border-r-0 border-[var(--border-accent)]">
+              <div key={qi} className="px-2 py-2 text-center select-none border-r last:border-r-0 border-[var(--border-accent)]">
                 {q.label}
               </div>
             ))}
@@ -1923,7 +1922,6 @@ function CalendarView({
                     return (
                       <div
                         key={ri}
-                        role="row"
                         data-testid={`timeline-cal-year-row-${qi}-${ri}`}
                         className="grid grid-cols-[44px_1fr] border-b last:border-b-0 border-[var(--border)]"
                         style={{ minHeight: `${rowHeight}px`, background: isToday ? "color-mix(in srgb, var(--accent) 8%, var(--bg-primary))" : undefined }}
@@ -1963,7 +1961,7 @@ function CalendarView({
                                     onClick={() => openChat("", scoped)}
                                     title={it.title}
                                     aria-label={`${it.kind}: ${it.title}`}
-                                    className="group block h-3.5 rounded-[2px] text-left text-[10px] px-1 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                                    className="group block min-h-11 rounded-[2px] text-left text-[10px] px-1 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                                     style={{
                                       marginLeft: `${offset * 100}%`,
                                       width: `${width * 100}%`,
@@ -2049,11 +2047,10 @@ function CalendarView({
           style={{ background: "var(--bg-primary)" }}
         >
           <div
-            role="row"
             className="grid grid-cols-[88px_1fr] font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
           >
-            <div role="columnheader" className="px-2 py-2">Week</div>
-            <div role="columnheader" className="px-2 py-2">Items · status-colored bars</div>
+            <div className="px-2 py-2">Week</div>
+            <div className="px-2 py-2">Items · status-colored bars</div>
           </div>
           <div className="divide-y divide-[var(--border)]">
             {rows.map((r, ri) => {
@@ -2061,7 +2058,6 @@ function CalendarView({
               return (
                 <div
                   key={ri}
-                  role="row"
                   data-testid={`timeline-cal-quarter-row-${ri}`}
                   className="grid grid-cols-[88px_1fr]"
                   style={{ minHeight: `${rowHeight}px` }}
@@ -2107,7 +2103,7 @@ function CalendarView({
                               onClick={() => openChat("", scoped)}
                               title={it.title}
                               aria-label={`${it.kind}: ${it.title}`}
-                              className="group block h-5 rounded-[3px] text-left text-[12px] px-2 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                              className="group block min-h-11 rounded-[3px] text-left text-[12px] px-2 truncate hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                               style={{
                                 marginLeft: `${offset * 100}%`,
                                 width: `${width * 100}%`,
@@ -2183,7 +2179,12 @@ function CalendarView({
     );
   }
 
-  const baseBarHeight = 26;
+  // Lane height for the week/month grids. Must fit a full tap target:
+  // CalendarTile is min-h-11 (44px) and its grid item carries 2px
+  // vertical padding on each side, so 44 + 4 = 48. At the old 26px the
+  // 44px tiles overflowed the lane and painted over the next week's
+  // day-number row.
+  const baseBarHeight = 48;
 
   return (
     <div className="space-y-3">
@@ -2192,11 +2193,10 @@ function CalendarView({
         style={{ background: "var(--bg-primary)" }}
       >
         <div
-          role="row"
           className="grid grid-cols-7 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]"
         >
           {DOW.map((d, i) => (
-            <div key={d} role="columnheader" className="px-2 py-2 text-center select-none">
+            <div key={d} className="px-2 py-2 text-center select-none">
               <span className="hidden sm:inline">{DOW[i]}</span>
               <span className="sm:hidden">{DOW_SHORT[i]}</span>
             </div>
@@ -2212,7 +2212,7 @@ function CalendarView({
               gridTemplateRows: `auto repeat(${maxLanes}, ${baseBarHeight}px)`,
             };
             return (
-              <div key={wi} role="row" className="grid relative" style={gridStyle}>
+              <div key={wi} className="grid relative" style={gridStyle}>
                 {/* Column guides span the FULL row height, including the
                     tile lanes. Previously only the day-number row (gridRow
                     1) drew a right border, so the day columns visually
@@ -2233,8 +2233,8 @@ function CalendarView({
                     return (
                       <div
                         key={ci}
-                        role="gridcell"
-                        className="relative px-1.5 pt-1 pb-1 min-h-[36px] opacity-40"
+
+                        className="relative px-1.5 pt-1 pb-1 min-h-[36px] opacity-70"
                         style={{ gridColumn: ci + 1, gridRow: 1 }}
                       />
                     );
@@ -2245,11 +2245,11 @@ function CalendarView({
                   return (
                     <div
                       key={ci}
-                      role="gridcell"
+
                       aria-label={`${MONTHS_FULL[cell.date.getMonth()]} ${cell.date.getDate()}${isToday ? ", today" : ""}${count ? `, ${count} item${count === 1 ? "" : "s"}` : ""}`}
                       className={[
                         "relative px-1.5 pt-1 pb-1 min-h-[36px]",
-                        cell.inSpan ? "" : "opacity-40",
+                        cell.inSpan ? "" : "opacity-70",
                         isToday
                           ? "ring-1 ring-inset ring-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-primary))]"
                           : "",
@@ -2356,7 +2356,7 @@ function CalendarTile({ item, today, openChat }) {
         onClick={onActivate}
         title={tip}
         aria-label={tip}
-        className="h-full w-full rounded-[3px] flex items-center gap-1.5 px-1.5 font-mono text-[10px] uppercase tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
+        className="min-h-11 min-w-11 w-full rounded-[3px] flex items-center gap-1.5 px-1.5 font-mono text-[10px] uppercase tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
         style={{
           background: paint.background,
           // Keep the diagonal-stripe treatment that flags blockers as
@@ -2385,7 +2385,7 @@ function CalendarTile({ item, today, openChat }) {
         onClick={onActivate}
         title={tip}
         aria-label={tip}
-        className="h-full w-full rounded-[3px] px-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--bg-primary)] flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
+        className="min-h-11 min-w-11 w-full rounded-[3px] px-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--bg-primary)] flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)] transition-all hover:brightness-110"
         style={{ background: color, opacity: isDone ? 0.55 : 1, fontWeight: 500 }}
       >
         <Target size={9} aria-hidden="true" />
@@ -2401,7 +2401,7 @@ function CalendarTile({ item, today, openChat }) {
       onClick={onActivate}
       title={tip}
       aria-label={tip}
-      className="group h-full w-full text-left rounded-[3px] px-1.5 truncate font-mono text-[10px] uppercase tracking-widest transition-all hover:brightness-110 hover:z-10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)]"
+      className="group min-h-11 min-w-11 w-full text-left rounded-[3px] px-1.5 truncate font-mono text-[10px] uppercase tracking-widest transition-all hover:brightness-110 hover:z-10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-primary)]"
       style={{
         background: paint.background,
         boxShadow: paint.boxShadow,
@@ -2447,7 +2447,7 @@ function CalendarDayItem({ item, today, openChat }) {
     <button
       type="button"
       onClick={onActivate}
-      className="w-full flex items-center gap-3 p-2 rounded border border-[var(--border)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-tertiary)] transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      className="min-h-11 w-full flex items-center gap-3 p-2 rounded border border-[var(--border)] hover:border-[var(--border-accent)] hover:bg-[var(--bg-tertiary)] transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
       style={{ background: "var(--bg-primary)" }}
     >
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
@@ -2486,7 +2486,7 @@ function CalendarEmptyState({ onAsk }) {
           type="button"
           data-testid="timeline-prefill-button"
           onClick={() => onAsk("")}
-          className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md font-mono text-[11px] uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
+          className="mt-4 inline-flex items-center gap-1.5 h-11 sm:h-9 px-3.5 rounded-md font-mono text-[11px] uppercase tracking-widest text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
           style={{ background: "var(--accent)" }}
         >
           <Sparkles size={13} aria-hidden="true" />

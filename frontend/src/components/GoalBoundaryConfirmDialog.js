@@ -63,14 +63,14 @@ export default function GoalBoundaryConfirmDialog({
           <button
             onClick={handleKeep}
             data-testid="goal-boundary-keep"
-            className="flex items-center gap-1.5 text-xs px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            className="min-h-11 flex items-center gap-1.5 text-xs px-3 py-3 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors border border-[var(--border)] rounded"
           >
             <Check className="w-3 h-3" /> Keep as is
           </button>
           <button
             onClick={handleReplan}
             data-testid="goal-boundary-replan"
-            className="flex items-center gap-1.5 text-xs px-3 py-2 rounded bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
+            className="min-h-11 flex items-center gap-1.5 text-xs px-3 py-3 rounded bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
           >
             <RefreshCw className="w-3 h-3" /> Re-plan affected goal{affectedGoals.length === 1 ? "" : "s"}
           </button>

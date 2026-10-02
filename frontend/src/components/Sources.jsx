@@ -113,7 +113,7 @@ export default function Sources({ state, onChange }) {
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-1.5 min-h-11 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
           >
             <RefreshCw className="w-3 h-3" />
             Couldn't load — retry
@@ -251,7 +251,7 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
             href={source.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+            className="min-h-11 flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
           >
             <ExternalLink className="w-3 h-3" />
             Open link
@@ -269,7 +269,7 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
               type="button"
               onClick={() => onView?.(source)}
               data-testid={`source-view-${source.id}`}
-              className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
+              className="min-h-11 inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
             >
               <Eye className="w-3 h-3" />
               View file
@@ -278,7 +278,7 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
               href={downloadUrl}
               download
               data-testid={`source-download-${source.id}`}
-              className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+              className="min-h-11 flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
             >
               <Download className="w-3 h-3" />
               Download
@@ -288,7 +288,7 @@ function SourceCard({ source, goalTitle, onDelete, deleting, onView }) {
         <button
           onClick={onDelete}
           disabled={deleting}
-          className={`ml-auto flex items-center gap-1 text-[11px] transition-colors ${
+          className={`min-h-11 ml-auto flex items-center gap-1 text-[11px] transition-colors ${
             deleting
               ? "text-[var(--text-muted)]"
               : "text-[var(--text-muted)] hover:text-[var(--danger)]"
@@ -342,7 +342,7 @@ function SourceActions({ source, isFile, isLink, downloadUrl, onView, onDelete, 
         aria-expanded={open}
         aria-label={`Actions for ${source.original_filename || source.name || source.url || "source"}`}
         data-testid={`source-actions-${source.id}`}
-        className="h-8 w-8 -mr-1 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        className="h-11 w-11 shrink-0 -mr-1 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       >
         <MoreVertical className="w-4 h-4" aria-hidden="true" />
       </button>
@@ -358,7 +358,7 @@ function SourceActions({ source, isFile, isLink, downloadUrl, onView, onDelete, 
                 role="menuitem"
                 type="button"
                 onClick={() => { setOpen(false); onView?.(source); }}
-                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-left"
+                className="min-h-11 w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-left"
               >
                 <Eye className="w-3.5 h-3.5" /> View file
               </button>
@@ -367,7 +367,7 @@ function SourceActions({ source, isFile, isLink, downloadUrl, onView, onDelete, 
                 href={downloadUrl}
                 download
                 onClick={() => setOpen(false)}
-                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
+                className="min-h-11 w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
               >
                 <Download className="w-3.5 h-3.5" /> Download
               </a>
@@ -380,7 +380,7 @@ function SourceActions({ source, isFile, isLink, downloadUrl, onView, onDelete, 
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
+              className="min-h-11 w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
             >
               <ExternalLink className="w-3.5 h-3.5" /> Open link
             </a>
@@ -390,7 +390,7 @@ function SourceActions({ source, isFile, isLink, downloadUrl, onView, onDelete, 
             type="button"
             onClick={() => { setOpen(false); onDelete?.(); }}
             disabled={deleting}
-            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] text-[var(--danger)] disabled:opacity-50"
+            className="min-h-11 w-full flex items-center gap-2 px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] text-[var(--danger)] disabled:opacity-50"
           >
             {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
             Delete
@@ -478,7 +478,7 @@ function SourceViewerDialog({ source, onClose }) {
             onClick={(e) => e.stopPropagation()}
             aria-label="Download file"
             title="Download the original file"
-            className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             <Download className="w-4 h-4" aria-hidden="true" />
           </a>
@@ -488,7 +488,7 @@ function SourceViewerDialog({ source, onClose }) {
           data-testid="source-viewer-close"
           onClick={onClose}
           aria-label="Close preview"
-          className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>

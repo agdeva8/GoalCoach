@@ -159,7 +159,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
         <button
           type="button"
           onClick={refresh}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
+          className="min-h-11 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
         >
           <RefreshCw className="w-3 h-3" />
           Couldn't load — retry
@@ -180,9 +180,9 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
       {!compact && (
         <header className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
           <Calendar className="w-3.5 h-3.5 text-[var(--accent)]" aria-hidden="true" />
-          <h3 className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-secondary)]">
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-secondary)]">
             {fullTimetable ? "Today · full timetable" : "Today · tasks"}
-          </h3>
+          </h2>
           <span className="ml-auto font-mono text-[10px] text-[var(--text-muted)]">
             {items.length} item{items.length === 1 ? "" : "s"}
           </span>
@@ -235,7 +235,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
             <li
               key={`${item._kind}-${item.id}`}
               data-testid={`timetable-item-${item._kind}-${item.id}`}
-              className={`px-4 py-3 flex flex-col gap-2 ${done ? "opacity-60" : ""}`}
+              className="px-4 py-3 flex flex-col gap-2"
             >
               {/* Top row: checkbox + title + meta */}
               <div className="flex items-start gap-3">
@@ -246,7 +246,7 @@ export default function TodayTimetable({ state, onChange, onOpenChat, compact = 
                   aria-label={done ? `Mark "${item.text || item.title}" as not done` : `Mark "${item.text || item.title}" as done`}
                   aria-pressed={done}
                   data-testid={`timetable-checkbox-${item.id}`}
-                  className={`mt-0.5 h-9 w-9 shrink-0 flex items-center justify-center border transition-colors rounded ${
+                  className={`mt-0.5 h-11 w-11 shrink-0 flex items-center justify-center border transition-colors rounded ${
                     done
                       ? "border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)]"
                       : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
@@ -343,7 +343,7 @@ function NeedHelpActions({ item, onCant, onAddToPlan }) {
         aria-expanded={open}
         aria-controls={`need-help-${item._kind}-${item.id}`}
         data-testid={`timetable-need-help-${item.id}`}
-        className="sm:hidden h-9 self-start inline-flex items-center gap-1.5 px-3 border border-[var(--border)] text-[var(--text-secondary)] text-xs transition-colors rounded hover:border-[var(--accent)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        className="sm:hidden h-11 self-start inline-flex items-center gap-1.5 px-3 border border-[var(--border)] text-[var(--text-secondary)] text-xs transition-colors rounded hover:border-[var(--accent)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       >
         {open ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
         Need help with this?
@@ -356,7 +356,7 @@ function NeedHelpActions({ item, onCant, onAddToPlan }) {
           type="button"
           onClick={() => { setOpen(false); onCant?.(item); }}
           data-testid={`timetable-cant-${item.id}`}
-          className="h-9 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--danger)] hover:text-[var(--danger)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className="h-11 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--danger)] hover:text-[var(--danger)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <MessageSquareWarning className="w-3.5 h-3.5" aria-hidden="true" />
           I can't do this
@@ -365,7 +365,7 @@ function NeedHelpActions({ item, onCant, onAddToPlan }) {
           type="button"
           onClick={() => { setOpen(false); onAddToPlan?.(item); }}
           data-testid={`timetable-plan-${item.id}`}
-          className="h-9 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className="h-11 inline-flex items-center gap-1.5 px-3 border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-secondary)] text-xs transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <MessageSquarePlus className="w-3.5 h-3.5" aria-hidden="true" />
           Break it down with coach

@@ -219,8 +219,9 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
       <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
         <button
           data-testid="calendar-prev-month"
+          aria-label="Previous month"
           onClick={prevMonth}
-          className="w-7 h-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          className="w-11 h-11 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
@@ -231,14 +232,15 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
         </div>
         <button
           data-testid="calendar-next-month"
+          aria-label="Next month"
           onClick={nextMonth}
-          className="w-7 h-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          className="w-11 h-11 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
         <button
           onClick={goToday}
-          className="px-2 h-7 rounded text-[10px] font-mono uppercase tracking-wider border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors"
+          className="px-3 h-11 rounded text-[10px] font-mono uppercase tracking-wider border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors"
         >
           Today
         </button>
@@ -269,13 +271,12 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
               className={`
                 relative border-b border-r border-[var(--border)] overflow-hidden
                 cursor-pointer transition-colors select-none
-                ${currentMonth ? "" : "opacity-30"}
                 ${todayDay ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] ring-1 ring-inset ring-[var(--accent)]" : ""}
                 ${selectedDay2 ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] ring-1 ring-[var(--accent)]" : ""}
                 hover:bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]
               `}
             >
-              <div className={`absolute top-1 left-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-mono ${todayDay ? "bg-[var(--accent)] text-[var(--bg-primary)] font-semibold" : "text-[var(--text-secondary)]"}`}>
+              <div className={`absolute top-1 left-1 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-mono ${todayDay ? "bg-[var(--accent)] text-[var(--bg-primary)] font-semibold" : currentMonth ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"}`}>
                 {date.getDate()}
               </div>
 
@@ -307,7 +308,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 <button
                   data-testid={`add-blocker-on-${fmtDate(date)}`}
                   onClick={(e) => { e.stopPropagation(); openAddBlocker(date); }}
-                  className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded opacity-0 hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity"
+                  className="absolute top-1 right-1 hidden sm:flex sm:w-6 sm:h-6 items-center justify-center rounded opacity-0 hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity"
                   title="Add blocker"
                 >
                   <Plus className="w-3 h-3" />
@@ -393,7 +394,8 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
             </span>
             <button
               onClick={() => setSelectedDay(null)}
-              className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              aria-label="Close day details"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -410,14 +412,14 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                     <button
                       data-testid={`add-blocker-detail-${fmtDate(selectedDay)}`}
                       onClick={() => openAddBlocker(selectedDay)}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--danger)] hover:text-[var(--danger)] transition-colors"
+                      className="min-h-11 flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--danger)] hover:text-[var(--danger)] transition-colors"
                     >
                       <AlertOctagon className="w-3 h-3" /> Add blocker
                     </button>
                     <button
                       data-testid={`add-commitment-detail-${fmtDate(selectedDay)}`}
                       onClick={() => { setAddCommitmentOpen(true); setCommitmentText(""); }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+                      className="min-h-11 flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
                     >
                       <Plus className="w-3 h-3" /> Add commitment
                     </button>
@@ -461,13 +463,13 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 <div className="flex gap-2 pt-1 border-t border-[var(--border)]">
                   <button
                     onClick={() => openAddBlocker(selectedDay)}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--danger)] hover:text-[var(--danger)] transition-colors"
+                    className="min-h-11 flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--danger)] hover:text-[var(--danger)] transition-colors"
                   >
                     <AlertOctagon className="w-3 h-3" /> Add blocker
                   </button>
                   <button
                     onClick={() => { setAddCommitmentOpen(true); setCommitmentText(""); }}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+                    className="min-h-11 flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
                   >
                     <Plus className="w-3 h-3" /> Add commitment
                   </button>
@@ -537,7 +539,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 data-testid="blocker-delete-btn"
                 onClick={deleteBlocker}
                 disabled={saving}
-                className="px-3 py-1.5 rounded text-xs border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-colors disabled:opacity-50"
+                className="min-h-11 px-3 py-1.5 rounded text-xs border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-colors disabled:opacity-50"
               >
                 Remove
               </button>
@@ -546,7 +548,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
               <button
                 onClick={closeBlockerDialog}
                 disabled={saving}
-                className="px-3 py-1.5 rounded text-xs border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                className="min-h-11 px-3 py-1.5 rounded text-xs border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
               >
                 Cancel
               </button>
@@ -554,7 +556,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 data-testid="blocker-save-btn"
                 onClick={saveBlocker}
                 disabled={saving || !blockerTitle.trim() || !blockerStart}
-                className="px-3 py-1.5 rounded text-xs bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="min-h-11 px-3 py-1.5 rounded text-xs bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {saving ? "Saving…" : editBlocker ? "Save" : "Add"}
               </button>
@@ -589,7 +591,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
               <button
                 onClick={() => { setAddCommitmentOpen(false); setCommitmentText(""); }}
                 disabled={saving}
-                className="px-3 py-1.5 rounded text-xs border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                className="min-h-11 px-3 py-1.5 rounded text-xs border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
               >
                 Cancel
               </button>
@@ -597,7 +599,7 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 data-testid="commitment-save-btn"
                 onClick={handleAddCommitment}
                 disabled={saving || !commitmentText.trim()}
-                className="px-3 py-1.5 rounded text-xs bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="min-h-11 px-3 py-1.5 rounded text-xs bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {saving ? "Adding…" : "Add"}
               </button>

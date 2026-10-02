@@ -153,7 +153,7 @@ export default function Memories({ state, onChange }) {
           <button
             data-testid="memories-add-button"
             onClick={() => setAdding(true)}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 px-3 h-11 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="w-3.5 h-3.5" /> Add memory
           </button>
@@ -170,7 +170,7 @@ export default function Memories({ state, onChange }) {
               <button
                 data-testid="memories-kind-photo"
                 onClick={() => { setKind("photo"); setSubmitError(""); }}
-                className={`px-3 h-7 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1 rounded ${
+                className={`px-3 h-11 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1 rounded ${
                   kind === "photo"
                     ? "bg-[var(--accent)] text-[var(--bg-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
@@ -181,7 +181,7 @@ export default function Memories({ state, onChange }) {
               <button
                 data-testid="memories-kind-instagram"
                 onClick={() => { setKind("instagram"); setSubmitError(""); }}
-                className={`px-3 h-7 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1 rounded ${
+                className={`px-3 h-11 text-[11px] font-mono uppercase tracking-widest transition-colors flex items-center gap-1 rounded ${
                   kind === "instagram"
                     ? "bg-[var(--accent)] text-[var(--bg-primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--accent)]"
@@ -225,7 +225,7 @@ export default function Memories({ state, onChange }) {
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://www.instagram.com/p/{shortcode}/"
                 aria-label="Instagram URL"
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
               />
             </label>
           )}
@@ -242,7 +242,7 @@ export default function Memories({ state, onChange }) {
               placeholder="Why this memory matters"
               aria-label="Caption"
               maxLength={200}
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
             />
           </label>
 
@@ -255,7 +255,7 @@ export default function Memories({ state, onChange }) {
               value={goalId}
               onChange={(e) => setGoalId(e.target.value)}
               aria-label="Linked goal"
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-accent)]"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-3 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-accent)]"
             >
               <option value="">No goal linkage</option>
               {goals.map((g) => (
@@ -282,7 +282,7 @@ export default function Memories({ state, onChange }) {
                 setGoalId("")
                 setSubmitError("")
               }}
-              className="text-xs px-3 py-1.5 rounded border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
+              className="min-h-11 text-xs px-3 py-1.5 rounded border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
             >
               Cancel
             </button>
@@ -291,7 +291,7 @@ export default function Memories({ state, onChange }) {
               data-testid="memories-save"
               onClick={kind === "photo" ? submitPhoto : submitInstagram}
               disabled={submitting || (kind === "photo" ? !file : !url.trim())}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 disabled:opacity-50"
+              className="flex items-center gap-1.5 min-h-11 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 disabled:opacity-50"
             >
               {submitting ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -339,7 +339,7 @@ export default function Memories({ state, onChange }) {
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-1.5 min-h-11 text-xs px-3 py-1.5 rounded bg-[var(--accent)] text-[var(--bg-primary)] font-medium hover:opacity-90 transition-opacity"
           >
             <RefreshCw className="w-3 h-3" />
             Couldn't load — retry
@@ -429,7 +429,7 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
               onClick={(e) => e.stopPropagation()}
               aria-label="Download photo"
               title="Download photo"
-              className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <Download className="w-3.5 h-3.5" aria-hidden="true" />
             </a>
@@ -440,7 +440,7 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
               data-testid={`memory-delete-${memory.id}`}
               onClick={onDelete}
               aria-label="Delete memory"
-              className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -463,14 +463,12 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
           {memory.goal_title && (
             <>
               <span className="opacity-50">·</span>
-              <a
-                href="#goals"
-                onClick={(e) => e.preventDefault()}
+              <span
                 className="min-w-0 flex-1 truncate hover:text-[var(--accent)] transition-colors"
                 title={`Linked to ${memory.goal_title}`}
               >
                 {memory.goal_title}
-              </a>
+              </span>
             </>
           )}
           {downloadUrl && (
@@ -482,7 +480,7 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
                 href={downloadUrl}
                 download
                 data-testid={`memory-download-link-${memory.id}`}
-                className="inline-flex items-center gap-1 hover:text-[var(--accent)] transition-colors"
+                className="min-h-11 min-w-11 inline-flex items-center justify-center gap-1 hover:text-[var(--accent)] transition-colors"
                 title="Download the original file"
                 aria-label="Download the original file"
               >
@@ -620,7 +618,7 @@ function MemoryLightbox({ memories, index, onClose, onPrev, onNext, onDelete }) 
           onClick={(e) => { if (!imgSrc) e.preventDefault(); }}
           aria-label="Download this photo"
           title="Download the original file"
-          className={`h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+          className={`h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
             imgSrc ? "" : "opacity-40 pointer-events-none"
           }`}
         >
@@ -631,7 +629,7 @@ function MemoryLightbox({ memories, index, onClose, onPrev, onNext, onDelete }) 
           data-testid="memory-lightbox-delete"
           onClick={() => onDelete?.(mem.id)}
           aria-label="Delete this memory"
-          className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           <Trash2 className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -640,7 +638,7 @@ function MemoryLightbox({ memories, index, onClose, onPrev, onNext, onDelete }) 
           data-testid="memory-lightbox-close"
           onClick={onClose}
           aria-label="Close"
-          className="h-9 w-9 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white/80 hover:text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>

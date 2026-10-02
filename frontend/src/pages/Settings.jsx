@@ -90,7 +90,7 @@ export default function Settings() {
         <button
           onClick={() => navigate("/")}
           title="Back to Coach"
-          className="flex items-center gap-2 h-9 px-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className="flex items-center gap-2 h-11 px-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden sm:inline">Coach</span>
@@ -99,13 +99,15 @@ export default function Settings() {
         <div className="w-px h-5 bg-[var(--border)]" />
 
         <Logo className="w-6 h-6 text-[var(--accent)] shrink-0" />
-        <span className="font-display font-bold tracking-tight text-sm">Settings</span>
+        <h1 className="font-display font-bold tracking-tight text-sm">Settings</h1>
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Audit */}
+          {/* Audit — the label is `hidden sm:inline`, so below 640px this
+              is an icon-only control and needs its own accessible name. */}
           <button
             onClick={() => setAuditOpen(true)}
-            className="h-9 flex items-center gap-1.5 px-2.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors"
+            aria-label="Audit"
+            className="h-11 flex items-center gap-1.5 px-2.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] transition-colors"
           >
             <ShieldCheck className="w-4 h-4" />
             <span className="hidden sm:inline text-xs">Audit</span>
@@ -118,14 +120,14 @@ export default function Settings() {
           {isGuest ? (
             <button
               onClick={() => navigate("/")}
-              className="h-9 flex items-center gap-2 px-3.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
+              className="h-11 flex items-center gap-2 px-3.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-xs hover:opacity-90 transition-opacity"
             >
               <LogIn className="w-3.5 h-3.5" /> Sign in
             </button>
           ) : (
             <button
               onClick={doLogout}
-              className="h-9 flex items-center gap-2 px-3.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-medium text-xs transition-colors"
+              className="h-11 flex items-center gap-2 px-3.5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-medium text-xs transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" /> Sign out
             </button>
@@ -134,7 +136,7 @@ export default function Settings() {
       </header>
 
       {/* Settings content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <main className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
           <Tabs defaultValue="coach">
             <TabsList className="mb-6 w-full justify-start border-b border-[var(--border)] rounded-none bg-transparent p-0 h-auto gap-0">
@@ -161,7 +163,7 @@ export default function Settings() {
             {/* Coach tab — model, persona, honesty tone */}
             <TabsContent value="coach" className="space-y-6">
               <section className="space-y-4">
-                <h3 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Model</h3>
+                <h2 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Model</h2>
                 <div className="space-y-2">
                   {providers.map((p) => (
                     <button
@@ -189,7 +191,7 @@ export default function Settings() {
             {/* Account tab — sign in/out (theme moved to main header) */}
             <TabsContent value="account" className="space-y-6">
               <section className="space-y-4">
-                <h3 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Session</h3>
+                <h2 className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)]">Session</h2>
                 {isGuest ? (
                   <div className="space-y-3">
                     <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -200,7 +202,7 @@ export default function Settings() {
                     </p>
                     <button
                       onClick={() => navigate("/")}
-                      className="h-10 px-5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
+                      className="h-11 px-5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
                     >
                       Sign in with Google →
                     </button>
@@ -222,7 +224,7 @@ export default function Settings() {
                     </div>
                     <button
                       onClick={doLogout}
-                      className="h-10 px-5 border border-[var(--border)] hover:border-[var(--danger)] text-[var(--text-secondary)] hover:text-[var(--danger)] font-medium text-sm transition-colors"
+                      className="h-11 px-5 border border-[var(--border)] hover:border-[var(--danger)] text-[var(--text-secondary)] hover:text-[var(--danger)] font-medium text-sm transition-colors"
                     >
                       Sign out
                     </button>
@@ -235,14 +237,14 @@ export default function Settings() {
             <TabsContent value="audit">
               <button
                 onClick={() => setAuditOpen(true)}
-                className="h-10 px-5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-medium text-sm hover:text-[var(--text-primary)] transition-colors"
+                className="h-11 px-5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-medium text-sm hover:text-[var(--text-primary)] transition-colors"
               >
                 Open Honesty Audit ↗
               </button>
             </TabsContent>
           </Tabs>
         </div>
-      </div>
+      </main>
 
       <HonestyAuditView open={auditOpen} onClose={() => setAuditOpen(false)} />
     </div>

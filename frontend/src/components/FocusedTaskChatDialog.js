@@ -56,6 +56,11 @@ export default function FocusedTaskChatDialog({
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const streamIdRef = useRef(0);
+  // Operation-scoped context (spec §10) — current conversation bucket,
+  // seeded from the parent's `refId` prop and swapped on confirm /
+  // defensive redirect. For focused-task chats the parent usually
+  // passes an entity id; when it doesn't, we mint per open.
+  const refIdRef = useRef(refId ?? null);
 
   // Reset everything on open / close transitions so a re-open always
   // starts fresh (the goal of the user's "clear state per focused
@@ -68,8 +73,13 @@ export default function FocusedTaskChatDialog({
       setBusyProposal(null);
       setPendingClarifications(null);
       setHistoryLoaded(false);
+      // Fresh bucket per open — scoped chats get the entity id the
+      // parent passed; unscoped ones mint a focused-task bucket so the
+      // server never falls back to the long-lived general history.
+      refIdRef.current =
+        refId || `task_${new Date().toISOString().slice(0, 10)}_${Math.random().toString(36).slice(2, 8)}`;
     }
-  }, [open]);
+  }, [open, refId]);
 
   const send = useCallback(
     async (text) => {
@@ -99,7 +109,8 @@ export default function FocusedTaskChatDialog({
             auto_answer: autoAnswer,
             clarify: grillMe,
             scope,
-            refId,
+            // Same refId for every turn in this bucket (spec §10.3).
+            refId: refIdRef.current,
             kind,
             title,
             helperText,
@@ -142,7 +153,16 @@ export default function FocusedTaskChatDialog({
               prompt: data.prompt,
               questions: data.questions || [],
             });
+          } else if (data.type === "impact") {
+            // Structured impact block (spec §10.6).
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === (finalId || streamId) ? { ...m, impact: data.impact } : m,
+              ),
+            );
           } else if (data.type === "done") {
+            // Defensive redirect (spec §10.2) — closed bucket minted fresh.
+            if (data.redirected && data.ref_id) refIdRef.current = data.ref_id;
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === (finalId || streamId)
@@ -185,26 +205,48 @@ export default function FocusedTaskChatDialog({
         setSending(false);
       }
     },
-    [open, user, autoAnswer, grillMe, scope, refId, kind, title, helperText],
+    [open, user, autoAnswer, grillMe, scope, kind, title, helperText],
   );
 
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
       setBusyProposal(proposalId);
       try {
-        const { result, state } = await api.confirm(messageId, proposalId);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId
-              ? {
-                  ...m,
-                  proposals: m.proposals.map((p) =>
-                    p.id === proposalId ? { ...p, status: "confirmed" } : p,
-                  ),
-                }
-              : m,
-          ),
-        );
+        const { result, state, ref_id } = await api.confirm(messageId, proposalId);
+        // Spec §10.4 — swap to the server-pre-minted next bucket.
+        if (ref_id) refIdRef.current = ref_id;
+        setMessages((prev) => {
+          const proposal = prev
+            .find((m) => m.id === messageId)
+            ?.proposals?.find((p) => p.id === proposalId);
+          const title =
+            proposal?.args?.title ||
+            proposal?.args?.goal_title ||
+            proposal?.args?.new_title ||
+            proposal?.title;
+          const verb = proposal?.action === "create_goal" ? "Created" : "Confirmed";
+          const content = title ? `${verb} "${title}"` : result || "Change applied";
+          return [
+            ...prev.map((m) =>
+              m.id === messageId
+                ? {
+                    ...m,
+                    proposals: m.proposals.map((p) =>
+                      p.id === proposalId ? { ...p, status: "confirmed" } : p,
+                    ),
+                  }
+                : m,
+            ),
+            // Success divider inline in the stream (spec §10.5).
+            {
+              id: `success_${Date.now()}`,
+              role: "success",
+              content,
+              goalTitle: title,
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
         // Bubble state up so the dashboard re-renders
         onStateChange?.(state);
       } catch (e) {
@@ -353,7 +395,7 @@ export default function FocusedTaskChatDialog({
             type="button"
             data-testid="focused-task-chat-signin"
             onClick={onOpenSignIn}
-            className="font-medium text-[var(--accent)] hover:underline"
+            className="min-h-11 font-medium text-[var(--accent)] hover:underline"
           >
             Sign in →
           </button>

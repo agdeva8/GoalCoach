@@ -2,6 +2,8 @@ import { useRef, useEffect, useState } from "react";
 import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 import ChatModeSelect from "./ChatModeSelect";
+import SuccessBanner from "./SuccessBanner";
+import ImpactPanel from "./ImpactPanel";
 
 /**
  * EmptyState — the prompt shown when there are no messages yet.
@@ -89,7 +91,21 @@ function SpeechWave({ text }) {
   );
 }
 
-function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
+function Message({ m, onConfirm, onReject, onRefine, busyProposal, onViewGoal }) {
+  // Success divider — appended by the parent after a confirm closes the
+  // conversation bucket (spec §10.5). Rendered inline in the same
+  // stream; the messages are never cleared on confirm.
+  if (m.role === "success") {
+    return (
+      <SuccessBanner
+        message={m.content}
+        goalId={m.goalId}
+        goalTitle={m.goalTitle}
+        createdAt={m.createdAt}
+        onView={m.goalId && onViewGoal ? () => onViewGoal(m.goalId) : undefined}
+      />
+    );
+  }
   if (m.role === "user") {
     return (
       <div data-testid="chat-message-user" className="flex flex-col items-end gc-fade-up">
@@ -121,11 +137,14 @@ function Message({ m, onConfirm, onReject, onRefine, busyProposal }) {
           ))}
         </div>
       )}
+      {/* Structured [[IMPACT]] block emitted with this reply (spec §10.5)
+          — load shifts, conflicts, buffer warnings, recommendation. */}
+      {m.impact && <ImpactPanel impact={m.impact} />}
     </div>
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "" }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", onViewGoal = null }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -248,7 +267,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         <div className="shrink-0 flex justify-end px-4 sm:px-6 pt-4">
           <button
             onClick={onClearChat}
-            className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            className="min-h-11 flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             title="Clear chat"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -266,7 +285,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           <EmptyState scopeLabel={scopeLabel} scopeIntent={scopeIntent} />
         )}
         {messages.map((m) => (
-          <Message key={m.id} m={m} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} busyProposal={busyProposal} />
+          <Message key={m.id} m={m} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} busyProposal={busyProposal} onViewGoal={onViewGoal} />
         ))}
         <div ref={endRef} />
       </div>
@@ -277,7 +296,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             {sources.map((s) => (
               <span key={s.id} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
                 <FileText className="w-3 h-3" /> <span className="max-w-[140px] truncate">{s.original_filename}</span>
-                <button onClick={() => onDeleteSource(s.id)} aria-label={`Remove source ${s.original_filename}`} className="text-[var(--text-muted)] hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"><X className="w-3 h-3" /></button>
+                <button onClick={() => onDeleteSource(s.id)} aria-label={`Remove source ${s.original_filename}`} className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--danger)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded"><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>
@@ -289,10 +308,10 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           {showSources && (
             <>
               <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
-              <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" className="ml-1 mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+              <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" className="ml-1 mb-2 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
                 <Paperclip className="w-4 h-4" />
               </button>
-              <button data-testid="chat-attach-link" onClick={onAddLink} title="Add a link as a source" className="mb-2 h-9 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
+              <button data-testid="chat-attach-link" onClick={onAddLink} title="Add a link as a source" className="mb-2 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0">
                 <Link2 className="w-4 h-4" />
               </button>
             </>
@@ -317,7 +336,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               title={voiceListening ? "Stop listening" : "Dictate with your voice"}
               aria-label={voiceListening ? "Stop dictating" : "Dictate with your voice"}
               aria-pressed={voiceListening}
-              className={`m-2 h-9 w-9 flex items-center justify-center transition-colors shrink-0 ${
+              className={`m-2 h-11 w-11 flex items-center justify-center transition-colors shrink-0 ${
                 voiceListening
                   ? "bg-[var(--danger)] text-[var(--bg-primary)] animate-pulse"
                   : "text-[var(--text-muted)] hover:text-[var(--accent)]"
@@ -331,7 +350,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             onClick={submit}
             disabled={sending || !input.trim()}
             aria-label="Send"
-            className="m-2 h-9 w-9 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0"
+            className="m-2 h-11 w-11 flex items-center justify-center bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0"
           >
             <ArrowUp className="w-4 h-4" />
           </button>
@@ -372,7 +391,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                       type="button"
                       data-testid={`clarification-chip-${i}`}
                       onClick={() => onAnswerClarification(q)}
-                      className="w-full text-left text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors"
+                      className="w-full text-left min-h-11 text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors"
                     >
                       <span className="font-mono text-[10px] text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
                       {q}
@@ -399,7 +418,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                 onClick={onDismissClarifications}
                 data-testid="clarification-dismiss"
                 title="Dismiss"
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] shrink-0"
+                className="min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

@@ -150,7 +150,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
             <button
               data-testid="tracker-open-today-cta"
               onClick={() => onOpenToday?.()}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
+              className="min-h-11 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
             >
               <CalendarDays className="w-4 h-4" />
               Open today
@@ -163,7 +163,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
                   "Hold me accountable for today. Walk me through what I committed to, what's slipping, and where I should be spending the next hour. If anything looks off, propose what to drop or postpone.",
                 )
               }
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
+              className="min-h-11 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               Ask the coach for today's read
@@ -185,7 +185,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
                     `Let's start: what time are you actually getting out of bed tomorrow?`,
                 )
               }}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
+              className="min-h-11 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-[var(--border)] text-[var(--text-secondary)] font-medium text-sm hover:border-[var(--border-accent)] hover:text-[var(--accent)] transition-colors"
             >
               <Sparkles className="w-4 h-4" />
               Plan my day
@@ -231,7 +231,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
                     className="text-[12px] text-[var(--text-secondary)] leading-snug px-2 py-1.5 border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] rounded"
                   >
                     <span className="block">{m.title || "Milestone"}</span>
-                    <span className="block font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mt-0.5">
+                    <span className="block font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mt-0.5">
                       {m.goal_title || "free"} · {m.target_date}
                     </span>
                   </li>
@@ -260,7 +260,7 @@ function StatTile({ icon: Icon, value, label, tone }) {
       <div className="text-lg font-semibold text-[var(--text-primary)] leading-none mt-1">
         {value}
       </div>
-      <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mt-1">
+      <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mt-1">
         {label}
       </div>
     </div>

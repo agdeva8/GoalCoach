@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Paperclip, Link2, Trash2, Send, ExternalLink, RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import { API } from "../lib/api";
+import { canAutofocus } from "../lib/utils";
 
 /**
  * SourceActionDialog — single dialog surface for every source mutation
@@ -90,7 +91,7 @@ export default function SourceActionDialog({
         setPreviewError(data.error || "Could not preview this link.")
       }
     } catch (e) {
-      setPreviewError(e?.message || "Network error.")
+      setPreviewError(typeof e?.message === 'string' ? e.message : "Network error.")
     } finally {
       setPreviewing(false)
     }
@@ -105,7 +106,7 @@ export default function SourceActionDialog({
       await onAddLink(trimmed, goalId)
       onClose?.()
     } catch (e) {
-      setSubmitError(e?.message || "Could not add link")
+      setSubmitError(typeof e?.message === 'string' ? e.message : "Could not add link")
     } finally {
       setSubmitting(false)
     }
@@ -117,7 +118,7 @@ export default function SourceActionDialog({
       await onDeleteSource(source.id)
       onClose?.()
     } catch (e) {
-      setSubmitError(e?.message || "Could not remove source")
+      setSubmitError(typeof e?.message === 'string' ? e.message : "Could not remove source")
     }
   }
 
@@ -181,7 +182,7 @@ export default function SourceActionDialog({
             <span className="sr-only">Link URL</span>
             <input
               data-testid="source-link-input"
-              autoFocus
+              autoFocus={canAutofocus()}
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -193,7 +194,7 @@ export default function SourceActionDialog({
               }}
               placeholder="https://…"
               aria-label="Link URL"
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
             />
           </label>
           <button
@@ -296,7 +297,7 @@ export default function SourceActionDialog({
               <button
                 type="button"
                 onClick={() => runPreview(url.trim())}
-                className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-[var(--danger)]"
+                className="mt-1 min-h-11 inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] hover:text-[var(--danger)]"
               >
                 <RefreshCw className="w-3 h-3" /> Retry
               </button>
@@ -310,7 +311,7 @@ export default function SourceActionDialog({
     )
     footer = (
       <>
-        <button onClick={onClose} data-testid="source-link-cancel" className="text-xs px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+        <button onClick={onClose} data-testid="source-link-cancel" className="min-h-11 text-xs px-3 py-3 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors border border-[var(--border)] rounded">
           Cancel
         </button>
         <button
@@ -324,7 +325,7 @@ export default function SourceActionDialog({
                 ? "Preview failed — link will be saved without metadata"
                 : "Preview not run yet — link will be saved without metadata"
           }
-          className="flex items-center gap-1.5 text-xs px-3 py-2 rounded bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
+          className="min-h-11 flex items-center gap-1.5 text-xs px-3 py-3 rounded bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
         >
           <Send className="w-3 h-3" />{" "}
           {preview?.ok
@@ -348,13 +349,13 @@ export default function SourceActionDialog({
     )
     footer = (
       <>
-        <button onClick={onClose} data-testid="source-delete-cancel" className="text-xs px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+        <button onClick={onClose} data-testid="source-delete-cancel" className="min-h-11 text-xs px-3 py-3 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors border border-[var(--border)] rounded">
           Cancel
         </button>
         <button
           data-testid="source-delete-confirm"
           onClick={submitDelete}
-          className="flex items-center gap-1.5 text-xs px-3 py-2 rounded bg-[var(--danger)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
+          className="flex items-center gap-1.5 min-h-11 text-xs px-3 py-3 rounded bg-[var(--danger)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
         >
           <Trash2 className="w-3 h-3" /> Remove
         </button>

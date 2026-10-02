@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Send, MessageSquareText } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
+import { canAutofocus } from "../lib/utils";
 
 const FRAMES = {
   drop: {
@@ -65,7 +66,7 @@ export default function ActionPromptModal({ action, onClose, onSend }) {
       testId="action-prompt-modal"
       footer={open ? (
         <>
-          <button onClick={onClose} data-testid="action-modal-cancel" className="h-11 px-4 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
+          <button onClick={onClose} data-testid="action-modal-cancel" className="h-11 px-4 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors border border-[var(--border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
             Cancel
           </button>
           <button
@@ -83,7 +84,7 @@ export default function ActionPromptModal({ action, onClose, onSend }) {
         <span className="sr-only">Reason</span>
         <textarea
           data-testid="action-modal-input"
-          autoFocus
+          autoFocus={canAutofocus()}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}

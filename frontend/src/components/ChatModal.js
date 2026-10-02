@@ -55,6 +55,30 @@ export default function ChatModal({
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const streamIdRef = useRef(0);
+  // Operation-scoped context (spec §10) — the current conversation
+  // bucket. Seeded from the `refId` prop the parent passes (entity id
+  // for scoped opens, null for the general chat) and swapped only on
+  // confirm (server pre-mints the next bucket) or on a defensive
+  // redirect in the `done` SSE event.
+  const refIdRef = useRef(refId ?? null);
+
+  // Re-seed the bucket whenever the modal reopens or the parent swaps
+  // the scoped context. Falls back to a kind-appropriate mint when a
+  // kind was given without an entity id (spec §10.1).
+  useEffect(() => {
+    if (!open) return;
+    if (refId) {
+      refIdRef.current = refId;
+    } else if (kind === "add_goal") {
+      refIdRef.current = `new_goal_${crypto.randomUUID()}`;
+    } else if (kind === "plan_day") {
+      refIdRef.current = `plan_${new Date().toISOString().slice(0, 10)}`;
+    } else {
+      // General / unscoped chat — server falls back to
+      // conv_general_<userId>; no client-side bucket.
+      refIdRef.current = null;
+    }
+  }, [open, refId, kind]);
 
   // When the modal opens with a prefillMessage, drop it into the
   // textarea — used by the Today Timetable's "I can't do this" /
@@ -115,7 +139,9 @@ export default function ChatModal({
             auto_answer: autoAnswer,
             clarify: grillMe,
             scope,
-            refId,
+            // Same refId for every turn in this bucket; swapped by
+            // confirm / done-redirect (spec §10.3).
+            refId: refIdRef.current,
             kind,
             title,
             helperText,
@@ -158,7 +184,18 @@ export default function ChatModal({
               prompt: data.prompt,
               questions: data.questions || [],
             });
+          } else if (data.type === "impact") {
+            // Structured impact block (spec §10.6) — attach to the
+            // assistant message that produced it.
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === (finalId || streamId) ? { ...m, impact: data.impact } : m,
+              ),
+            );
           } else if (data.type === "done") {
+            // Defensive redirect (spec §10.2) — server detected we
+            // sent to a closed bucket and minted a fresh one.
+            if (data.redirected && data.ref_id) refIdRef.current = data.ref_id;
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === (finalId || streamId)
@@ -207,30 +244,64 @@ export default function ChatModal({
         );
       }
     },
-    [autoAnswer, grillMe, scope, refId, kind, title, helperText],
+    [autoAnswer, grillMe, scope, kind, title, helperText],
   );
 
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
       setBusyProposal(proposalId);
       try {
-        const { result, state } = await api.confirm(messageId, proposalId);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId
-              ? {
-                  ...m,
-                  proposals: m.proposals.map((p) =>
-                    p.id === proposalId ? { ...p, status: "confirmed" } : p,
-                  ),
-                }
-              : m,
-          ),
+        const { result, state, ref_id } = await api.confirm(
+          messageId,
+          proposalId,
         );
+        // Spec §10.4 — server closed this bucket and (for add_goal)
+        // pre-minted the next. Swap so the next send lands fresh.
+        if (ref_id) refIdRef.current = ref_id;
+        setMessages((prev) => {
+          const proposal = prev
+            .find((m) => m.id === messageId)
+            ?.proposals?.find((p) => p.id === proposalId);
+          const title =
+            proposal?.args?.title ||
+            proposal?.args?.goal_title ||
+            proposal?.args?.new_title ||
+            proposal?.title;
+          const verb = proposal?.action === "create_goal" ? "Created" : "Confirmed";
+          const content = title ? `${verb} "${title}"` : result || "Change applied";
+          const goalId =
+            proposal?.action === "create_goal" && title
+              ? state?.goals?.find(
+                  (g) => g.title === title && g.status === "active",
+                )?.id
+              : undefined;
+          return [
+            ...prev.map((m) =>
+              m.id === messageId
+                ? {
+                    ...m,
+                    proposals: m.proposals.map((p) =>
+                      p.id === proposalId ? { ...p, status: "confirmed" } : p,
+                    ),
+                  }
+                : m,
+            ),
+            // Success divider inline in the stream (spec §10.5) — the
+            // visible messages are NOT cleared on confirm.
+            {
+              id: `success_${Date.now()}`,
+              role: "success",
+              content,
+              goalId,
+              goalTitle: title,
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
         toast.success(result);
         onStateChange?.(state);
       } catch (e) {
-        toast.error(e?.message || "Could not apply");
+        toast.error(typeof e?.message === 'string' ? e.message : "Could not apply");
       } finally {
         setBusyProposal(null);
       }
@@ -255,7 +326,7 @@ export default function ChatModal({
         ),
       );
     } catch (e) {
-      toast.error(e?.message || "Could not reject");
+      toast.error(typeof e?.message === 'string' ? e.message : "Could not reject");
     } finally {
       setBusyProposal(null);
     }
@@ -299,7 +370,7 @@ export default function ChatModal({
         const fresh = await api.state();
         onStateChange?.(fresh);
       } catch (e) {
-        toast.error(e?.message || "Upload failed");
+        toast.error(typeof e?.message === 'string' ? e.message : "Upload failed");
       }
     },
     [onStateChange],
@@ -314,7 +385,7 @@ export default function ChatModal({
         const fresh = await api.state();
         onStateChange?.(fresh);
       } catch (e) {
-        toast.error(e?.message || "Could not add link");
+        toast.error(typeof e?.message === 'string' ? e.message : "Could not add link");
       }
     },
     [onStateChange],
@@ -391,7 +462,7 @@ export default function ChatModal({
             type="button"
             data-testid="chat-modal-signin"
             onClick={onSignInFromChat}
-            className="font-medium text-[var(--accent)] hover:underline"
+            className="min-h-11 font-medium text-[var(--accent)] hover:underline"
           >
             Sign in →
           </button>

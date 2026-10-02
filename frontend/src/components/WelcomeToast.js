@@ -85,7 +85,7 @@ export default function WelcomeToast({ user, state, signedIn }) {
           <button
             onClick={() => toast.dismiss(t)}
             aria-label="Dismiss greeting"
-            className="-mr-1 -mt-1 h-7 w-7 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            className="-mr-1 -mt-1 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
             <X className="w-3.5 h-3.5" />
           </button>

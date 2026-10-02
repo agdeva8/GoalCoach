@@ -67,7 +67,7 @@ function IconBtn({ testid, title, onClick, children, "aria-label": ariaLabel }) 
       title={title}
       aria-label={ariaLabel || title}
       onClick={onClick}
-      className="h-10 w-10 sm:h-8 sm:w-10 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+      className="h-11 w-11 shrink-0 sm:h-8 sm:w-9 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
     >
       {children}
     </button>
@@ -97,7 +97,7 @@ function MilestonesChip({ milestones }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={`milestones-list-${milestones[0]?.id ?? "x"}`}
-        className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        className="min-h-11 flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       >
         <Milestone className="w-3 h-3" aria-hidden="true" /> {milestones.length} milestone{milestones.length === 1 ? "" : "s"}
         <span className="flex items-center gap-1 ml-0.5">
@@ -134,7 +134,7 @@ function SourcesChip({ goal, sources, onUpload, onAddLink, onDelete }) {
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-controls={`sources-list-${goal.id}`}
-            className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            className="min-h-11 flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
             <Paperclip className="w-3 h-3" aria-hidden="true" /> {sources.length} source{sources.length === 1 ? "" : "s"}
           </button>
@@ -156,7 +156,7 @@ function SourcesChip({ goal, sources, onUpload, onAddLink, onDelete }) {
               <button
                 data-testid={`goal-delete-source-${s.id}`}
                 onClick={() => { setDialogSource(s); setDialogMode("delete"); }}
-                className="ml-auto text-[var(--text-muted)] hover:text-[var(--danger)]"
+                className="ml-auto min-h-11 min-w-11 inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--danger)]"
                 title="Remove this source"
               >
                 <X className="w-3 h-3" />
@@ -220,7 +220,7 @@ function GoalCard({ goal, commitments, milestones, onAction, onUploadSource, onA
           title="Attach a memory (photo or Instagram) to this goal"
           aria-label="Attach a memory (photo or Instagram) to this goal"
           onClick={() => onAddMemory(goal)}
-          className="h-8 sm:h-10 px-2.5 inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:border-[var(--accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+          className="h-11 sm:h-10 px-2.5 inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] hover:border-[var(--accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <BookImage className="w-3 h-3" aria-hidden="true" />
           <span className="font-mono text-[10px] uppercase tracking-wider">memories</span>
@@ -311,7 +311,7 @@ export default function TrackingDashboard({
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Everything the coach is keeping track of for you.</p>
         </div>
         {visibleGoals.length > 0 && (
-          <button data-testid="add-goal-button" onClick={openAddGoalDialog} className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity shrink-0">
+          <button data-testid="add-goal-button" onClick={openAddGoalDialog} className="flex items-center gap-1.5 px-2.5 h-11 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity shrink-0">
             <Plus className="w-3.5 h-3.5" /> Add goal
           </button>
         )}
@@ -336,7 +336,7 @@ export default function TrackingDashboard({
             <button
               data-testid="empty-state-add-goal"
               onClick={openAddGoalDialog}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+              className="min-h-11 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
               <Plus className="h-4 w-4" aria-hidden="true" /> Add your first goal
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -344,7 +344,7 @@ export default function TrackingDashboard({
             <button
               data-testid="empty-state-open-chat"
               onClick={onOpenChat}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] text-sm hover:border-[var(--border-accent)] active:scale-[0.98] transition-[border-color,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+              className="min-h-11 inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] text-sm hover:border-[var(--border-accent)] active:scale-[0.98] transition-[border-color,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
               <MessageSquare className="h-4 w-4" aria-hidden="true" /> Or just chat with the coach
             </button>
