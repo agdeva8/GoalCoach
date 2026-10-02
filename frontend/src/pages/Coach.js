@@ -444,7 +444,7 @@ export default function Coach() {
               affordance + the current screen title + a Goals dropdown
               trigger so users can jump between screens from the body
               header too. */}
-          <div className="sm:hidden flex items-center gap-2 min-w-0 w-full h-11">
+          <div className="sm:hidden flex items-center gap-1.5 min-w-0 w-full h-11">
             {canGoBack && (
               <button
                 data-testid="panel-back-button"
@@ -456,12 +456,12 @@ export default function Coach() {
                 <ArrowLeft className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
-            <h2 className="text-[15px] font-semibold text-[var(--text-primary)] truncate">
-              {activeScreen.label}
-            </h2>
-            <div className="ml-auto shrink-0">
-              <GoalMenu />
-            </div>
+            {/* The screen title IS the dropdown trigger on mobile — one
+                affordance, not two. Tap "Goals ▼" to jump to Today /
+                Timeline / Sources / Memories / Audit. The static h2 +
+                separate right-side trigger was duplicating surface
+                (founder feedback). */}
+            <GoalMenu />
           </div>
 
           {/* Desktop — the horizontal strip stays, now route-driven:
