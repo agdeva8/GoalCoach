@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageSquare, Sparkles } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
+import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
 /**
@@ -55,6 +56,9 @@ export default function FocusedTaskChatDialog({
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // Session attachments — real server sources added in THIS chat, so the
+  // chip X can delete them server-side (same pattern as ChatModal).
+  const [sources, setSources] = useState([]);
   const streamIdRef = useRef(0);
   // Operation-scoped context (spec §10) — current conversation bucket,
   // seeded from the parent's `refId` prop and swapped on confirm /
@@ -73,6 +77,7 @@ export default function FocusedTaskChatDialog({
       setBusyProposal(null);
       setPendingClarifications(null);
       setHistoryLoaded(false);
+      setSources([]);
       // Fresh bucket per open — scoped chats get the entity id the
       // parent passed; unscoped ones mint a focused-task bucket so the
       // server never falls back to the long-lived general history.
@@ -250,7 +255,7 @@ export default function FocusedTaskChatDialog({
         // Bubble state up so the dashboard re-renders
         onStateChange?.(state);
       } catch (e) {
-        // leave in pending; user can retry
+        toast.error("Couldn't confirm that proposal. Try again.");
       } finally {
         setBusyProposal(null);
       }
@@ -274,6 +279,8 @@ export default function FocusedTaskChatDialog({
             : m,
         ),
       );
+    } catch {
+      toast.error("Couldn't reject that proposal. Try again.");
     } finally {
       setBusyProposal(null);
     }
@@ -311,11 +318,14 @@ export default function FocusedTaskChatDialog({
   const uploadFile = useCallback(
     async (file) => {
       try {
-        await api.uploadSource(file, "");
+        const created = await api.uploadSource(file, "");
         const fresh = await api.state();
         onStateChange?.(fresh);
+        if (created?.id) setSources((prev) => [...prev, created]);
+        return created || null;
       } catch {
         /* offline fine */
+        return null;
       }
     },
     [onStateChange],
@@ -323,13 +333,33 @@ export default function FocusedTaskChatDialog({
 
   const addLink = useCallback(
     async (url) => {
-      if (!url) return;
+      if (!url) return null;
       try {
-        await api.addLink({ url, goal_id: "" });
+        const created = await api.addLink({ url, goal_id: "" });
+        const fresh = await api.state();
+        onStateChange?.(fresh);
+        if (created?.id) setSources((prev) => [...prev, created]);
+        return created || null;
+      } catch {
+        /* offline fine */
+        return null;
+      }
+    },
+    [onStateChange],
+  );
+
+  // Chip X — deletes the attachment server-side ("keep data clean"),
+  // then drops it from the local chip list. Also offered to the parent.
+  const deleteSource = useCallback(
+    async (id) => {
+      if (!id) return;
+      setSources((prev) => prev.filter((s) => s.id !== id));
+      try {
+        await api.deleteSource(id);
         const fresh = await api.state();
         onStateChange?.(fresh);
       } catch {
-        /* offline fine */
+        toast.error("Couldn't remove that attachment. Try again.");
       }
     },
     [onStateChange],
@@ -353,7 +383,7 @@ export default function FocusedTaskChatDialog({
       maxWidth="max-w-3xl"
       testId="focused-task-chat-modal"
     >
-      <div className="-mx-5 -mb-4 h-[68vh] min-h-[440px] max-h-[760px] border-t border-[var(--border)]">
+      <div className="-mx-5 -mb-4 h-[68vh] min-h-[min(440px,60dvh)] max-h-[760px] border-t border-[var(--border)]">
         <ChatConsole
           messages={messages}
           onSend={send}
@@ -370,8 +400,8 @@ export default function FocusedTaskChatDialog({
           setGrillMe={setGrillMe}
           onUploadFile={uploadFile}
           onAddLink={addLink}
-          sources={[]}
-          onDeleteSource={() => {}}
+          sources={sources}
+          onDeleteSource={deleteSource}
           onClearChat={() => setMessages([])}
           focusOnMount={open}
           // Focused-task dialogs always have a specific subject —
@@ -389,7 +419,7 @@ export default function FocusedTaskChatDialog({
         <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
           <span className="flex-1">
-            Log in to persist this session and access all advanced features.
+            Sign in to keep this session and unlock every feature.
           </span>
           <button
             type="button"
@@ -397,7 +427,7 @@ export default function FocusedTaskChatDialog({
             onClick={onOpenSignIn}
             className="min-h-11 font-medium text-[var(--accent)] hover:underline"
           >
-            Sign in →
+            Sign in
           </button>
         </div>
       )}

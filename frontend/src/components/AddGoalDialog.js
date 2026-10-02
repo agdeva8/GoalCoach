@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
+import { toast } from "sonner";
 import { api, API } from "../lib/api";
 
 /**
@@ -280,20 +281,32 @@ export default function AddGoalDialog({
 
   const handleUploadFile = async (file) => {
     try {
-      await onUploadSource(file);
+      // Coach.uploadFile returns the created server source — use its real
+      // id so the chip's X deletes it server-side instead of a local stub.
+      const created = await onUploadSource(file);
+      if (!created?.id) return;
       setSources((prev) => [
         ...prev,
-        { id: `local_${Date.now()}`, original_filename: file.name, url: file.name, isLocal: true },
+        {
+          id: created.id,
+          original_filename: created.original_filename || file.name,
+          url: created.url || file.name,
+        },
       ]);
     } catch {}
   };
 
   const handleAddLink = async (url) => {
     try {
-      await onAddLink(url);
+      const created = await onAddLink(url);
+      if (!created?.id) return;
       setSources((prev) => [
         ...prev,
-        { id: `local_${Date.now()}`, original_filename: url, url, isLocal: true },
+        {
+          id: created.id,
+          original_filename: created.original_filename || url,
+          url: created.url || url,
+        },
       ]);
     } catch {}
   };
@@ -347,7 +360,7 @@ export default function AddGoalDialog({
       onGoalConfirmed?.(proposalId);
       setTimeout(() => onClose?.(), 700);
     } catch {
-      // bubble — parent toasts on the dashboard
+      toast.error("Couldn't confirm that proposal. Try again.");
     } finally {
       setBusyProposal(null);
     }
@@ -364,6 +377,8 @@ export default function AddGoalDialog({
             : m,
         ),
       );
+    } catch {
+      toast.error("Couldn't reject that proposal. Try again.");
     } finally {
       setBusyProposal(null);
     }
@@ -475,9 +490,9 @@ export default function AddGoalDialog({
               type="button"
               data-testid="add-goal-back-to-tiles"
               onClick={goBackToTiles}
-              className="min-h-11 flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              className="font-medium min-h-11 flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
-              <ArrowLeft className="w-3 h-3" /> change category
+              <ArrowLeft className="w-3 h-3" /> Change category
             </button>
           </div>
 
@@ -487,7 +502,7 @@ export default function AddGoalDialog({
               showSources={false} hides the attach / link buttons —
               sources don't apply to a goal-add chat, and the no-op
               stubs were surfacing as a confusing dead UI. */}
-          <div className="h-[55vh] min-h-[420px] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)]">
+          <div className="h-[55vh] min-h-[min(420px,60dvh)] sm:flex-1 sm:min-h-0 -mx-5 -mb-5 sm:mx-0 sm:mb-0 border-t border-[var(--border)]">
             <ChatConsole
               key={focusToken}
               messages={messages}
