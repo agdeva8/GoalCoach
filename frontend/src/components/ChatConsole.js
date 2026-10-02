@@ -681,8 +681,18 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             className="block w-full bg-transparent resize-none overflow-y-auto px-3 py-2 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-t-md"
             style={{ minHeight: "36px", maxHeight: "200px", height: "36px" }}
           />
-          <div className="flex items-center justify-between gap-1 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
-            <div className="flex items-center gap-0.5">
+          {/* Composer action row — Iteration 9+ final layout:
+              - LEFT: Coach-mode dropdown in a flexible slot
+                (`flex-1 min-w-0 max-w-[190px]`). It absorbs the
+                available width and truncates a long label, so the
+                icon group on the right NEVER reflows when the user
+                switches modes.
+              - RIGHT: paperclip / link / mic / send, grouped and
+                `shrink-0`.
+              Founder feedback: dropdown left, all four action icons
+              right. */}
+          <div className="flex items-center justify-between gap-2 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
+            <div className="flex-1 min-w-0 max-w-[190px]">
               <ChatModeSelect
                 autoAnswer={autoAnswer}
                 grillMe={grillMe}
@@ -690,7 +700,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                 setGrillMe={setGrillMe}
               />
             </div>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5 shrink-0">
               {showSources && (
                 <>
                   <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />

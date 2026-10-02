@@ -317,27 +317,35 @@ export default function FocusedTaskChatDialog({
       const result = await api.refine(messageId, refiningProposal.id, thought);
       const newProposal = result?.proposal || result;
       if (!newProposal?.id) throw new Error("The coach didn't return a new proposal.");
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                proposals: m.proposals.map((p) =>
-                  p.id === refiningProposal.id
-                    ? { ...newProposal, id: refiningProposal.id, status: "pending" }
-                    : p,
-                ),
-              }
-            : m,
-        ),
-      );
-      toast.success("Proposal refined.");
+      // Two-step flow: return the preview; `confirmRefine` applies it.
+      return newProposal;
     } catch (e) {
       toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
       throw e;
     } finally {
       setBusyProposal(null);
     }
+  }, [refiningProposal, findProposalMessageId]);
+
+  const confirmRefine = useCallback((newProposal) => {
+    if (!refiningProposal) return;
+    const messageId = findProposalMessageId(refiningProposal);
+    if (!messageId) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              proposals: m.proposals.map((p) =>
+                p.id === refiningProposal.id
+                  ? { ...newProposal, id: refiningProposal.id, status: "pending" }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+    toast.success("Proposal refined.");
   }, [refiningProposal, findProposalMessageId]);
 
   const submitReject = useCallback(async (reason) => {
@@ -489,6 +497,7 @@ export default function FocusedTaskChatDialog({
         proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
         proposalActionKey={refiningProposal?.action || ""}
         onSubmit={submitRefine}
+        onConfirm={confirmRefine}
       />
       <RejectModal
         open={!!rejectingProposal}

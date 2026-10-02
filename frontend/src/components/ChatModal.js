@@ -398,27 +398,36 @@ export default function ChatModal({
       if (!newProposal?.id) {
         throw new Error("The coach didn't return a new proposal.");
       }
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                proposals: m.proposals.map((p) =>
-                  p.id === refiningProposal.id
-                    ? { ...newProposal, id: refiningProposal.id, status: "pending" }
-                    : p,
-                ),
-              }
-            : m,
-        ),
-      );
-      toast.success("Proposal refined.");
+      // Two-step flow: just return the preview. The parent's
+      // `confirmRefine` applies it once the user clicks Confirm Refine.
+      return newProposal;
     } catch (e) {
       toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
       throw e;
     } finally {
       setBusyProposal(null);
     }
+  }, [refiningProposal, findProposalMessageId]);
+
+  const confirmRefine = useCallback((newProposal) => {
+    if (!refiningProposal) return;
+    const messageId = findProposalMessageId(refiningProposal);
+    if (!messageId) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              proposals: m.proposals.map((p) =>
+                p.id === refiningProposal.id
+                  ? { ...newProposal, id: refiningProposal.id, status: "pending" }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+    toast.success("Proposal refined.");
   }, [refiningProposal, findProposalMessageId]);
 
   const submitReject = useCallback(async (reason) => {
@@ -585,6 +594,7 @@ export default function ChatModal({
         proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
         proposalActionKey={refiningProposal?.action || ""}
         onSubmit={submitRefine}
+        onConfirm={confirmRefine}
       />
       <RejectModal
         open={!!rejectingProposal}

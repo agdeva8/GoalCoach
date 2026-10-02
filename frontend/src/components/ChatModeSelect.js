@@ -63,7 +63,7 @@ export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, set
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`h-11 w-[148px] flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-wider px-2.5 py-2 rounded border whitespace-nowrap transition-colors ${
+        className={`h-11 w-full flex items-center justify-around gap-1.5 font-mono text-[10px] uppercase tracking-wider px-2 py-2 rounded border whitespace-nowrap transition-colors overflow-hidden ${
           open
             ? "border-[var(--border-accent)] text-[var(--text-primary)]"
             : currentId === "grill"
@@ -73,9 +73,9 @@ export default function ChatModeSelect({ autoAnswer, grillMe, setAutoAnswer, set
             : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
         }`}
       >
-        <CurrentIcon className="w-3.5 h-3.5" />
-        <span>{current.label}</span>
-        <ChevronDown className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} />
+        <CurrentIcon className="w-3.5 h-3.5 shrink-0" />
+        <span className="truncate">{current.label}</span>
+        <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
