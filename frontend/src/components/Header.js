@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, Info, LogIn, Settings, Sun, Moon, UserCircle2 } from "lucide-react";
 import Logo from "./Logo";
 import PersonaMenu from "./PersonaMenu";
-import GoalMenu from "./GoalMenu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,10 +134,14 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
         {/* Goals menu — mobile / space-constrained only. On desktop
             the horizontal tab strip (Coach.js) is the nav; showing both
             was duplicating surface (founder feedback). The trigger is
-            always labelled "Goals" — that's the canonical landing. */}
-        <div className="sm:hidden">
-          <GoalMenu />
-        </div>
+            always labelled "Goals" — that's the canonical landing.
+
+            Iteration 9+ (founder feedback): GoalMenu was duplicated on
+            mobile — once here in the top header, once in the body
+            header bar (Coach.js). Removed from the top header entirely;
+            the body header bar holds the only GoalMenu trigger on
+            mobile. Desktop stays unchanged (horizontal tab strip only). */}
+        {/* GoalMenu removed from top header on mobile — see Coach.js */}
 
         {authLoading ? (
           <div className="h-11 w-11" aria-hidden="true" />

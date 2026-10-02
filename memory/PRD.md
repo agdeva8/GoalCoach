@@ -275,7 +275,255 @@ failures unchanged. E2E fleet not run (MVP).
 Icon PNGs require `yarn add -D sharp && node scripts/regen-icons.mjs`
 before the next production build.
 
+## Iteration 10 (2026-10) — Goal Planner pipeline (headroom-aware multi-horizon plans), planned
+
+Replaces the current single-shot LLM prompt (one inference that classifies intent, plans, and formats tool calls all at once — currently producing wrong dates, mismatched goal references, and missing phases) with a **typed 5-stage pipeline** that produces a plan with **phases, milestones, commitments, blockers, and headroom**, and **renegotiates with the user** when the plan would overcommit them. The plan must deliver on the product's wedge — **cross-horizon synthesis** — by rendering ONE coherent plan across day / week / month / quarter / year horizons, with headroom visible at every level.
+
+**Spec status (MVP-mode gate):** 1 round of adversarial review + founder sign-off, then ship. Post-MVP the gate tightens to 3 rounds at 8/10 (per AGENT_BUILDER "Mode: MVP" §1). **Rollout:** ship behind `GOAL_PLANNER_ENABLED=false` (off by default); shadow mode 1 week (both paths run, only old path acts) → founder dogfood with flag on for 1 week → flip prod → monitor `plan_rejects` for 48h → roll back to flag-off if rejection rate > 10%.
+
+### Glossary — the contract (use literally)
+
+Every entity below is what the LLM and the server must agree on. Names matter; mismatches are bugs.
+
+- **Goal.** Long-running objective. `start_date`, `target_date`, `horizon` (`weekly`/`short`/`medium`/`long`), `why`, `first_action`, **`weekly_hours`** (NEW, 1–20), and **`phase_objectives`** map (NEW, 2–4 entries). Status: `active` / `paused` / `dropped` (soft-delete).
+- **Horizon window.** Fixed: `weekly` = +7..14 d, `short` = +30..90 d, `medium` = +90..270 d, `long` = +270..540 d. `target_date` MUST fall in window.
+- **Milestone.** One `target_date` (no ranges). Must be **observable from outside** ("Pass 5 SD mocks" not "Make progress on SD"). Has a **`phase`** string (NEW) — key in `goal.phase_objectives`. Max 5 per goal.
+- **Commitment.** Small "do this by date X" with `text`, `goal_id`, `due`, and **`phase`** (NEW). Daily-grind unit. Status `open`/`done`. Optional `note` ("what you did") typed after ticking off.
+- **Blocker.** Calendar conflict the user has **named** (travel, launch, wedding). `start_date` AND `end_date` (range). Renders as diagonal stripes on the goal bar. **The LLM does NOT invent blockers** — Hard constraint, enforced by Stage 3 producing `blockers: []` whenever the user hasn't named any.
+- **Phase.** Named window that groups related milestones + commitments. **Not a separate table.** Emerges from the `phase` string on every milestone/commitment + the `phase_objectives` JSONB on the goal. Server derives phase boundaries by grouping milestones by `phase`. 2–4 phases per goal. Phase names: short verbs/nouns ("Foundations", "Mocks", "Active", "Spec", "Build", "Ship", "Iterate", "Reflect", "Decide", "Act", "Maintain").
+- **Daily log.** One row per `(user_id, log_date)`. NEW table. Carries `text` (section-level free-text from the Today tab), `commitments` JSON snapshot of tick states + notes, `blockers` JSON snapshot. **This is what gives the coach memory of the day across sessions** — without it every chat starts blank.
+- **Timetable block.** `block_date`, `start_time`, `end_time`, `label`, `kind` (`commitment` / `routine` / `blocker` / `focus`). Direct CRUD — Hard constraint #2.
+- **5 timeline buckets** (Day/Week/Month/Quarter/Year) — pure functions of dates; the LLM does NOT classify items into buckets, the server does.
+- **Headroom** (two flavors):
+  - **Plan headroom** = `user.available_weekly_hours − sum(weekly_hours of all active goals)`. Computed at plan-creation time. If negative or near-zero, the plan is unrealistic.
+  - **Per-phase headroom** = `days in phase − estimated days of work for milestones in that phase`. Surfaced as "Phase 1: Foundations has 25% headroom" on the goal card.
+- **Drift.** Plan-vs-actual gap. Detected when: a milestone's `target_date` passes without `done`; 3+ commitments overdue on the same goal in a week; user's `completed_hours` < 60% of `target_hours` for 2 consecutive weeks. Triggers `review_progress` conversation. New field `goals.drift_status` (default `'on_track'`, set to `'at_risk'` when drift fires).
+
+### The 5 user intents
+
+Every chat message resolves to one of 5 intents, determined by the conversation's `kind` field (set when the conversation is opened — `add_goal` / `plan_day` / `edit_goal` / `drop_goal` / `review_progress`). Each intent has its own Stage 4 prompt with its own allowed action set. **The LLM is forbidden from emitting actions outside the intent's allowed set** — Stage 4 schema enforces it.
+
+### The 5-stage pipeline (per intent)
+
+| Stage | What runs | Output (Zod) |
+|---|---|---|
+| **1 — Intake** | LLM (typed) | `{ shape, needs_clarification, clarifying_questions[0..2], referenced_goal_titles[], framing_line }`. Shape is one of `one_new_goal` / `multiple_goals` / `over_committed` / `returning_after_gap` / `meta_question` / `routine_return`. If ambiguous and `auto_answer=false`, emit 1–2 sharp clarifying questions; otherwise proceed. Early-return for `clarify` / `no_change` / `meta_question` / `routine_return` / `over_committed`. |
+| **2 — *(intentionally empty)*** | — | The spec skips Stage 2. Don't add it without founder approval. |
+| **3 — Plan** | LLM (typed) | `{ goal: { title, horizon, why, first_action, start_date, target_date, weekly_hours, phase_objectives[2..4] } \| null, milestones[3..5], blockers[0..3], commitments[1..3], prose[1..500] }`. |
+| **3.5 — Headroom check** | **Programmatic, no LLM** | `current_load = Σ active_goals.weekly_hours`, `new_load = plan.goal.weekly_hours`, `total = current + new`, `free = user.available_weekly_hours − total`. Decision tree: `total ≤ cap` → proceed; `total > cap AND free ≥ −5h` → proceed + `prose` names the tightness; `free < −5h` → **renegotiate**. **Max 2 renegotiation rounds**, then fall back to `kind: 'no_change'` with reason `"Plan would overcommit you by N hours. Try a smaller goal or drop an existing one first."` |
+| **4 — Emit** | LLM (typed) | `{ tools: [{ action: 'create_goal'\|'add_milestone'\|'add_blocker'\|'add_commitment'\|…, args: Record<string, unknown> }] }` (1–8 tools). Fixed order: `create_goal` → `add_milestone` ×N → `add_blocker` ×N → `add_commitment` ×N. |
+
+**The 4 renegotiation options** (4 buttons surfaced to the user when headroom fires):
+1. **Shift an existing goal's `target_date`** — re-plan with later date to free weekly hours.
+2. **Drop a commitment** from an existing goal.
+3. **Extend this new goal's timeline** — same scope, later `target_date`.
+4. **Reduce this new goal's `weekly_hours`** — smaller commitment, longer `target_date`.
+
+The user's choice is fed back to Stage 3 as a new constraint; Stage 3 re-runs (no new LLM cost). User sees the new plan. They confirm or pick another option.
+
+**Cross-validator** runs after Stage 4 (before returning to user):
+- Every `add_milestone.goal_title` and `add_commitment.goal_title` MUST match `plan.goal.title` (case-insensitive, trimmed) OR an existing active goal's title.
+- Every emitted `add_milestone.target_date` MUST be in `plan.milestones[].target_date`.
+- Every emitted `add_blocker.start_date`/`end_date` MUST be in `plan.blockers[]`.
+- Every emitted `add_commitment.due` MUST be in `plan.commitments[].due`.
+- All `args` match the action's Zod schema.
+- For `add_goal` intent: only `create_goal`, `add_milestone`, `add_blocker`, `add_commitment` are allowed.
+
+If validation fails: 1 retry of Stage 4 with the diff in context. If still bad, fall back to `kind: 'no_change'`. **Never 500.**
+
+### LLM rules (Stage 3) — what the LLM MUST and MUST NOT do
+
+**MUST:**
+- Not repeat work the user has done. If user said "DSA is prepared," do NOT emit a DSA milestone.
+- Pick `horizon` from user's stated time + realistic buffer. "Switch job in 3 months" → `short`, but `target_date = today+120` (not +90) because interview + notice period have their own latency. Name this trade-off in `prose`.
+- Decompose into 3–5 milestones, each observable from outside. "Read SD Ch 5–12" bad. "Pass 5 SD mocks with feedback" good.
+- Group milestones into 2–4 phases where phase boundaries reflect a change in activity type, not just date arithmetic. "Foundations → Mocks → Full loops → Active" good. "Oct → Nov → Dec" bad.
+- Write `phase_objectives` as **verifiable claims**, not topic labels. "Read SD Ch 5–12" is a topic. "5 SD mocks passed with feedback" is verifiable.
+- Emit `blockers: []` unless the user has named blockers.
+- Emit commitments that are **smallest next actions in the next 1–4 days** — setup actions ("pick a resource", "block the calendar slot"), not study actions.
+- `prose` names the load-bearing constraint the user didn't name — the thing that, if it breaks, breaks the plan.
+
+**MUST NOT:**
+- Emit tools outside the intent's allowed set.
+- Invent blockers.
+- Propose generic curriculum items the user has already covered.
+- Produce a `target_date` outside the horizon window.
+- Produce >5 milestones, >3 blockers, >3 commitments per plan.
+- Emit a milestone/commitment whose `goal_title` doesn't match `plan.goal.title` or an existing active goal's title.
+- Call the LLM to validate its own output — cross-validator is programmatic.
+
+### Schema changes — additive only
+
+**Existing tables, 4 new fields:**
+
+```ts
+// users — NEW
+available_weekly_hours: integer('available_weekly_hours').notNull().default(40)
+
+// goals — 2 NEW
+weekly_hours: integer('weekly_hours').notNull().default(5)
+phase_objectives: jsonb('phase_objectives').notNull().default({})
+
+// milestones — 1 NEW
+phase: text('phase').notNull().default('')
+
+// commitments — 1 NEW
+phase: text('phase').notNull().default('')
+
+// goals — 1 NEW (drift, default 'on_track')
+drift_status: text('drift_status', { enum: ['on_track', 'at_risk'] }).notNull().default('on_track')
+```
+
+**2 new tables:**
+
+```ts
+// daily_log — memory of the day across sessions
+daily_log: {
+  id: text('id').primaryKey(),                              // 'log_xxx'
+  userId: text('user_id').notNull().references(users.id, { onDelete: 'cascade' }),
+  logDate: date('log_date').notNull(),
+  text: text('text').notNull().default(''),
+  commitments: jsonb('commitments').notNull().default([]),  // [{ commitment_id, completed, note }]
+  blockers: jsonb('blockers').notNull().default([]),        // [{ blocker_id, skipped, note }]
+  createdAt: timestamp, updatedAt: timestamp
+}
+// Primary key: (userId, logDate) — one row per user per day, upserted
+
+// plan_rejects — observability (mirrors motivation_rejects)
+plan_rejects: {
+  id, userId, intent, stage ('intake'|'plan'|'emit'|'cross_validate'),
+  reason, rawInput (jsonb), rawOutput (jsonb), recovered (bool), createdAt
+}
+```
+
+Migrations via `pnpm db:generate`; one file per change group. **No migration of existing data** — all new fields are additive with safe defaults; new tables are independent.
+
+### The 9-action tool catalog (executor-side, unchanged)
+
+The existing 9 actions in `api/lib/proposal-executor.ts:191–211` stay. Stage 4 emits args that map onto them; the executor applies them. The pipeline adds **new fields** to the args, not new actions:
+
+- `create_goal` gains `weekly_hours`, `phase_objectives`.
+- `add_milestone` gains `phase` (must be a key in `goal.phase_objectives`).
+- `add_commitment` gains `phase`.
+- All other 6 actions (`update_goal`, `drop_goal`, `pause_goal`, `set_goal_dates`, `add_blocker`, `complete_commitment`) unchanged in interface.
+
+### The 5 daily-logging effects (what cascades on each user action)
+
+Each action has **server effects** (immediate) and **LLM effects** (visible on the next LLM invocation):
+
+| Action | Server | LLM (next call) |
+|---|---|---|
+| **5.1 Tick a commitment** (`PATCH /api/commitments/[id]` → `status: 'done'`) | Update row; audit `complete:commitment`; invalidate `commitments`, `dashboard`. **Drift check:** if `due < today` when ticked, increment per-goal overdue counter; at 3 in 7d → `goals.drift_status = 'at_risk'` + queue `review_progress` nudge. | Coach sees updated `state.commitments`; can reference the tick. |
+| **5.2 Add a per-commitment note** (`PATCH /api/commitments/[id]` → `note: '…'`) | Update row; audit `update:commitment`; **if `due == today` AND `note` non-empty, also write to `daily_log.commitments[].note`**. | Coach sees note in `state.commitments[].note`; can reference across sessions. |
+| **5.3 Save a daily log** (`PUT /api/daily_log`) | Upsert `(user_id, log_date)`; audit `upsert:daily_log`; invalidate `daily_log:<date>:*`. | Coach sees `state.daily_log` (last 7d) — gives it **memory of the day** across sessions. |
+| **5.4 Add or update a blocker** (`POST /api/blockers` or `PATCH /api/blockers/[id]`) | Insert/update row + audit; invalidate `blockers`, `dashboard`. | Coach sees new blocker. **Critical:** on next `review_progress` or `add_goal`, the LLM must check if the blocker conflicts with any active goal's `[start_date, target_date]` and propose shift / reduce scope / accept slip. |
+| **5.5 Drift detection** (fires after every tick / log / blocker change) | Per-goal drift → `goals.drift_status = 'at_risk'`. Weekly drift → queue `review_progress` nudge. Per-phase drift → flag phase in timeline UI. | Coach sees `state.goals[].drift_status`; surfaces drift in response. |
+
+### Worked example (`add_goal` intent)
+
+User says: *"I want to switch job in the next 3 months. I have DSA prepared but lagging in system design and behavioral (LP) rounds."*
+
+**Stage 1:** shape = `one_new_goal`, `needs_clarification: false` (auto_answer=true), `framing_line: ""`.
+
+**Stage 3:**
+```ts
+{
+  goal: {
+    title: "Land a senior SDE offer at an LP-style company",
+    horizon: "short",
+    why: "User has the algorithmic base; the gaps are system design depth and behavioral storytelling, both trainable in 3 months if daily.",
+    first_action: "Pick one system-design resource and start Chapter 1 today.",
+    start_date: "<today>",
+    target_date: "<today+120>",   // 4mo, with buffer (not 3mo — interview + notice period latency)
+    weekly_hours: 7.5,
+    phase_objectives: {
+      "Foundations": "Read SD Ch 1-12, bank 8 STAR stories, 1 informal mock.",
+      "Mocks":       "5 SD mocks passed with feedback.",
+      "Full loops":  "10 integrated mocks rated 8+.",
+      "Active":      "Offer in hand."
+    }
+  },
+  milestones: [                                      // observable from outside
+    { title: "SD fundamentals locked in",  target_date: "<day-35>",  phase: "Foundations", rationale: "35d for HLD basics; day-35 gate." },
+    { title: "Behavioral bank + 8 stories", target_date: "<day-49>",  phase: "Foundations", rationale: "49d = no-fumbling behavioral." },
+    { title: "5 SD mocks passed",            target_date: "<day-77>",  phase: "Mocks",       rationale: "77d = interview-ready SD." },
+    { title: "10 full-loop mocks 8+",        target_date: "<day-105>", phase: "Full loops",  rationale: "105d = full simulation gate." },
+    { title: "Offer in hand",                target_date: "<day-120>", phase: "Active",      rationale: "120d = the goal, not 'started interviewing.'" }
+  ],
+  blockers: [],                                     // user named none
+  commitments: [                                    // smallest next actions, 1-4d
+    { goal_title: "Land a senior SDE offer at an LP-style company", text: "Pick a SD resource (Alex Xu / Educative) and read Ch 1", due: "<today+1>", phase: "Foundations" },
+    { goal_title: "Land a senior SDE offer at an LP-style company", text: "Block 90 min every weekday evening as prep slot",         due: "<today+2>", phase: "Foundations" },
+    { goal_title: "Land a senior SDE offer at an LP-style company", text: "Write 3 STAR stories from the last year",                  due: "<today+4>", phase: "Foundations" }
+  ],
+  prose: "120 days, 4 phases, 20% headroom, DSA off the table. Phase 1 is reading + story-banking; Phase 2 is mocks; Phase 3 is full loops; Phase 4 is active. The daily 90-min slot is the load-bearing constraint — if it breaks in week 2, the whole plan slips."
+}
+```
+
+**Stage 3.5:** `current_load = 0`, `new_load = 7.5`, `total = 7.5`, `free = 40 − 7.5 = 32.5h` → 81% headroom → **proceed**.
+
+**Stage 4:** 9 tool calls (1 `create_goal` + 5 `add_milestone` + 0 `add_blocker` + 3 `add_commitment`). Cross-validator passes. User sees prose + 9 proposal cards. Confirm → 9 rows + 9 audit rows in one transaction. Goal card, timeline bars (4 phase bands), Today tab (3 commitments due), Timeline year view (5 milestone dots) all render from next `GET /api/state`.
+
+### Existing infrastructure to reuse (don't reinvent)
+
+- **LLM client** at `packages/llm/src/factory.ts` — `createLLMClient({ provider, userId, supabase, anthropicApiKey })` for the SSE path; the pipeline adds a **parallel Vercel AI SDK client** for typed structured output.
+- **Chat streaming** at `api/app/api/chat/stream/route.ts` — unchanged. New pipeline is a **sub-route** at `/api/chat/plan`. `Coach.js` gains a 5-line conditional that dispatches planned kinds (`add_goal` / `plan_day` / `edit_goal` / `drop_goal` / `review_progress`) to the new route; `general` stays on the existing SSE path.
+- **`applyProposal`** at `api/lib/proposal-executor.ts` — single source of truth for state writes. New pipeline produces tools; existing executor applies them.
+- **Proposal confirm/reject flow** at `api/app/api/tools/confirm/route.ts` + `reject/route.ts` — unchanged. Pipeline returns proposals; existing UI confirms them.
+- **Write-through cache** at `api/lib/cache.ts` + choke-point invalidation in `lib/auth-route.ts` + `lib/request-user.ts` — unchanged. New mutation routes get free invalidation. New namespace `daily_log:<date>:*`.
+- **Motivation pipeline** at `api/lib/motivation/recommend.ts` — **the model** for this pipeline's shape: SWR cache, in-flight dedup, cost tracker, master deadline, single-flight, fallback to a deterministic catalogue. Copy the patterns; don't reinvent.
+- **9-action tool schema** already in `api/lib/proposal-executor.ts:191–211` — pipeline uses these; does not add new tool actions.
+- **System prompt** at `api/lib/llm/prompts.ts` — the IP. New per-stage prompts add **30–50 lines each**, do NOT replace it. Per-stage prompts reference `SYSTEM_PROMPT` for voice.
+
+### Effort estimate
+
+| Slice | Effort |
+|---|---|
+| 3 new fields on `users` / `goals` / `milestones` / `commitments` + `drift_status` on `goals` | 0.5 day |
+| `daily_log` table + migration + schema | 0.5 day |
+| `plan_rejects` table + migration + schema | 0.25 day |
+| Stage 1 / 3 / 4 Zod schemas + per-stage prompts (30–50 lines each) | 1 day |
+| Stage 3.5 headroom check (programmatic) | 0.5 day |
+| Cross-validator | 0.5 day |
+| Orchestrator (200 lines, model on `motivation/recommend.ts`) | 1 day |
+| SWR cache + cost tracker + master deadline + in-flight dedup (copy from motivation) | 0.5 day |
+| `/api/chat/plan` route (40 lines) | 0.25 day |
+| `Coach.js` 5-line conditional to dispatch planned kinds | 0.25 hour |
+| Fallback to legacy one-shot (flag off OR 2 renegotiations exhausted) | 0.5 day |
+| Daily-logging effects 5.1–5.5 (server hooks + drift detection) | 1 day |
+| Unit tests: schemas, cross-validator, headroom check, drift detection | 1 day |
+| E2E fixture walk (orchestrator) | 1 day |
+| **Total** | **~8 days** |
+
+### Rollout — founder's call
+
+1. Land code behind `GOAL_PLANNER_ENABLED=false` in dev/test (catalogue path acts, new path is dead).
+2. Shadow mode: 1 week. Both paths run on every `add_goal`; only old path writes. Compare rejection quality on `plan_rejects`.
+3. Founder dogfood: 1 week. `GOAL_PLANNER_ENABLED=true` for founder's account only (gated on user id).
+4. Flip prod: `GOAL_PLANNER_ENABLED=true` for all users.
+5. Monitor `plan_rejects` for 48h. If rejection rate > 10%, roll back to flag-off and triage.
+6. Post-rollout: add cron for `plan_rejects` 30-day retention (mirror `motivation_rejects` TODO).
+
+### Hard rules carried forward (from AGENT_BUILDER)
+
+- Hard constraint #2 still holds: **LLM is the only writer to goals / milestones / commitments**; blockers and timetable blocks remain direct CRUD. The pipeline produces proposals; the user confirms via existing `/api/tools/confirm`.
+- Hard constraint #4 still holds: precise/curious voice, never warm/validating. The Stage 3 `prose` rule "name the load-bearing constraint the user didn't name" is the operationalization of that voice for plans.
+- Hard constraint #5 still holds: pick the right frontend skill for any UI work this iteration touches (likely `ui-ux-pro-max` for the renegotiation buttons + phase-band timeline rendering).
+- Hard constraint #6 still holds: main agent is the only one that edits code / schema / prompts.
+
+### Open questions for the founder (gates in 1 round of adversarial review)
+
+1. **Phase 4 prompt vs system prompt boundary** — should `prose` reuse the existing `SYSTEM_PROMPT` voice verbatim, or do the per-stage prompts need their own voice section? (Spec currently says reference `SYSTEM_PROMPT` for voice.)
+2. **`available_weekly_hours` default of 40** — founder should set this in onboarding or settings. When does the prompt surface the prompt — onboarding modal, settings tab, or both?
+3. **Renegotiation UX** — 4 buttons (shift / drop / extend / reduce) inside the chat, or a sidebar form? Spec says "buttons surfaced to the user" — needs a design pass before Stage 3.5 ships.
+4. **Drift detection cadence** — runs synchronously after every tick (cheap query) or via a daily cron? Spec says "fires after every tick / log / blocker change" — confirm it's synchronous, no separate worker.
+5. **`daily_log` retention** — keep forever, or 90-day TTL? Spec is silent. The motivation pipeline settled on a TODO cron for retention; same pattern is fine here.
+6. **Backward compatibility for existing goals** — new fields `weekly_hours` (default 5) and `phase_objectives` (default `{}`) on existing goals means existing goals render with 5h/week assumed load and no phase structure until the LLM next sees them in `edit_goal` or `review_progress`. Acceptable? (Spec is silent — likely yes, but flagging.)
+
+---
+
 ## Backlog / next
-- P0: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place).
-- P1: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider; **upstash-redis / cross-instance cache** if multi-node staleness becomes a complaint; cache the remaining read endpoints (`audit`, `blockers`, `sources`, `memories`, `chat/history`) — one-liner per route, all already auto-invalidated.
-- P2: split server.py into modules; signed short-lived source download URLs instead of ?auth=.
+- P0: **Goal Planner pipeline — headroom-aware multi-horizon plans** (Iteration 10, see below). Replaces the current single-shot LLM prompt with a typed 5-stage pipeline producing goal + phases + milestones + commitments + headroom check + drift detection. Ship behind `GOAL_PLANNER_ENABLED=false` (off by default); shadow → dogfood → flip; roll back if `plan_rejects` rate > 10%.
+- P1: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place; the daily_log table this iteration adds is the memory layer the timetable will read from).
+- P2: founder LinkedIn URL in AboutModal; hard-delete/cleanup for deleted sources & expired guest users; migration race-safety (atomic claim); touch/pointer support for the split divider; **upstash-redis / cross-instance cache** if multi-node staleness becomes a complaint; cache the remaining read endpoints (`audit`, `blockers`, `sources`, `memories`, `chat/history`) — one-liner per route, all already auto-invalidated.
+- P3: split server.py into modules; signed short-lived source download URLs instead of ?auth=.

@@ -616,12 +616,13 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             </button>
           </form>
         )}
-        {/* Composer — Iteration 9 mobile layout. The textarea gets its own
-            row with a taller min-height (~68px so two lines breathe);
-            the attach / link / mic / send buttons move to a row
-            BENEATH it. Old layout crammed them into `items-end` with
-            the textarea — paperclip + link ate half the typing row on
-            a phone, exactly what the founder flagged. */}
+        {/* Composer — Iteration 9+ mobile layout. Textarea starts SLIM
+            (1 row, ~36px) and expands to max-h-56 as the user types
+            more, giving the chat log the maximum vertical space when
+            the field is empty. The attach / link / mic / Coach-mode
+            / send buttons all live in ONE row beneath. The standalone
+            "Enter to send" status line was removed — it ate ~30px of
+            vertical space and the buttons themselves are the affordance. */}
         <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors">
           <textarea
             ref={taRef}
@@ -629,11 +630,16 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
-            rows={2}
+            rows={1}
             placeholder={voiceListening ? "Listening…" : "Think out loud…"}
             aria-label="Message the coach"
-            className="block w-full bg-transparent resize-none px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-t-md max-h-56"
-            style={{ minHeight: "68px" }}
+            className="block w-full bg-transparent resize-none px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded-t-md"
+            style={{
+              minHeight: "36px",
+              maxHeight: "224px",
+              // Auto-expand as content grows past 1 line.
+              height: `${Math.min(36, Math.max(36, input.split("\n").length * 22 + 18))}px`,
+            }}
           />
           <div className="flex items-center justify-between gap-1 px-1.5 pb-1.5 pt-0.5 border-t border-[var(--border)]">
             <div className="flex items-center gap-0.5">
@@ -677,6 +683,16 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                   {voiceListening ? <Square className="w-3.5 h-3.5" aria-hidden="true" /> : <Mic className="w-4 h-4" aria-hidden="true" />}
                 </button>
               )}
+              {/* Coach mode select moved inline next to the mic/clip — the
+                  stand-alone row below the composer ate ~30px of vertical
+                  space for a single-line status, which the founder wanted
+                  reclaimed for the chat log. */}
+              <ChatModeSelect
+                autoAnswer={autoAnswer}
+                grillMe={grillMe}
+                setAutoAnswer={setAutoAnswer}
+                setGrillMe={setGrillMe}
+              />
             </div>
             <button
               data-testid="chat-send-button"
@@ -689,25 +705,14 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             </button>
           </div>
         </div>
-        <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
-          <ChatModeSelect
-            autoAnswer={autoAnswer}
-            grillMe={grillMe}
-            setAutoAnswer={setAutoAnswer}
-            setGrillMe={setGrillMe}
-          />
-          <span className="text-xs text-[var(--text-muted)]" role="status" aria-live="polite">
-            {voiceError ? (
-              <span data-testid="voice-error" role="alert" className="text-[var(--danger)]">{voiceError}</span>
-            ) : voiceListening ? (
-              <span data-testid="voice-listening" className="text-[var(--accent)]">● Listening — tap the mic to stop, or wait 60s</span>
-            ) : sending ? (
-              <span className="text-[var(--accent)]">Coach is responding…</span>
-            ) : (
-              "Enter to send. Shift+Enter for a new line."
-            )}
-          </span>
-        </div>
+        {/* Voice / coach state moves to a tiny floating status chip in
+            the chat log's top-right when something is happening —
+            otherwise nothing. */}
+        {voiceError && (
+          <p data-testid="voice-error" role="alert" className="mt-1 text-xs text-[var(--danger)]">
+            {voiceError}
+          </p>
+        )}
 
         {pendingClarifications && pendingClarifications.questions?.length > 0 && (
           <div data-testid="clarification-chips" className="mt-2 p-3 border border-[color-mix(in_srgb,var(--border-accent)_40%,transparent)] rounded-md bg-[var(--bg-secondary)]">

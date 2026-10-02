@@ -219,11 +219,11 @@ export default function RefineModal({
           >
             {busy ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Sending…
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Refining…
               </>
             ) : (
               <>
-                <Send className="w-3.5 h-3.5" aria-hidden="true" /> Ask for changes
+                <Send className="w-3.5 h-3.5" aria-hidden="true" /> Refine the changes
               </>
             )}
           </button>

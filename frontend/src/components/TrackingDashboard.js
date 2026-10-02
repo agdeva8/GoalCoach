@@ -250,6 +250,12 @@ export default function TrackingDashboard({
 }) {
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [memoryGoal, setMemoryGoal] = useState(null); // { id, title } | null
+  // Latest step-back function from the AddGoalDialog. The dialog's
+  // `onStepBack` prop overwrites this on every step change; the
+  // closer we register calls THIS ref (not onClose directly), so a
+  // back press from the chat step retreats to tiles (with category
+  // still selected) instead of closing the dialog.
+  const addGoalStepBackRef = useRef(() => closeAddGoalDialog());
 
   const visibleGoals = (state?.goals || []).filter((g) => g.status !== "dropped");
   const milestones = state?.milestones || [];
@@ -273,11 +279,12 @@ export default function TrackingDashboard({
   // Register / deregister the AddGoalDialog's closer with Coach.js so
   // the global back button (mobile panel-back-arrow AND browser back)
   // closes the topmost layer instead of walking history / app exit.
-  // Refine / Reject modals nest inside AddGoalDialog and push their
-  // own closers via the parent dialog's `pushCloser` plumbing.
+  // The closer calls the dialog's step-back function (which knows
+  // whether to retreat to tiles or fully close), so a back press
+  // during chat step unwinds one layer without losing category state.
   useEffect(() => {
     if (!addGoalOpen || !registerCloser) return;
-    return registerCloser(() => closeAddGoalDialog());
+    return registerCloser(() => addGoalStepBackRef.current?.());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addGoalOpen, registerCloser]);
 
@@ -384,6 +391,7 @@ export default function TrackingDashboard({
       <AddGoalDialog
         open={addGoalOpen}
         onClose={closeAddGoalDialog}
+        onStepBack={(fn) => { addGoalStepBackRef.current = fn; }}
         registerCloser={registerCloser}
         autoAnswer={autoAnswer}
         grillMe={grillMe}

@@ -110,6 +110,7 @@ const CATEGORIES = [
 export default function AddGoalDialog({
   open,
   onClose,
+  onStepBack = null,
   autoAnswer: initialAutoAnswer = true,
   grillMe: initialGrillMe = false,
   onUploadSource,
@@ -176,6 +177,11 @@ export default function AddGoalDialog({
 
   useEffect(() => {
     if (open) {
+      // Hard reset on every open — founder feedback (Iteration 9+):
+      // if the user opened refine / reject, closed the dialog via the
+      // back button without dismissing those, and re-opened, state
+      // was leaking (chat step was preserved, category was preserved).
+      // Reset EVERYTHING that could carry across opens.
       setMessages([]);
       setInput("");
       setSending(false);
@@ -185,11 +191,15 @@ export default function AddGoalDialog({
       setStep("tiles");
       setFocusToken(0);
       setSources([]);
+      setRefiningProposal(null);
+      setRejectingProposal(null);
+      setAutoAnswer(initialAutoAnswer);
+      setGrillMe(initialGrillMe);
       // Fresh conversation bucket per open — the previous (possibly
       // unfinalized) goal's history must not leak into this session.
       refIdRef.current = `new_goal_${crypto.randomUUID()}`;
     }
-  }, [open]);
+  }, [open, initialAutoAnswer, initialGrillMe]);
 
   const send = async (text) => {
     const trimmed = text.trim();
@@ -302,6 +312,29 @@ export default function AddGoalDialog({
     setStep("tiles");
     setInput("");
   };
+
+  // Step-aware back: when called from the parent's back button while
+  // we're in the chat step, retreat to the tiles step (keeping the
+  // active category selected). When called from the tiles step, fall
+  // through to onClose so the dialog closes. The parent's back
+  // handler always calls this — it doesn't need to know the current
+  // step.
+  const handleStepBack = () => {
+    if (step === "chat") {
+      goBackToTiles();
+    } else {
+      onClose?.();
+    }
+  };
+
+  // Expose handleStepBack to the parent via the optional `onStepBack`
+  // prop. Coach.js's back button can call this directly (skipping
+  // the closer stack) so the retreat is immediate. If the parent
+  // doesn't pass `onStepBack`, the closer-stack fallback still works.
+  useEffect(() => {
+    if (typeof onStepBack === "function") onStepBack(handleStepBack);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, onStepBack]);
 
   const handleUploadFile = async (file) => {
     try {
