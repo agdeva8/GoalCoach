@@ -3,7 +3,10 @@ import { Send, MessageSquareText } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import { canAutofocus } from "../lib/utils";
 
-const FRAMES = {
+// Exported so Coach.js can reuse the same frame titles when it opens the
+// focused-task chat (the chat header should match the dialog the user
+// just came from, not a generic "Coach — focused task").
+export const FRAMES = {
   drop: {
     title: (t) => `Drop "${t}"?`,
     q: "What's making you want to drop this? The coach will confirm before anything changes.",
@@ -91,7 +94,7 @@ export default function ActionPromptModal({ action, onClose, onSend }) {
           rows={4}
           placeholder={frame?.ph || ""}
           aria-label="Reason for this action"
-          className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
+          className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] resize-none"
         />
       </label>
     </CenteredDialog>
