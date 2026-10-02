@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { toast } from "sonner";
 import { MessageSquare, Plus, Sparkles, ArrowLeft } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
