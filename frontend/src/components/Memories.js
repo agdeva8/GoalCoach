@@ -194,19 +194,36 @@ export default function Memories({ state, onChange }) {
 
           {kind === "photo" ? (
             <div>
-              <label className="block">
-                <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
-                  Photo file
-                </span>
-                <input
-                  data-testid="memories-file-input"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  aria-label="Photo file"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-[var(--accent)] file:text-[var(--bg-primary)] file:text-xs file:font-medium hover:file:opacity-90 file:cursor-pointer"
-                />
-              </label>
+              <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
+                Photo
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <label className="min-h-11 inline-flex items-center gap-2 px-3.5 rounded-lg border border-[var(--border)] text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--border-accent)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
+                  <ImageIcon className="w-4 h-4" aria-hidden="true" />
+                  Choose file
+                  <input
+                    data-testid="memories-file-input"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    aria-label="Photo file"
+                    hidden
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                <label className="min-h-11 inline-flex items-center gap-2 px-3.5 rounded-lg border border-[var(--border)] text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--border-accent)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
+                  <Camera className="w-4 h-4" aria-hidden="true" />
+                  Take photo
+                  <input
+                    data-testid="memories-camera-input"
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    aria-label="Take a photo"
+                    hidden
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              </div>
               {file && (
                 <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
                   {file.name} · {Math.round(file.size / 1024)} KB

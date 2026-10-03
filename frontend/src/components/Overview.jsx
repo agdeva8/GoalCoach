@@ -1,29 +1,26 @@
 import { ArrowRight, Sparkles, Target } from "lucide-react";
-import MotivationCard from "./MotivationCard";
 import TrackerCard from "./TrackerCard";
 import { OverCommitmentIndicator } from "./TrackingDashboard";
+import { useAuth } from "../context/AuthContext";
 
 /**
- * Home — the personal landing screen (founder feedback, Iteration 9+).
+ * Overview — the landing screen (formerly "Home").
  *
  * The old dashboard crammed everything (motivation, tracker, goals) into
- * one scroll. Home splits the "what should I do?" surface from the
- * "what are my goals?" surface:
+ * one scroll. Overview splits the "what should I do right now?" surface
+ * (Today) from the "what are my goals?" surface (Goals tab) and the
+ * curated nudges (Motivation tab):
  *
- *   1. Greeting — a light, time-aware hello.
- *   2. Recommendation — the MotivationCard (curated nudge for right now).
- *   3. Today at a glance — the existing TrackerCard (over-commitment +
- *      today's timetable), with an "Open today" CTA.
- *   4. Goals preview — the first few active goals with a link to the
- *      full Goals tab.
- *
- * The Goals tab keeps the actual goal list + Add goal.
+ *   1. Greeting — time-aware hello with the user's name.
+ *   2. Today at a glance — over-commitment + the TrackerCard.
+ *   3. Goals preview — the first few active goals with a link to Goals.
  */
-export default function Home({ state, onOpenChat, onOpenToday, onOpenGoals }) {
+export default function Overview({ state, onOpenChat, onOpenToday, onOpenGoals }) {
+  const { user } = useAuth();
   if (!state) {
     return (
-      <div data-testid="home-loading" className="px-4 sm:px-6 py-5 space-y-5 max-w-[820px] mx-auto w-full" aria-busy="true" aria-live="polite">
-        <div className="gc-skeleton h-8 w-2/3 rounded-lg" />
+      <div data-testid="overview-loading" className="px-4 sm:px-6 py-5 space-y-5 max-w-[820px] mx-auto w-full" aria-busy="true" aria-live="polite">
+        <div className="gc-skeleton h-7 w-2/3 rounded-lg" />
         <div className="gc-skeleton h-28 w-full rounded-2xl" />
         <div className="gc-skeleton h-36 w-full rounded-2xl" />
       </div>
@@ -32,28 +29,27 @@ export default function Home({ state, onOpenChat, onOpenToday, onOpenGoals }) {
   const goals = (state?.goals || []).filter((g) => g.status !== "dropped");
   const preview = goals.slice(0, 3);
 
+  const firstName = user?.name ? user.name.split(" ")[0] : null;
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const greeting = firstName ? `Good ${part}, ${firstName}` : `Good ${part}, guest`;
 
   return (
-    <div data-testid="home-view" className="px-4 sm:px-6 py-5 sm:py-6 space-y-7 max-w-[820px] mx-auto w-full">
+    <div data-testid="overview-view" className="px-4 sm:px-6 py-5 sm:py-6 space-y-7 max-w-[820px] mx-auto w-full">
       <header>
-        <p className="text-[13px] font-medium text-[var(--accent)]">{greeting}</p>
-        <h2 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[var(--text-primary)] leading-tight mt-0.5">
-          Let's sort your life — together.
+        <h2 className="text-[21px] sm:text-[24px] font-semibold tracking-tight text-[var(--text-primary)] leading-snug">
+          {greeting}
         </h2>
+        <p className="text-[14px] text-[var(--text-muted)] mt-1">Let's sort your life — together.</p>
       </header>
 
-      {/* 2 — Recommendation */}
-      <MotivationCard state={state} />
-
-      {/* 3 — Today at a glance */}
+      {/* Today at a glance */}
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2 px-1">
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Today at a glance</h3>
           <button
             type="button"
-            data-testid="home-open-today"
+            data-testid="overview-open-today"
             onClick={() => onOpenToday?.()}
             className="text-[13px] font-medium text-[var(--accent)] hover:underline inline-flex items-center gap-1"
           >
@@ -64,14 +60,14 @@ export default function Home({ state, onOpenChat, onOpenToday, onOpenGoals }) {
         <TrackerCard state={state} onOpenChat={onOpenChat} onOpenToday={onOpenToday} />
       </section>
 
-      {/* 4 — Goals preview */}
+      {/* Goals preview */}
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2 px-1">
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Your goals</h3>
           {goals.length > 0 && (
             <button
               type="button"
-              data-testid="home-open-goals"
+              data-testid="overview-open-goals"
               onClick={() => onOpenGoals?.()}
               className="text-[13px] font-medium text-[var(--accent)] hover:underline inline-flex items-center gap-1"
             >
@@ -82,7 +78,7 @@ export default function Home({ state, onOpenChat, onOpenToday, onOpenGoals }) {
         {preview.length === 0 ? (
           <button
             type="button"
-            data-testid="home-empty-goals"
+            data-testid="overview-empty-goals"
             onClick={() => onOpenGoals?.()}
             className="w-full rounded-2xl bg-[var(--bg-secondary)] p-5 text-left hover:bg-[var(--bg-tertiary)] transition-colors"
           >
@@ -102,7 +98,7 @@ export default function Home({ state, onOpenChat, onOpenToday, onOpenGoals }) {
               <button
                 key={g.id}
                 type="button"
-                data-testid={`home-goal-${g.id}`}
+                data-testid={`overview-goal-${g.id}`}
                 onClick={() => onOpenGoals?.()}
                 className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-[var(--bg-tertiary)] transition-colors"
               >

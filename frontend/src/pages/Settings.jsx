@@ -231,6 +231,9 @@ export default function Settings() {
               <TabsTrigger value="coach" className={SECTION_TAB_TRIGGER}>
                 Coach
               </TabsTrigger>
+              <TabsTrigger value="preferences" className={SECTION_TAB_TRIGGER}>
+                Preferences
+              </TabsTrigger>
               <TabsTrigger value="account" className={SECTION_TAB_TRIGGER}>
                 Account
               </TabsTrigger>
@@ -273,8 +276,8 @@ export default function Settings() {
               </section>
             </TabsContent>
 
-            {/* Account tab — display (text size) + sign in/out (theme moved to main header) */}
-            <TabsContent value="account" className="space-y-7">
+            {/* Preferences tab — display settings (text size). */}
+            <TabsContent value="preferences" className="space-y-7">
               <section>
                 <div className="flex items-center gap-1.5 px-1 pb-2">
                   <Type className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
@@ -321,7 +324,10 @@ export default function Settings() {
                   })}
                 </div>
               </section>
+            </TabsContent>
 
+            {/* Account tab — sign in / out. */}
+            <TabsContent value="account" className="space-y-7">
               <section>
                 <h2 className={GROUP_LABEL}>Session</h2>
                 {isGuest ? (

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Link2, Trash2, Send, ExternalLink, RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
+import { Paperclip, Link2, Trash2, Send, ExternalLink, RefreshCw, AlertTriangle, Loader2, Camera, Image as ImageIcon } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import { API } from "../lib/api";
 import { canAutofocus } from "../lib/utils";
@@ -34,6 +34,7 @@ export default function SourceActionDialog({
   goalTitle = "",
 }) {
   const fileRef = useRef(null)
+  const cameraRef = useRef(null)
   const [progress, setProgress] = useState(null) // {name, status: 'uploading'|'done'|'error', msg?}
 
   // ----- link-mode local state -----
@@ -136,14 +137,47 @@ export default function SourceActionDialog({
           ref={fileRef}
           data-testid="source-upload-input"
           type="file"
+          hidden
           accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg"
-          className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-[var(--accent)] file:text-[var(--bg-primary)] file:text-xs file:font-medium hover:file:opacity-90 file:cursor-pointer"
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (f) submitUpload(f)
             e.target.value = ""
           }}
         />
+        <input
+          ref={cameraRef}
+          data-testid="source-camera-input"
+          type="file"
+          hidden
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) submitUpload(f)
+            e.target.value = ""
+          }}
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            data-testid="source-upload-button"
+            onClick={() => fileRef.current?.click()}
+            className="flex items-center justify-center gap-2 h-11 border border-[var(--border)] hover:border-[var(--border-accent)] text-sm text-[var(--text-secondary)] rounded-xl transition-colors"
+          >
+            <ImageIcon className="w-4 h-4" aria-hidden="true" />
+            Choose file
+          </button>
+          <button
+            type="button"
+            data-testid="source-camera-button"
+            onClick={() => cameraRef.current?.click()}
+            className="flex items-center justify-center gap-2 h-11 border border-[var(--border)] hover:border-[var(--border-accent)] text-sm text-[var(--text-secondary)] rounded-xl transition-colors"
+          >
+            <Camera className="w-4 h-4" aria-hidden="true" />
+            Take photo
+          </button>
+        </div>
         {progress && (
           <div
             data-testid="source-upload-progress"

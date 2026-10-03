@@ -20,7 +20,8 @@ const Timeline = lazy(() => import("../components/Timeline"));
 const Memories = lazy(() => import("../components/Memories"));
 const Sources = lazy(() => import("../components/Sources"));
 const Today = lazy(() => import("../components/Today"));
-const Home = lazy(() => import("../components/Home"));
+const Overview = lazy(() => import("../components/Overview"));
+const Motivation = lazy(() => import("../components/Motivation"));
 
 // Fallback while a panel's chunk fetches. Declared at module level rather
 // than inside Coach — a component defined during render is a new component
@@ -487,12 +488,14 @@ export default function Coach() {
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
           <Suspense fallback={<PanelSkeleton />}>
             {panelView === "home" ? (
-              <Home
+              <Overview
                 state={state}
                 onOpenChat={openChatWith}
                 onOpenToday={() => goPanel("today")}
                 onOpenGoals={() => goPanel("state")}
               />
+            ) : panelView === "motivation" ? (
+              <Motivation state={state} />
             ) : panelView === "state" ? (
               <TrackingDashboard
                 state={state}

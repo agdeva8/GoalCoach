@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Home } from "lucide-react";
+import { ChevronDown, LayoutDashboard } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,14 +26,14 @@ export default function GoalMenu({ align = "end", className = "", large = false 
   const activeScreen = SCREENS.find((s) => s.key === activeKey);
   // The trigger label is the CURRENT active screen (e.g. "Timeline"),
   // not hardcoded to Goals/Home.
-  const triggerLabel = activeScreen?.label || "Home";
-  const TriggerIcon = activeScreen?.Icon || Home;
+  const triggerLabel = activeScreen?.label || "Overview";
+  const TriggerIcon = activeScreen?.Icon || LayoutDashboard;
 
   // `large` renders the iOS large-title variant: the active screen name
   // becomes the page title (28px bold) with a chevron; the icon is
   // dropped so it reads as a heading, not a control.
   const triggerClass = large
-    ? `inline-flex items-center gap-1.5 min-h-11 -mx-1 px-1 rounded-xl text-[26px] font-bold tracking-tight text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${className}`
+    ? `inline-flex items-center gap-1.5 min-h-11 -mx-1 px-1 rounded-xl text-[19px] font-semibold tracking-tight text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${className}`
     : `inline-flex items-center gap-1.5 min-h-11 px-2.5 -mx-1 rounded text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${className}`;
 
   return (

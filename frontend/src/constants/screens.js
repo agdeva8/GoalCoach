@@ -1,5 +1,6 @@
 import {
-  Home,
+  LayoutDashboard,
+  Sparkles,
   Target,
   CalendarDays,
   CalendarClock,
@@ -27,7 +28,8 @@ import {
  * actual goal list.
  */
 export const SCREENS = [
-  { key: "home", label: "Home", to: "/", Icon: Home },
+  { key: "home", label: "Overview", to: "/", Icon: LayoutDashboard },
+  { key: "motivation", label: "Motivation", to: "/?panel=motivation", Icon: Sparkles },
   { key: "state", label: "Goals", to: "/?panel=state", Icon: Target },
   { key: "today", label: "Today", to: "/?panel=today", Icon: CalendarDays },
   { key: "timeline", label: "Timeline", to: "/?panel=timeline", Icon: CalendarClock },
