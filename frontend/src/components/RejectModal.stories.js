@@ -20,7 +20,7 @@ export const Empty = {
   },
 };
 
-export WithReason = {
+export const WithReason = {
   render: (args) => {
     const { component } = args;
     return component({

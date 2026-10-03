@@ -81,8 +81,7 @@ export const api = {
       body: JSON.stringify({ message_id, proposal_id, thought }),
     }),
   // Blockers (direct edit)
-  blockers: () => req("/blockers"),
-  createBlocker: (b) => req("/blockers", { method: "POST", body: JSON.stringify(b) }),
+  blockers: () => req("/blockers"),  createBlocker: (b) => req("/blockers", { method: "POST", body: JSON.stringify(b) }),
   updateBlocker: (id, b) => req(`/blockers/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteBlocker: (id) => req(`/blockers/${id}`, { method: "DELETE" }),
   // Timetable blocks (direct edit — Hard constraint #2)
@@ -128,6 +127,14 @@ export const api = {
   // Motivation
   motivation: ({ refresh = false } = {}) =>
     req(refresh ? "/motivation/recommend?refresh=true" : "/motivation/recommend"),
+  // Iteration 10 — Goal Planner. Non-streaming typed pipeline for the five
+  // planned chat kinds. Returns { status, prose, proposals?, headroom?, plan?,
+  // questions?, options?, reason? }. status:'disabled' means the server flag is
+  // off and the caller should fall back to the SSE /chat/stream path. The
+  // server may take up to ~60s on a big plan, so this call opts into the max
+  // client timeout rather than the 30s default.
+  plan: (body) =>
+    req("/chat/plan", { method: "POST", body: JSON.stringify(body), timeout: 60000 }),
 };
 
 export function exportUrl() {
