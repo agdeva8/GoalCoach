@@ -56,7 +56,6 @@ export default function ChatModal({
   const [sending, setSending] = useState(false);
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   // Iteration 9 — refine / reject modal state. The modal owns the
   // input; the dialog owns the lifecycle and the proposal lookup.
   const [refiningProposal, setRefiningProposal] = useState(null);
@@ -111,38 +110,38 @@ export default function ChatModal({
     setInput(prefillMessage || "");
   }, [open, prefillMessage]);
 
-  // Load conversation history when the user changes (and we've never
-  // loaded it for them). Iteration 9 — scoped dialogs (scope/refId/kind
-  // set) NEVER fetch history; they start empty. Only the unscoped
-  // "Chat with coach" surface (Coach.js sets scope=null on FAB / header
-  // taps) accumulates across sessions via the general bucket.
+  // Reset + (re)load on EVERY open. `open` is the trigger; the scoped
+  // props are read from the current render — the parent sets them in the
+  // same render it flips `open` to true, so a scoped open never inherits
+  // the previous chat's transcript. This modal is a SINGLE instance
+  // shared by the global chat, Today's box, Timeline tile chats, and
+  // TodayTimetable item chats — without this reset they all leaked into
+  // each other (the old `historyLoaded` gate skipped the reset after the
+  // first open).
   useEffect(() => {
-    if (!open || !user || historyLoaded) return;
-    if (scope || refId || kind) {
-      // Scoped — start empty, no fetch. The conversation bucket is
-      // sealed on first confirm, so historical turns from prior
-      // scoped sessions never bleed into a new one.
-      setMessages([]);
-      setHistoryLoaded(true);
-      return;
-    }
+    if (!open || !user) return undefined;
+    let cancelled = false;
+    // Fresh per-open state.
+    setMessages([]);
+    setSending(false);
+    setBusyProposal(null);
+    setPendingClarifications(null);
+    setSources([]);
+    setRefiningProposal(null);
+    setRejectingProposal(null);
+    // Fetch ONLY this chat's bucket. `refIdRef.current` was just seeded by
+    // the effect above (declared earlier → runs first), so a scoped chat
+    // loads its own transcript and the global chat loads only the general
+    // bucket — no cross-chat leakage.
     api
-      .history()
-      .then((m) => {
-        setMessages(m || []);
-        setHistoryLoaded(true);
-      })
+      .history({ refId: refIdRef.current, kind, scope })
+      .then((m) => { if (!cancelled) setMessages(m || []); })
       .catch(() => {
         toast.error("Couldn't load chat history. Starting fresh — new messages still send.");
-        setHistoryLoaded(true);
       });
-  }, [open, user, historyLoaded, scope, refId, kind]);
-
-  // Reset history-loaded when user changes so a different account gets
-  // its own conversation.
-  useEffect(() => {
-    setHistoryLoaded(false);
-  }, [user?.user_id]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, user?.user_id, refId, kind, scope]);
 
   const send = useCallback(
     async (text) => {
@@ -341,27 +340,23 @@ export default function ChatModal({
     [onStateChange],
   );
 
-  const rejectProposal = useCallback(async (messageId, proposalId, reason) => {
-    setBusyProposal(proposalId);
-    try {
-      await api.reject(messageId, proposalId, reason);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                proposals: m.proposals.map((p) =>
-                  p.id === proposalId ? { ...p, status: "rejected" } : p,
-                ),
-              }
-            : m,
-        ),
-      );
-    } catch (e) {
-      toast.error(typeof e?.message === 'string' ? e.message : "Couldn't reject the change. Try again.");
-    } finally {
-      setBusyProposal(null);
-    }
+  const rejectProposal = useCallback((messageId, proposalId, reason) => {
+    // Optimistic — flip the UI immediately, persist in the background.
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              proposals: m.proposals.map((p) =>
+                p.id === proposalId ? { ...p, status: "rejected" } : p,
+              ),
+            }
+          : m,
+      ),
+    );
+    api.reject(messageId, proposalId, reason).catch(() => {
+      toast.error("Couldn't record that rejection — check your connection.");
+    });
   }, []);
 
   // Iteration 9 — refine / reject open parent-owned modals instead of

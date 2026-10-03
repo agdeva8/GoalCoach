@@ -83,7 +83,7 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
   return (
     <header
       data-testid="app-header"
-      className="min-h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-2 sm:gap-4 sticky top-0 z-50"
+      className="min-h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_72%,transparent)] backdrop-blur-xl backdrop-saturate-150 px-4 sm:px-6 flex items-center gap-2 sm:gap-4 sticky top-0 z-50"
     >
       <Link
         to="/"
@@ -91,11 +91,13 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
         title="Sutra — go to home"
         className="flex items-center gap-2.5 min-w-0 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       >
-        <Logo className="w-7 h-7 text-[var(--accent)] shrink-0" />
-        <h1 className="font-display font-bold tracking-tight text-base sm:text-lg">Sutra</h1>
-        <span className="hidden md:inline text-xs text-[var(--text-muted)] truncate">
-          Let&apos;s sort your life — together.
-        </span>
+        <Logo className="w-8 h-8 text-[var(--accent)] shrink-0" />
+        <div className="min-w-0 flex flex-col justify-center">
+          <h1 className="font-bold tracking-tight text-base sm:text-lg leading-none">Sutra</h1>
+          <span className="mt-0.5 text-[10px] sm:text-[11px] text-[var(--text-muted)] truncate leading-none">
+            Let&apos;s sort your life — together.
+          </span>
+        </div>
       </Link>
 
       <div ref={rootRef} className="ml-auto flex items-center gap-2">

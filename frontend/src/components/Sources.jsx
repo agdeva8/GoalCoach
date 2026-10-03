@@ -66,14 +66,11 @@ export default function Sources({ state, onChange }) {
   };
 
   return (
-    <div data-testid="sources-view" className="space-y-4">
-      <div>
-        <h2 className="font-display text-sm font-semibold tracking-tight">Sources</h2>
-        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-          Material you attach to a goal so the coach can work out where it starts and ends. The
-          coach reads these to confirm the goal&apos;s boundary — not your memories.
-        </p>
-      </div>
+    <div data-testid="sources-view" className="px-4 sm:px-6 py-5 sm:py-6 space-y-5 max-w-[820px] mx-auto w-full">
+      <p className="text-[14px] text-[var(--text-secondary)] max-w-lg leading-relaxed">
+        Material you attach to a goal so the coach can work out where it starts and ends. The
+        coach reads these to confirm the goal&apos;s boundary — not your memories.
+      </p>
 
       {loading && sources.length === 0 && (
         <div
@@ -122,9 +119,11 @@ export default function Sources({ state, onChange }) {
       )}
 
       {!loading && !error && sources.length === 0 && (
-        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]">
-          <FolderOpen className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
+        <div className="rounded-2xl bg-[var(--bg-secondary)] p-8 sm:p-12 text-center">
+          <div className="mx-auto h-14 w-14 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center mb-3">
+            <FolderOpen className="w-6 h-6 text-[var(--text-muted)]" />
+          </div>
+          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
             No sources yet. Attach files or paste links when adding a goal — the coach
             will read them and reason from the ground up.
           </p>

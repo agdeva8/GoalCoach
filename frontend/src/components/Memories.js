@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Image as ImageIcon, Link2, Plus, Trash2, X, Loader2, Camera, ChevronLeft, ChevronRight, ExternalLink, RefreshCw, Download } from "lucide-react";
 import { api, API } from "../lib/api";
+import AutoTextarea from "./AutoTextarea";
 
 /**
  * Memories — user-pinned photos and Instagram embeds.
@@ -141,21 +142,18 @@ export default function Memories({ state, onChange }) {
   const goals = (state?.goals || []).filter((g) => g.status !== "dropped")
 
   return (
-    <div data-testid="memories-view" className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-display text-sm font-semibold tracking-tight">Memories</h2>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            Photos and posts that anchor your goals — what's the why, what does it look like?
-          </p>
-        </div>
+    <div data-testid="memories-view" className="px-4 sm:px-6 py-5 sm:py-6 space-y-5 max-w-[820px] mx-auto w-full">
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-[14px] text-[var(--text-secondary)] max-w-md leading-relaxed">
+          Photos and posts that anchor your goals — what's the why, what does it look like?
+        </p>
         {!adding && (
           <button
             data-testid="memories-add-button"
             onClick={() => setAdding(true)}
-            className="flex items-center gap-1.5 px-3 h-11 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 px-4 h-11 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] text-sm font-semibold hover:opacity-90 transition-opacity shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" /> Add memory
+            <Plus className="w-4 h-4" /> Add memory
           </button>
         )}
       </div>
@@ -194,19 +192,36 @@ export default function Memories({ state, onChange }) {
 
           {kind === "photo" ? (
             <div>
-              <label className="block">
-                <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
-                  Photo file
-                </span>
-                <input
-                  data-testid="memories-file-input"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  aria-label="Photo file"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-[var(--accent)] file:text-[var(--bg-primary)] file:text-xs file:font-medium hover:file:opacity-90 file:cursor-pointer"
-                />
-              </label>
+              <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
+                Photo
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <label className="min-h-11 inline-flex items-center gap-2 px-3.5 rounded-lg border border-[var(--border)] text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--border-accent)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
+                  <ImageIcon className="w-4 h-4" aria-hidden="true" />
+                  Choose file
+                  <input
+                    data-testid="memories-file-input"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    aria-label="Photo file"
+                    hidden
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                <label className="min-h-11 inline-flex items-center gap-2 px-3.5 rounded-lg border border-[var(--border)] text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--border-accent)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
+                  <Camera className="w-4 h-4" aria-hidden="true" />
+                  Take photo
+                  <input
+                    data-testid="memories-camera-input"
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    aria-label="Take a photo"
+                    hidden
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              </div>
               {file && (
                 <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
                   {file.name} · {Math.round(file.size / 1024)} KB
@@ -234,15 +249,16 @@ export default function Memories({ state, onChange }) {
             <span className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
               Caption <span className="text-[color-mix(in_srgb,var(--text-muted)_70%,transparent)] normal-case tracking-normal">(optional)</span>
             </span>
-            <input
+            <AutoTextarea
               data-testid="memories-caption-input"
-              type="text"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Why this memory matters"
               aria-label="Caption"
               maxLength={200}
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
+              minRows={2}
+              maxRows={5}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
             />
           </label>
 
@@ -348,9 +364,11 @@ export default function Memories({ state, onChange }) {
       )}
 
       {!loading && !error && memories.length === 0 && !adding && (
-        <div className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]">
-          <ImageIcon className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
+        <div className="rounded-2xl bg-[var(--bg-secondary)] p-8 sm:p-12 text-center">
+          <div className="mx-auto h-14 w-14 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center mb-3">
+            <ImageIcon className="w-6 h-6 text-[var(--text-muted)]" />
+          </div>
+          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed max-w-sm mx-auto">
             Pin the things that make goals real — a photo of where you want to be, the post
             that got you started.
           </p>

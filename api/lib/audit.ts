@@ -64,6 +64,9 @@ export const AUDIT_TYPES = {
   CREATE_BLOCKER: 'create:blocker',
   UPDATE_BLOCKER: 'update:blocker',
   DELETE_BLOCKER: 'delete:blocker',
+  CREATE_TIMETABLE_BLOCK: 'create:timetable_block',
+  UPDATE_TIMETABLE_BLOCK: 'update:timetable_block',
+  DELETE_TIMETABLE_BLOCK: 'delete:timetable_block',
   // Iteration 10 (Goal Planner).
   UPSERT_DAILY_LOG: 'upsert:daily_log',
   DRIFT_GOAL: 'drift:goal',

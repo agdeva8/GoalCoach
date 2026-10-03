@@ -1,5 +1,5 @@
 import { useRef, useEffect, useLayoutEffect, useState } from "react";
-import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square } from "lucide-react";
+import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square, Camera } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 import ChatModeSelect from "./ChatModeSelect";
 import SuccessBanner from "./SuccessBanner";
@@ -208,6 +208,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
+  const cameraRef = useRef(null);
   const [empty] = useState(messages.length === 0);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
@@ -517,10 +518,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     const text = input.trim();
     if (!text || sending) return;
     onSend(text);
-    // Iteration 9+ — collapse the composer after send. The parent
-    // clears `input`, and blurring here resets the focus-expanded
-    // height back to the slim 1-row bar.
-    setComposerFocused(false);
+    // Collapse the composer after send: blur + let the input clear.
     try { taRef.current?.blur(); } catch { /* ignore */ }
   };
 
@@ -715,8 +713,12 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               {showSources && (
                 <>
                   <input ref={fileRef} type="file" hidden accept=".pdf,.md,.txt,.csv,.json,.png,.jpg,.jpeg" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
-                  <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…) as a source" aria-label="Attach a file as a source" className="h-11 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
+                  <input ref={cameraRef} type="file" hidden accept="image/*" capture="environment" onChange={(e) => { if (e.target.files[0]) { onUploadFile(e.target.files[0]); e.target.value = ""; } }} />
+                  <button data-testid="chat-attach-file" onClick={() => fileRef.current?.click()} title="Attach a file (PDF, .md, .txt…)" aria-label="Attach a file" className="h-11 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
                     <Paperclip className="w-4 h-4" />
+                  </button>
+                  <button data-testid="chat-attach-camera" onClick={() => cameraRef.current?.click()} title="Take a photo" aria-label="Take a photo" className="h-11 w-9 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] rounded">
+                    <Camera className="w-4 h-4" />
                   </button>
                   <button
                     data-testid="chat-attach-link"

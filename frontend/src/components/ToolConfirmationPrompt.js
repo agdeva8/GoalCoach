@@ -95,14 +95,38 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
   const section = SECTION_BY_ACTION[proposal.action] || "";
   const actionLabel = ACTION_LABELS[proposal.action] || proposal.action || "Proposal";
 
-  // Title used in the "<Section>: <title>" line. Goal takes the
-  // title/new_title/goal_title; milestones take d.title; commitments
-  // fall back to the first line of d.text; blockers to d.title.
-  const headlineTitle =
-    d.title ||
-    d.new_title ||
-    d.goal_title ||
-    (typeof d.text === "string" ? d.text.split("\n")[0].slice(0, 80) : "");
+  // Title used in the "<Section>: <title>" headline on the header's
+  // second line. Per-section so a milestone never borrows the goal's
+  // title: MILESTONE/BLOCKER use their own title, GOAL uses
+  // title/new_title/goal_title, COMMITMENT uses the first line of text.
+  const headlineTitle = (() => {
+    if (section === "MILESTONE") return d.title || "";
+    if (section === "BLOCKER") return d.title || d.text || "";
+    if (section === "COMMITMENT") {
+      return typeof d.text === "string" ? d.text.split("\n")[0].slice(0, 90) : "";
+    }
+    return (
+      d.title ||
+      d.new_title ||
+      d.goal_title ||
+      (typeof d.text === "string" ? d.text.split("\n")[0].slice(0, 90) : "")
+    );
+  })();
+
+  // A proposal with nothing to show (no title, text, date, or reason) is
+  // a no-op the model occasionally emits — don't render an empty card.
+  const hasAnything =
+    headlineTitle ||
+    d.why ||
+    d.text ||
+    d.first_action ||
+    d.next_action ||
+    d.target_date ||
+    d.due ||
+    d.start_date ||
+    d.reason ||
+    d.note;
+  if (!hasAnything) return null;
 
   const showGoalFields = section === "GOAL";
   const showMilestoneFields = section === "MILESTONE";
@@ -143,10 +167,6 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
         {showGoalFields && (
           <div className="space-y-2">
             <FieldRow
-              icon={Target}
-              value={d.title || d.new_title || d.goal_title}
-            />
-            <FieldRow
               icon={FileText}
               label="Description / ask"
               value={d.why}
@@ -165,7 +185,6 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
 
         {showMilestoneFields && (
           <div className="space-y-2">
-            <FieldRow icon={Target} value={d.title} />
             <FieldRow icon={FileText} label="Description" value={d.description || d.desc || d.note} />
             <FieldRow icon={FileText} label="Why" value={d.why} />
             <FieldRow

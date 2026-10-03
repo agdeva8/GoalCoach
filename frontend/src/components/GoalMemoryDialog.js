@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Camera, Link2, Loader2 } from "lucide-react";
+import { Camera, Link2, Loader2, Image as ImageIcon } from "lucide-react";
+import AutoTextarea from "./AutoTextarea";
 import { toast } from "sonner";
 import CenteredDialog from "./CenteredDialog";
 import { api } from "../lib/api";
@@ -21,6 +22,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const fileRef = useRef(null);
+  const cameraRef = useRef(null);
 
   const reset = () => {
     setKind("photo");
@@ -135,7 +137,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
 
         {/* Inputs */}
         {kind === "photo" ? (
-          <div>
+          <div className="space-y-2">
             <input
               ref={fileRef}
               type="file"
@@ -144,15 +146,40 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
               onChange={(e) => { setFile(e.target.files?.[0] || null); setSubmitError(""); }}
               data-testid="goal-memory-file-input"
             />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              data-testid="goal-memory-file-button"
-              className="w-full flex items-center justify-center gap-2 h-11 border border-dashed border-[var(--border)] hover:border-[var(--border-accent)] text-sm text-[var(--text-secondary)] rounded transition-colors"
-            >
-              <Camera className="w-4 h-4" aria-hidden="true" />
-              {file ? file.name : "Choose a photo"}
-            </button>
+            <input
+              ref={cameraRef}
+              type="file"
+              hidden
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => { setFile(e.target.files?.[0] || null); setSubmitError(""); }}
+              data-testid="goal-memory-camera-input"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                data-testid="goal-memory-file-button"
+                className="flex items-center justify-center gap-2 h-11 border border-[var(--border)] hover:border-[var(--border-accent)] text-sm text-[var(--text-secondary)] rounded-xl transition-colors"
+              >
+                <ImageIcon className="w-4 h-4" aria-hidden="true" />
+                Choose file
+              </button>
+              <button
+                type="button"
+                onClick={() => cameraRef.current?.click()}
+                data-testid="goal-memory-camera-button"
+                className="flex items-center justify-center gap-2 h-11 border border-[var(--border)] hover:border-[var(--border-accent)] text-sm text-[var(--text-secondary)] rounded-xl transition-colors"
+              >
+                <Camera className="w-4 h-4" aria-hidden="true" />
+                Take photo
+              </button>
+            </div>
+            {file && (
+              <div className="text-[11px] text-[var(--text-muted)] truncate">
+                {file.name} · {Math.round(file.size / 1024)} KB
+              </div>
+            )}
           </div>
         ) : (
           <div>
@@ -176,14 +203,15 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
           <label htmlFor="goal-memory-caption" className="block text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
             Why this memory matters <span className="opacity-60">(optional)</span>
           </label>
-          <textarea
+          <AutoTextarea
             id="goal-memory-caption"
             data-testid="goal-memory-caption"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            rows={2}
+            minRows={2}
+            maxRows={5}
             placeholder="What's the why behind this memory?"
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded px-3 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)] resize-none"
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-accent)]"
           />
         </div>
 

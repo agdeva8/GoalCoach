@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+import DayPlanner from "./DayPlanner";
 import useMediaQuery from "../hooks/useMediaQuery";
 
 /* ---------------------------------------------------------------------------
@@ -368,7 +369,7 @@ function makeBuckets(level, anchor) {
  * Timeline — root component.
  * ========================================================================= */
 
-export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat }) {
+export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat, onChange = () => {} }) {
   const [viewType, setViewType] = useState("calendar");
   const [view, setView] = useState({
     level: "year",
@@ -376,6 +377,20 @@ export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat 
   });
   const [calSpan, setCalSpan] = useState("month");
   const [calAnchor, setCalAnchor] = useState(() => startOfDay(new Date()));
+  // The editable day planner (timetable blocks / blockers / commitments)
+  // opens when a day is clicked in the calendar view.
+  const [selectedDay, setSelectedDay] = useState(null);
+  const dayPlannerRef = useRef(null);
+  // The planner renders below the (tall) month grid, so scroll it into
+  // view on open — otherwise clicking a day near the bottom looks like a
+  // no-op.
+  useEffect(() => {
+    if (!selectedDay) return;
+    const t = setTimeout(() => {
+      dayPlannerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [selectedDay]);
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
@@ -662,7 +677,19 @@ export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat 
           setAnchor={setCalAnchor}
           openChat={openChat}
           onPrefill={onPrefill}
+          onSelectDay={setSelectedDay}
         />
+      )}
+
+      {viewType === "calendar" && selectedDay && (
+        <div ref={dayPlannerRef}>
+          <DayPlanner
+            day={selectedDay}
+            state={state}
+            onChange={onChange}
+            onClose={() => setSelectedDay(null)}
+          />
+        </div>
       )}
     </div>
   );
@@ -1118,8 +1145,8 @@ function EmptyState({ onPrefill, onOpenChatWith }) {
   };
 
   return (
-    <div data-testid="timeline-view" className="p-4 sm:p-6">
-      <div className="relative overflow-hidden border border-dashed border-[var(--border)] rounded-lg bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] px-6 py-10 sm:py-14 text-center">
+    <div data-testid="timeline-view" className="px-4 sm:px-6 py-5 sm:py-6 max-w-[900px] mx-auto w-full">
+      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-secondary)] px-6 py-10 sm:py-14 text-center">
         <svg
           aria-hidden="true"
           className="mx-auto mb-5 opacity-90"
@@ -1165,7 +1192,7 @@ function EmptyState({ onPrefill, onOpenChatWith }) {
           <button
             data-testid="timeline-prefill-button"
             onClick={onBuildTimeline}
-            className="font-medium min-h-11 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+            className="font-semibold mt-4 min-h-11 inline-flex items-center gap-1.5 px-5 py-2.5 text-sm text-[var(--bg-primary)] bg-[var(--accent)] hover:opacity-90 transition-opacity rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
           >
             Ask the coach to build my timeline
           </button>
@@ -1531,7 +1558,7 @@ function StripEmptyState({ onAsk }) {
   return (
     <div
       data-testid="timeline-view"
-      className="gc-fade-in flex flex-col items-center justify-center text-center gap-4 py-16 px-6 rounded-lg border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)]"
+      className="gc-fade-in flex flex-col items-center justify-center text-center gap-4 py-16 px-6 rounded-2xl bg-[var(--bg-secondary)]"
       role="region"
       aria-label="Timeline empty state"
     >
@@ -1602,7 +1629,7 @@ function StripBody({ children, testId }) {
 function EmptyStrip({ horizon, onAsk }) {
   return (
     <div
-      className="snap-start shrink-0 min-w-[260px] w-[280px] sm:w-[300px] rounded-md border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] px-3.5 py-4 flex flex-col items-start gap-2"
+      className="snap-start shrink-0 min-w-[260px] w-[280px] sm:w-[300px] rounded-2xl bg-[var(--bg-secondary)] px-4 py-4 flex flex-col items-start gap-2"
       role="note"
       aria-label={`Nothing due ${horizon.label.toLowerCase()}`}
     >
@@ -1882,6 +1909,7 @@ function CalendarView({
   setAnchor,
   openChat,
   onPrefill,
+  onSelectDay,
 }) {
   const preset = CAL_SPANS.find((s) => s.key === span) || CAL_SPANS[2];
   const days = preset.days;
@@ -2450,11 +2478,15 @@ function CalendarView({
                   return (
                     <div
                       key={ci}
-
-                      aria-label={`${MONTHS_FULL[cell.date.getMonth()]} ${cell.date.getDate()}${isToday ? ", today" : ""}${count ? `, ${count} item${count === 1 ? "" : "s"}` : ""}`}
+                      role={onSelectDay ? "button" : undefined}
+                      tabIndex={onSelectDay ? 0 : undefined}
+                      onClick={onSelectDay ? () => onSelectDay(cell.date) : undefined}
+                      onKeyDown={onSelectDay ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectDay(cell.date); } } : undefined}
+                      aria-label={`${MONTHS_FULL[cell.date.getMonth()]} ${cell.date.getDate()}${isToday ? ", today" : ""}${count ? `, ${count} item${count === 1 ? "" : "s"}` : ""}${onSelectDay ? " — open day planner" : ""}`}
                       className={[
                         "relative px-1.5 pt-1 pb-1 min-h-[36px]",
                         cell.inSpan ? "" : "opacity-70",
+                        onSelectDay ? "cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]" : "",
                         isToday
                           ? "ring-1 ring-inset ring-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-primary))]"
                           : "",
@@ -2688,8 +2720,7 @@ function CalendarEmptyState({ onAsk }) {
   return (
     <div
       data-testid="timeline-view"
-      className="flex flex-col items-center justify-center text-center px-6 py-16 rounded-lg border border-dashed border-[var(--border)]"
-      style={{ background: "var(--bg-secondary)" }}
+      className="flex flex-col items-center justify-center text-center px-6 py-16 rounded-2xl bg-[var(--bg-secondary)]"
     >
       <div
         className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
@@ -2719,10 +2750,10 @@ function CalendarEmptyState({ onAsk }) {
                 "Goals, milestones, and commitments will appear here as colored tiles across the days they cover.",
             })
           }
-          className="font-medium mt-4 inline-flex items-center gap-1.5 h-11 sm:h-9 px-3.5 rounded-md text-xs text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
+          className="font-medium mt-4 inline-flex items-center gap-1.5 h-11 px-5 rounded-full text-sm font-semibold text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
           style={{ background: "var(--accent)" }}
         >
-          <Sparkles size={13} aria-hidden="true" />
+          <Sparkles size={14} aria-hidden="true" />
           Ask the coach
         </button>
       )}

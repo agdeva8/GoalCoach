@@ -272,27 +272,23 @@ export default function FocusedTaskChatDialog({
     [onStateChange],
   );
 
-  const rejectProposal = useCallback(async (messageId, proposalId, reason) => {
-    setBusyProposal(proposalId);
-    try {
-      await api.reject(messageId, proposalId, reason);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                proposals: m.proposals.map((p) =>
-                  p.id === proposalId ? { ...p, status: "rejected" } : p,
-                ),
-              }
-            : m,
-        ),
-      );
-    } catch {
-      toast.error("Couldn't reject that proposal. Try again.");
-    } finally {
-      setBusyProposal(null);
-    }
+  const rejectProposal = useCallback((messageId, proposalId, reason) => {
+    // Optimistic — flip the UI immediately, persist in the background.
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? {
+              ...m,
+              proposals: m.proposals.map((p) =>
+                p.id === proposalId ? { ...p, status: "rejected" } : p,
+              ),
+            }
+          : m,
+      ),
+    );
+    api.reject(messageId, proposalId, reason).catch(() => {
+      toast.error("Couldn't record that rejection — check your connection.");
+    });
   }, []);
 
   // Iteration 9 — refine / reject open modals instead of chat round-trip.

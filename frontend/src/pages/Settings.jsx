@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
+  ChevronLeft,
   LogIn,
   LogOut,
   Type,
@@ -172,14 +172,14 @@ export default function Settings() {
       >
         Skip to content
       </a>
-      <header className="min-h-16 shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50 py-2">
+      <header className="min-h-16 shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_72%,transparent)] backdrop-blur-xl backdrop-saturate-150 px-4 sm:px-6 flex items-center gap-3 sticky top-0 z-50 py-2">
         <button
           onClick={leaveSettings}
           title="Back to Coach"
           aria-label="Back to Coach"
           className="flex items-center gap-2 h-11 px-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
           <span className="hidden sm:inline">Coach</span>
         </button>
 
@@ -231,6 +231,9 @@ export default function Settings() {
               <TabsTrigger value="coach" className={SECTION_TAB_TRIGGER}>
                 Coach
               </TabsTrigger>
+              <TabsTrigger value="preferences" className={SECTION_TAB_TRIGGER}>
+                Preferences
+              </TabsTrigger>
               <TabsTrigger value="account" className={SECTION_TAB_TRIGGER}>
                 Account
               </TabsTrigger>
@@ -273,8 +276,8 @@ export default function Settings() {
               </section>
             </TabsContent>
 
-            {/* Account tab — display (text size) + sign in/out (theme moved to main header) */}
-            <TabsContent value="account" className="space-y-7">
+            {/* Preferences tab — display settings (text size). */}
+            <TabsContent value="preferences" className="space-y-7">
               <section>
                 <div className="flex items-center gap-1.5 px-1 pb-2">
                   <Type className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
@@ -321,7 +324,10 @@ export default function Settings() {
                   })}
                 </div>
               </section>
+            </TabsContent>
 
+            {/* Account tab — sign in / out. */}
+            <TabsContent value="account" className="space-y-7">
               <section>
                 <h2 className={GROUP_LABEL}>Session</h2>
                 {isGuest ? (

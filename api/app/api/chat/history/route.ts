@@ -30,7 +30,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import { cachedGet, type RouteAuthResolver } from '@/lib/cache'
 import { resolveRequestUser } from '@/lib/request-user'
@@ -51,12 +51,36 @@ const MAX_LIMIT = 200
 /* GET handler                                                                */
 /* -------------------------------------------------------------------------- */
 
+// Mirrors the scope→kind mapping in chat/stream so the client can ask for
+// a specific conversation bucket's history with (refId, kind) or
+// (refId, scope). No refId → the caller's general bucket.
+const SCOPE_TO_KIND: Record<string, string> = {
+  goal: 'add_goal',
+  commitment: 'plan_day',
+  milestone: 'plan_day',
+  blocker: 'plan_day',
+  generic: 'general',
+}
+
+function deriveConversationId(userId: string, url: URL): string {
+  const refId = url.searchParams.get('refId')
+  const kind = url.searchParams.get('kind')
+  const scope = url.searchParams.get('scope')
+  const scopedKind = kind || (scope ? SCOPE_TO_KIND[scope] ?? 'general' : 'general')
+  return refId ? `conv_${scopedKind}_${refId}` : `conv_general_${userId}`
+}
+
 export const GET = cachedGet(
   (req) => {
-    // Different limits cache independently. The dev-mode fixture path
-    // is handled inside the loader (returns the fixture directly).
-    const limit = new URL(req.url).searchParams.get('limit') ?? 'default'
-    return `chat-history:${limit}`
+    // Cache per limit AND per conversation bucket — different chats must
+    // never share a cache entry. The dev-mode fixture path is handled
+    // inside the loader (returns the fixture directly).
+    const url = new URL(req.url)
+    const limit = url.searchParams.get('limit') ?? 'default'
+    const refId = url.searchParams.get('refId') ?? ''
+    const kind = url.searchParams.get('kind') ?? ''
+    const scope = url.searchParams.get('scope') ?? ''
+    return `chat-history:${limit}:${refId}:${kind}:${scope}`
   },
   async (userId, req) => {
     const url = new URL(req.url)
@@ -65,6 +89,11 @@ export const GET = cachedGet(
       Number.isFinite(rawLimit) && rawLimit > 0
         ? Math.min(rawLimit, MAX_LIMIT)
         : DEFAULT_LIMIT
+
+    // Which conversation bucket? Each chat surface has its own id — the
+    // history (and what the LLM sees) is scoped to ONE bucket, never the
+    // whole user. This is the fix for chats leaking into each other.
+    const conversationId = deriveConversationId(userId, url)
 
     // Test/dev mode — keep the existing fixture shape so chat.test.ts
     // (`test_history_persisted`) and any client fixture stay green.
@@ -89,7 +118,7 @@ export const GET = cachedGet(
         createdAt: messages.createdAt,
       })
       .from(messages)
-      .where(eq(messages.userId, userId))
+      .where(and(eq(messages.userId, userId), eq(messages.conversationId, conversationId)))
       .orderBy(asc(messages.createdAt))
       .limit(2000)
 
