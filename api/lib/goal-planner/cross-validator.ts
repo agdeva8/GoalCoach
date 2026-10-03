@@ -174,10 +174,30 @@ export function crossValidate(input: CrossValidateInput): CrossValidateResult {
         }
         break
       }
+      case 'set_goal_dates': {
+        // Shift-existing-target renegotiation: the referenced goal must be a
+        // real (plan or existing) goal, and the new target must be in the
+        // future relative to the plan's start — the whole point is pushing
+        // timelines OUT to make room.
+        const gt = norm(String(args.goal_title ?? args.goal_id ?? ''))
+        if (!gt || !knownTitles.has(gt)) {
+          errors.push(
+            `set_goal_dates.goal_title '${args.goal_title ?? args.goal_id ?? ''}' matches no plan/existing goal`,
+          )
+        }
+        if (typeof args.target_date === 'string' && typeof plan.goal?.start_date === 'string') {
+          if (args.target_date < plan.goal.start_date) {
+            errors.push(
+              `set_goal_dates.target_date '${args.target_date}' is before the plan start '${plan.goal.start_date}'`,
+            )
+          }
+        }
+        break
+      }
       default:
-        // update_goal / drop_goal / pause_goal / set_goal_dates /
-        // complete_commitment — arg schema already validated; no
-        // plan-coherence rule beyond the allowed-action check.
+        // update_goal / drop_goal / pause_goal / complete_commitment —
+        // arg schema already validated; no plan-coherence rule beyond the
+        // allowed-action check.
         break
     }
   }

@@ -4,6 +4,12 @@ import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
 import RefineModal from "./RefineModal";
 import RejectModal from "./RejectModal";
+import RenegotiationDialog from "./RenegotiationDialog";
+import {
+  usePlanSend,
+  renegotiationChoiceLabel,
+  clearRenegotiation,
+} from "../hooks/use-plan-send";
 import { useDialogBack } from "../hooks/useDialogBack";
 import { toast } from "sonner";
 import { api, API } from "../lib/api";
@@ -70,6 +76,9 @@ export default function ChatModal({
   // delete, so a dismissed attachment quietly stayed on the server.
   const [sources, setSources] = useState([]);
   const streamIdRef = useRef(0);
+  // Iteration 10 — renegotiation dialog state (planner headroom).
+  const [renegotiation, setRenegotiation] = useState(null);
+  const [busyChoice, setBusyChoice] = useState(null);
   // Operation-scoped context (spec §10) — the current conversation
   // bucket. Seeded from the `refId` prop the parent passes (entity id
   // for scoped opens, null for the general chat) and swapped only on
@@ -81,6 +90,13 @@ export default function ChatModal({
   // the scoped context. Falls back to a kind-appropriate mint when a
   // kind was given without an entity id (spec §10.1).
   useEffect(() => {
+    if (!open) {
+      // Leaving the chat discards any parked renegotiation so the next
+      // open can't silently attach the last goal's context.
+      clearRenegotiation();
+      setRenegotiation(null);
+      setBusyChoice(null);
+    }
     if (!open) return;
     if (refId) {
       refIdRef.current = refId;
@@ -130,6 +146,9 @@ export default function ChatModal({
     setSources([]);
     setRefiningProposal(null);
     setRejectingProposal(null);
+    setRenegotiation(null);
+    setBusyChoice(null);
+    clearRenegotiation();
     // Fetch ONLY this chat's bucket. `refIdRef.current` was just seeded by
     // the effect above (declared earlier → runs first), so a scoped chat
     // loads its own transcript and the global chat loads only the general
@@ -161,6 +180,11 @@ export default function ChatModal({
           streaming: true,
         },
       ]);
+      // Iteration 10 — the five planned kinds try the typed pipeline first.
+      // falls back to the SSE path below when the planner is disabled,
+      // errors, or isn't applicable.
+      const handled = await tryPlan(text, streamId);
+      if (handled) return;
       try {
         const resp = await fetch(`${API}/chat/stream`, {
           method: "POST",
@@ -279,8 +303,72 @@ export default function ChatModal({
         );
       }
     },
-    [autoAnswer, grillMe, scope, kind, title, helperText, sources],
+    [autoAnswer, grillMe, scope, kind, title, helperText, sources, tryPlan],
   );
+
+  /**
+   * Iteration 10 — render one /chat/plan result into the streaming bubble
+   * opened by `send`. The planner responds as a single JSON payload; we
+   * write it into the bubble the send opened, then finalize.
+   */
+  const applyPlan = useCallback(
+    (result, { streamId }) => {
+      const finalize = (patch) =>
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamId ? { ...m, streaming: false, ...patch } : m)),
+        );
+
+      if (result.status === "ok") {
+        finalize({
+          id: result.message_id,
+          content:
+            (result.prose || "") +
+            (result.headroom?.message ? `\n\n(${result.headroom.message})` : ""),
+          proposals: result.proposals || [],
+        });
+        // Proposals are persisted server-side; refresh the dashboard so it
+        // reflects the new rows once the user confirms.
+        api.state().then((s) => onStateChange?.(s)).catch(() => {});
+      } else if (result.status === "clarify") {
+        finalize({
+          id: result.message_id,
+          content: result.prose || "A couple of details first:",
+        });
+        setPendingClarifications({
+          messageId: result.message_id,
+          prompt: result.prose || "",
+          questions: result.questions || [],
+        });
+      } else if (result.status === "renegotiate") {
+        finalize({ id: result.message_id, content: result.prose || "" });
+        setRenegotiation({
+          headroom: result.headroom,
+          options: result.options || [],
+        });
+      } else {
+        // no_change / early
+        finalize({
+          id: result.message_id,
+          content: result.prose || "No changes needed.",
+        });
+      }
+    },
+    // onStateChange is stable enough (Coach.js passes a setState wrapper);
+    // api.state is module-level.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const { tryPlan } = usePlanSend({
+    kind,
+    refIdRef,
+    title,
+    helperText,
+    autoAnswer,
+    grillMe,
+    setMessages,
+    applyPlan,
+  });
 
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
@@ -476,6 +564,36 @@ export default function ChatModal({
     [],
   );
 
+  // Iteration 10 — user picked one of the four renegotiation options.
+  // The parked context (use-plan-send) feeds the pipeline a fresh round;
+  // the response renders through the same applyPlan into a NEW bubble.
+  const onRenegotiationChoice = useCallback(
+    (choice) => {
+      setBusyChoice(choice);
+      setRenegotiation(null); // close the dialog; progress shows in chat
+      const streamId = `stream_${++streamIdRef.current}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: streamId,
+          role: "assistant",
+          content: "",
+          proposals: [],
+          streaming: true,
+        },
+      ]);
+      tryPlan(renegotiationChoiceLabel(choice), streamId).finally(() =>
+        setBusyChoice(null),
+      );
+    },
+    [tryPlan],
+  );
+
+  const closeRenegotiation = useCallback(() => {
+    setRenegotiation(null);
+    clearRenegotiation();
+  }, []);
+
   const uploadFile = useCallback(
     async (file) => {
       toast.message(`Uploading ${file.name}…`);
@@ -596,6 +714,14 @@ export default function ChatModal({
           onDismissClarifications={onDismissClarifications}
         />
       </div>
+      <RenegotiationDialog
+        open={!!renegotiation}
+        onClose={closeRenegotiation}
+        headroom={renegotiation?.headroom}
+        options={renegotiation?.options || []}
+        busyOption={busyChoice}
+        onChoose={onRenegotiationChoice}
+      />
       {isGuest && (
         <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />

@@ -4,6 +4,12 @@ import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
 import RefineModal from "./RefineModal";
 import RejectModal from "./RejectModal";
+import RenegotiationDialog from "./RenegotiationDialog";
+import {
+  usePlanSend,
+  renegotiationChoiceLabel,
+  clearRenegotiation,
+} from "../hooks/use-plan-send";
 import { useDialogBack } from "../hooks/useDialogBack";
 import { toast } from "sonner";
 import { api, API } from "../lib/api";
@@ -70,6 +76,9 @@ export default function FocusedTaskChatDialog({
   // chip X can delete them server-side (same pattern as ChatModal).
   const [sources, setSources] = useState([]);
   const streamIdRef = useRef(0);
+  // Iteration 10 — renegotiation dialog state.
+  const [renegotiation, setRenegotiation] = useState(null);
+  const [busyChoice, setBusyChoice] = useState(null);
   // Operation-scoped context (spec §10) — current conversation bucket,
   // seeded from the parent's `refId` prop and swapped on confirm /
   // defensive redirect. For focused-task chats the parent usually
@@ -88,6 +97,9 @@ export default function FocusedTaskChatDialog({
       setPendingClarifications(null);
       setHistoryLoaded(false);
       setSources([]);
+      setRenegotiation(null);
+      setBusyChoice(null);
+      clearRenegotiation();
       // Fresh bucket per open — scoped chats get the entity id the
       // parent passed; unscoped ones mint a focused-task bucket so the
       // server never falls back to the long-lived general history.
@@ -114,6 +126,9 @@ export default function FocusedTaskChatDialog({
           streaming: true,
         },
       ]);
+      // Iteration 10 — planned kinds try the typed pipeline first.
+      const handled = await tryPlan(text, streamId);
+      if (handled) return;
       try {
         const resp = await fetch(`${API}/chat/stream`, {
           method: "POST",
@@ -222,8 +237,94 @@ export default function FocusedTaskChatDialog({
         setSending(false);
       }
     },
-    [open, user, autoAnswer, grillMe, scope, kind, title, helperText, sources],
+    [open, user, autoAnswer, grillMe, scope, kind, title, helperText, sources, tryPlan],
   );
+
+  /**
+   * Iteration 10 — render one /chat/plan result into the streaming bubble.
+   * Same contract as ChatModal.applyPlan.
+   */
+  const applyPlan = useCallback(
+    (result, { streamId }) => {
+      const finalize = (patch) =>
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamId ? { ...m, streaming: false, ...patch } : m)),
+        );
+
+      if (result.status === "ok") {
+        finalize({
+          id: result.message_id,
+          content:
+            (result.prose || "") +
+            (result.headroom?.message ? `\n\n(${result.headroom.message})` : ""),
+          proposals: result.proposals || [],
+        });
+        api.state().then((s) => onStateChange?.(s)).catch(() => {});
+      } else if (result.status === "clarify") {
+        finalize({
+          id: result.message_id,
+          content: result.prose || "A couple of details first:",
+        });
+        setPendingClarifications({
+          messageId: result.message_id,
+          prompt: result.prose || "",
+          questions: result.questions || [],
+        });
+      } else if (result.status === "renegotiate") {
+        finalize({ id: result.message_id, content: result.prose || "" });
+        setRenegotiation({
+          headroom: result.headroom,
+          options: result.options || [],
+        });
+      } else {
+        finalize({
+          id: result.message_id,
+          content: result.prose || "No changes needed.",
+        });
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const { tryPlan } = usePlanSend({
+    kind,
+    refIdRef,
+    title,
+    helperText,
+    autoAnswer,
+    grillMe,
+    setMessages,
+    applyPlan,
+  });
+
+  // Iteration 10 — renegotiation choice → pipeline round 2.
+  const onRenegotiationChoice = useCallback(
+    (choice) => {
+      setBusyChoice(choice);
+      setRenegotiation(null);
+      const streamId = `stream_${++streamIdRef.current}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: streamId,
+          role: "assistant",
+          content: "",
+          proposals: [],
+          streaming: true,
+        },
+      ]);
+      tryPlan(renegotiationChoiceLabel(choice), streamId).finally(() =>
+        setBusyChoice(null),
+      );
+    },
+    [tryPlan],
+  );
+
+  const closeRenegotiation = useCallback(() => {
+    setRenegotiation(null);
+    clearRenegotiation();
+  }, []);
 
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
@@ -503,6 +604,14 @@ export default function FocusedTaskChatDialog({
           onDismissClarifications={onDismissClarifications}
         />
       </div>
+      <RenegotiationDialog
+        open={!!renegotiation}
+        onClose={closeRenegotiation}
+        headroom={renegotiation?.headroom}
+        options={renegotiation?.options || []}
+        busyOption={busyChoice}
+        onChoose={onRenegotiationChoice}
+      />
       {isGuest && (
         <div className="mt-3 flex items-center gap-2 rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] px-3 py-2 text-xs text-[var(--text-secondary)]">
           <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" />
