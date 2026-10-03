@@ -422,8 +422,8 @@ export async function POST(req: NextRequest) {
                     '[[TOOLS]]\n' +
                     '[\n' +
                     '  {"action":"create_goal","title":"<concise title>","horizon":"short","why":"<one sentence>","first_action":"<smallest next step>","target_date":"' + todayDate + '},\n' +
-                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 1>","target_date":"' + todayDate + '"},\n' +
-                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 2>","target_date":"' + ninetyDaysOut + '"}\n' +
+                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 1>","description":"<what done looks like>","why":"<why this step matters>","target_date":"' + todayDate + '"},\n' +
+                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 2>","description":"<what done looks like>","why":"<why this step matters>","target_date":"' + ninetyDaysOut + '"}\n' +
                     ']\n' +
                     '[[/TOOLS]]\n\n' +
                     'Use TODAY\'s date from LIVE STATE as the target_date anchor. ' +

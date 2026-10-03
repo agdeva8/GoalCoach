@@ -157,8 +157,8 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
           )}
         </div>
         {headlineTitle && (
-          <div data-testid="proposal-headline" className="mt-1 text-sm font-medium text-[var(--text-primary)] whitespace-pre-wrap break-words">
-            {actionLabel}: {headlineTitle}
+          <div data-testid="proposal-headline" className="mt-1 text-sm font-semibold text-[var(--text-primary)] whitespace-pre-wrap break-words">
+            {headlineTitle}
           </div>
         )}
       </div>

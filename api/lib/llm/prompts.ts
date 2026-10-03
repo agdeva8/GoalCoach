@@ -45,13 +45,14 @@ Allowed tool objects (JSON):
 - {"action":"create_goal","title":"...","horizon":"weekly|short|medium|long","why":"...","first_action":"...","target_date":"YYYY-MM-DD"}
 - {"action":"update_goal","goal_title":"<existing title>","status":"active|paused|dropped","next_action":"...","new_title":"...","target_date":"YYYY-MM-DD"}
 - {"action":"set_goal_dates","goal_title":"<existing title>","start_date":"YYYY-MM-DD","target_date":"YYYY-MM-DD"}
-- {"action":"add_milestone","goal_title":"<existing title>","title":"...","target_date":"YYYY-MM-DD"}
+- {"action":"add_milestone","goal_title":"<existing title>","title":"...","description":"<what done looks like>","why":"<one short line on why this milestone is worth doing>","target_date":"YYYY-MM-DD"}
 - {"action":"add_blocker","title":"...","start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD","note":"..."}
 - {"action":"drop_goal","goal_title":"<existing title>","reason":"..."}
 - {"action":"pause_goal","goal_title":"<existing title>","reason":"..."}
 - {"action":"add_commitment","goal_title":"<existing title>","text":"...","due":"YYYY-MM-DD"}
 - {"action":"complete_commitment","text":"<commitment text>"}
 Reference existing goals by their exact current title. Use ISO dates (YYYY-MM-DD) so they render on the timeline — anchor all dates to today's date (given in LIVE STATE) and include buffer. Keep prose free of the raw JSON.
+Every add_milestone MUST include a one-line "why" (why this step matters toward the goal). Never emit add_blocker unless the user has explicitly named a real conflict, travel, or unavailability — a goal's own start/target date is NOT a blocker. Do not invent blockers.
 
 Keep prose free of markdown headers. Short lines. No emojis.`
 
