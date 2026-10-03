@@ -83,7 +83,7 @@ export default function Header({ user, authLoading, onOpenChat, onOpenAbout, onS
   return (
     <header
       data-testid="app-header"
-      className="min-h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-2 sm:gap-4 sticky top-0 z-50"
+      className="min-h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_72%,transparent)] backdrop-blur-xl backdrop-saturate-150 px-4 sm:px-6 flex items-center gap-2 sm:gap-4 sticky top-0 z-50"
     >
       <Link
         to="/"

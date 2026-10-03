@@ -4,7 +4,6 @@ import { sourceDownloadUrl } from "../lib/api";
 import AddGoalDialog from "./AddGoalDialog";
 import SourceActionDialog from "./SourceActionDialog";
 import TrackerCard from "./TrackerCard";
-import MotivationCard from "./MotivationCard";
 import GoalMemoryDialog from "./GoalMemoryDialog";
 
 const HORIZON_ORDER = ["weekly", "short", "medium", "long"];
@@ -27,7 +26,8 @@ const AREAS = ["Health", "Career", "Learning", "Relationship", "Finance", "Side 
 // single source of truth for category tiles so we don't fragment the
 // surface.
 
-function OverCommitmentIndicator({ oc }) {
+export function OverCommitmentIndicator({ oc }) {
+  if (!oc) return null;
   const style = LEVEL_STYLES[oc.level] || LEVEL_STYLES.clear;
   return (
     <div
@@ -382,11 +382,8 @@ export default function TrackingDashboard({
         ))
       )}
 
-      {/* Motivation / curated nudges — moved to the bottom so it doesn't
-          compete with the goals grid for attention on first paint. */}
-      <div className="mt-6">
-        <MotivationCard state={state} />
-      </div>
+      {/* Motivation / curated nudges moved to the Home tab (founder
+          feedback) so the Goals tab is purely about the goals. */}
 
       <AddGoalDialog
         open={addGoalOpen}

@@ -20,6 +20,7 @@ const Timeline = lazy(() => import("../components/Timeline"));
 const Memories = lazy(() => import("../components/Memories"));
 const Sources = lazy(() => import("../components/Sources"));
 const Today = lazy(() => import("../components/Today"));
+const Home = lazy(() => import("../components/Home"));
 
 // Fallback while a panel's chunk fetches. Declared at module level rather
 // than inside Coach — a component defined during render is a new component
@@ -381,11 +382,11 @@ export default function Coach() {
   const canGoBack =
     isAnyDialogOpen ||
     location.key !== "default" ||
-    panelView !== "state";
+    panelView !== "home";
   const goBack = () => {
     if (closeTopmostDialog()) return;
     if (location.key !== "default") navigate(-1);
-    else goPanel("state");
+    else goPanel("home");
   };
 
   return (
@@ -437,31 +438,24 @@ export default function Coach() {
       ) : null}
 
       <main id="main" tabIndex={-1} className="flex-1 min-h-0 overflow-y-auto focus:outline-none">
-        <div className="shrink-0 flex items-center border-b border-[var(--border)] px-4 sm:px-6 pt-3 bg-[var(--bg-primary)] sticky top-0 z-10 backdrop-blur overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none]">
-          {/* Mobile — no tab strip. The Goals dropdown (Header.js,
-              visible in the top header) is the primary nav here. The
-              sticky bar keeps its height and shows an obvious back
-              affordance + the current screen title + a Goals dropdown
-              trigger so users can jump between screens from the body
-              header too. */}
-          <div className="sm:hidden flex items-center gap-1.5 min-w-0 w-full h-11">
+        <div className="shrink-0 flex items-center sm:border-b sm:border-[var(--border)] px-4 sm:px-6 pt-2 bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] sticky top-0 z-10 backdrop-blur-md overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none]">
+          {/* Mobile — an iOS large-title bar. The active screen name is
+              the page title (via GoalMenu's large variant) and is itself
+              the dropdown trigger — one affordance, not two. A back
+              chevron appears when there's history to pop. */}
+          <div className="sm:hidden flex items-center gap-1.5 min-w-0 w-full">
             {canGoBack && (
               <button
                 data-testid="panel-back-button"
                 onClick={goBack}
                 aria-label="Back"
                 title="Back"
-                className="-ml-2 h-11 w-11 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                className="-ml-2 h-11 w-11 flex items-center justify-center text-[var(--accent)] hover:text-[var(--text-primary)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               >
-                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                <ArrowLeft className="w-5 h-5" aria-hidden="true" />
               </button>
             )}
-            {/* The screen title IS the dropdown trigger on mobile — one
-                affordance, not two. Tap "Goals ▼" to jump to Today /
-                Timeline / Sources / Memories / Audit. The static h2 +
-                separate right-side trigger was duplicating surface
-                (founder feedback). */}
-            <GoalMenu />
+            <GoalMenu large />
           </div>
 
           {/* Desktop — the horizontal strip stays, now route-driven:
@@ -492,7 +486,14 @@ export default function Coach() {
 
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
           <Suspense fallback={<PanelSkeleton />}>
-            {panelView === "state" ? (
+            {panelView === "home" ? (
+              <Home
+                state={state}
+                onOpenChat={openChatWith}
+                onOpenToday={() => goPanel("today")}
+                onOpenGoals={() => goPanel("state")}
+              />
+            ) : panelView === "state" ? (
               <TrackingDashboard
                 state={state}
                 loadError={stateError}
