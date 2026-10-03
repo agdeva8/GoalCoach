@@ -163,6 +163,73 @@ export default function ChatModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user?.user_id, refId, kind, scope]);
 
+  /**
+   * Iteration 10 — render one /chat/plan result into the streaming bubble
+   * opened by `send`. The planner responds as a single JSON payload; we
+   * write it into the bubble the send opened, then finalize.
+   */
+  const applyPlan = useCallback(
+    (result, { streamId }) => {
+      const finalize = (patch) =>
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamId ? { ...m, streaming: false, ...patch } : m)),
+        );
+
+      if (result.status === "ok") {
+        finalize({
+          id: result.message_id,
+          content:
+            (result.prose || "") +
+            (result.headroom?.message ? `\n\n(${result.headroom.message})` : ""),
+          proposals: result.proposals || [],
+        });
+        // Proposals are persisted server-side; refresh the dashboard so it
+        // reflects the new rows once the user confirms.
+        api.state().then((s) => onStateChange?.(s)).catch(() => {});
+      } else if (result.status === "clarify") {
+        finalize({
+          id: result.message_id,
+          content: result.prose || "A couple of details first:",
+        });
+        setPendingClarifications({
+          messageId: result.message_id,
+          prompt: result.prose || "",
+          questions: result.questions || [],
+        });
+      } else if (result.status === "renegotiate") {
+        finalize({ id: result.message_id, content: result.prose || "" });
+        setRenegotiation({
+          headroom: result.headroom,
+          options: result.options || [],
+        });
+      } else {
+        // no_change / early
+        finalize({
+          id: result.message_id,
+          content: result.prose || "No changes needed.",
+        });
+      }
+    },
+    // onStateChange is stable (Coach.js passes a setState wrapper); api.state
+    // is module-level. setMessages/setPendingClarifications/setRenegotiation
+    // are stable React setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // Must be declared BEFORE `send` — send references tryPlan in its body
+  // and deps (TDZ error otherwise).
+  const { tryPlan } = usePlanSend({
+    kind,
+    refIdRef,
+    title,
+    helperText,
+    autoAnswer,
+    grillMe,
+    setMessages,
+    applyPlan,
+  });
+
   const send = useCallback(
     async (text) => {
       setSending(true);
@@ -305,70 +372,6 @@ export default function ChatModal({
     },
     [autoAnswer, grillMe, scope, kind, title, helperText, sources, tryPlan],
   );
-
-  /**
-   * Iteration 10 — render one /chat/plan result into the streaming bubble
-   * opened by `send`. The planner responds as a single JSON payload; we
-   * write it into the bubble the send opened, then finalize.
-   */
-  const applyPlan = useCallback(
-    (result, { streamId }) => {
-      const finalize = (patch) =>
-        setMessages((prev) =>
-          prev.map((m) => (m.id === streamId ? { ...m, streaming: false, ...patch } : m)),
-        );
-
-      if (result.status === "ok") {
-        finalize({
-          id: result.message_id,
-          content:
-            (result.prose || "") +
-            (result.headroom?.message ? `\n\n(${result.headroom.message})` : ""),
-          proposals: result.proposals || [],
-        });
-        // Proposals are persisted server-side; refresh the dashboard so it
-        // reflects the new rows once the user confirms.
-        api.state().then((s) => onStateChange?.(s)).catch(() => {});
-      } else if (result.status === "clarify") {
-        finalize({
-          id: result.message_id,
-          content: result.prose || "A couple of details first:",
-        });
-        setPendingClarifications({
-          messageId: result.message_id,
-          prompt: result.prose || "",
-          questions: result.questions || [],
-        });
-      } else if (result.status === "renegotiate") {
-        finalize({ id: result.message_id, content: result.prose || "" });
-        setRenegotiation({
-          headroom: result.headroom,
-          options: result.options || [],
-        });
-      } else {
-        // no_change / early
-        finalize({
-          id: result.message_id,
-          content: result.prose || "No changes needed.",
-        });
-      }
-    },
-    // onStateChange is stable enough (Coach.js passes a setState wrapper);
-    // api.state is module-level.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-
-  const { tryPlan } = usePlanSend({
-    kind,
-    refIdRef,
-    title,
-    helperText,
-    autoAnswer,
-    grillMe,
-    setMessages,
-    applyPlan,
-  });
 
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
