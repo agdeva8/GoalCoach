@@ -1,4 +1,4 @@
-import { X, GitCommit, Pencil, Target, FileText, Calendar } from "lucide-react";
+import { X, GitCommit, Pencil, Target, FileText, Calendar, Check, Loader2 } from "lucide-react";
 import NavigateCard from "./NavigateCard";
 
 const ACTION_LABELS = {
@@ -15,6 +15,20 @@ const ACTION_LABELS = {
 };
 
 const HORIZON_LABELS = { weekly: "This week", short: "Short-term", medium: "Medium-term", long: "Long-term" };
+
+/** Action-specific label for the per-item Confirm button. */
+const CONFIRM_LABELS = {
+  create_goal: "Create goal",
+  update_goal: "Apply changes",
+  set_goal_dates: "Apply dates",
+  drop_goal: "Drop goal",
+  pause_goal: "Pause goal",
+  add_milestone: "Add milestone",
+  add_commitment: "Add commitment",
+  complete_commitment: "Mark done",
+  update_commitment: "Update commitment",
+  add_blocker: "Add blocker",
+};
 
 /**
  * Section badge for the body — founder feedback (Iteration 9+): the
@@ -89,7 +103,7 @@ function flatProposal(p) {
  *   - No per-item Confirm (handled by the pinned button); Refine +
  *     Reject stay inline and open their respective modals.
  */
-export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenReject, onNavigate, busy }) {
+export default function ToolConfirmationPrompt({ proposal, onConfirm, onOpenRefine, onOpenReject, onNavigate, showConfirm = true, busy }) {
   // Read-only navigator card (general chat) — no confirm/refine/reject.
   if (proposal.action === "navigate") {
     return <NavigateCard proposal={proposal} onNavigate={onNavigate} busy={busy} />;
@@ -99,6 +113,7 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
   const d = flatProposal(proposal);
   const section = SECTION_BY_ACTION[proposal.action] || "";
   const actionLabel = ACTION_LABELS[proposal.action] || proposal.action || "Proposal";
+  const confirmLabel = CONFIRM_LABELS[proposal.action] || "Confirm";
 
   // Title used in the "<Section>: <title>" headline on the header's
   // second line. Per-section so a milestone never borrows the goal's
@@ -250,23 +265,46 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
       </div>
 
       {status !== "confirmed" && (
-        <div className="flex border-t border-[var(--border)]">
-          <button
-            data-testid="refine-tool-button"
-            disabled={busy}
-            onClick={() => onOpenRefine?.(proposal)}
-            className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] disabled:opacity-40 transition-colors border-r border-[var(--border)]"
-          >
-            <Pencil className="w-3.5 h-3.5" /> {proposal.refinement ? "Edit refinement" : "Refine"}
-          </button>
-          <button
-            data-testid="reject-tool-button"
-            disabled={busy}
-            onClick={() => onOpenReject?.(proposal)}
-            className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] disabled:opacity-40 transition-colors"
-          >
-            <X className="w-3.5 h-3.5" /> {proposal.rejection ? "Edit rejection" : "Reject"}
-          </button>
+        <div className="border-t border-[var(--border)]">
+          {/* Per-item Confirm — the only confirm path in the focused/scoped
+              chats (AddGoalDialog passes showConfirm=false and uses its
+              own pinned Confirm instead). */}
+          {showConfirm && status === "pending" && !proposal.refinement && (
+            <button
+              data-testid="confirm-tool-button"
+              disabled={busy}
+              onClick={() => onConfirm?.()}
+              className="w-full min-h-11 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-40 transition-opacity"
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5" /> {confirmLabel}
+                </>
+              )}
+            </button>
+          )}
+          <div className="flex border-t border-[var(--border)]">
+            <button
+              data-testid="refine-tool-button"
+              disabled={busy}
+              onClick={() => onOpenRefine?.(proposal)}
+              className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] disabled:opacity-40 transition-colors border-r border-[var(--border)]"
+            >
+              <Pencil className="w-3.5 h-3.5" /> {proposal.refinement ? "Edit refinement" : "Refine"}
+            </button>
+            <button
+              data-testid="reject-tool-button"
+              disabled={busy}
+              onClick={() => onOpenReject?.(proposal)}
+              className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] disabled:opacity-40 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" /> {proposal.rejection ? "Edit rejection" : "Reject"}
+            </button>
+          </div>
         </div>
       )}
     </div>

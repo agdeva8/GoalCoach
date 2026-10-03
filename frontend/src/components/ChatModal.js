@@ -393,7 +393,15 @@ export default function ChatModal({
             proposal?.args?.goal_title ||
             proposal?.args?.new_title ||
             proposal?.title;
-          const verb = proposal?.action === "create_goal" ? "Created" : "Confirmed";
+          const verb =
+            {
+              create_goal: "Created",
+              drop_goal: "Dropped",
+              pause_goal: "Paused",
+              add_milestone: "Added milestone",
+              add_commitment: "Added commitment",
+              complete_commitment: "Completed",
+            }[proposal?.action] || "Confirmed";
           const content = title ? `${verb} "${title}"` : result || "Change applied";
           const goalId =
             proposal?.action === "create_goal" && title

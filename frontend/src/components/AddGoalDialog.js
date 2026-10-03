@@ -786,6 +786,9 @@ export default function AddGoalDialog({
               onDismissClarifications={() => setPendingClarifications(null)}
               showSources={true}
               focusOnMount={true}
+              // AddGoalDialog uses its own pinned Confirm button; suppress
+              // the per-item Confirm so there aren't two confirm paths.
+              showConfirm={false}
             />
             {/* Iteration 9 — Confirm / Recreate pinned button. Renders
                 below the chat console's composer, inside the dialog so
