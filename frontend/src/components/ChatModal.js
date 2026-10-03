@@ -63,6 +63,8 @@ export default function ChatModal({
   const [sending, setSending] = useState(false);
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
+  // True while this open's history is being fetched — drives the shimmer.
+  const [loadingHistory, setLoadingHistory] = useState(false);
   // Iteration 9 — refine / reject modal state. The modal owns the
   // input; the dialog owns the lifecycle and the proposal lookup.
   const [refiningProposal, setRefiningProposal] = useState(null);
@@ -140,6 +142,7 @@ export default function ChatModal({
     let cancelled = false;
     // Fresh per-open state.
     setMessages([]);
+    setLoadingHistory(true);
     setSending(false);
     setBusyProposal(null);
     setPendingClarifications(null);
@@ -158,7 +161,8 @@ export default function ChatModal({
       .then((m) => { if (!cancelled) setMessages(m || []); })
       .catch(() => {
         toast.error("Couldn't load chat history. Starting fresh — new messages still send.");
-      });
+      })
+      .finally(() => { if (!cancelled) setLoadingHistory(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user?.user_id, refId, kind, scope]);
@@ -722,6 +726,7 @@ export default function ChatModal({
               ? ""
               : "Ask me anything about your goals and progress — or name what you want to change and I'll take you to the right screen."
           }
+          loading={loadingHistory}
           onClearChat={async () => {
             try {
               await api.clearHistory();

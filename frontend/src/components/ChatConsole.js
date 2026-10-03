@@ -2,6 +2,8 @@ import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { ArrowUp, Paperclip, Link2, X, FileText, Trash2, HelpCircle, Mic, Square, Camera } from "lucide-react";
 import ToolConfirmationPrompt from "./ToolConfirmationPrompt";
 import ChatModeSelect from "./ChatModeSelect";
+import MarkdownMessage from "./MarkdownMessage";
+import CopyButton from "./CopyButton";
 import SuccessBanner from "./SuccessBanner";
 import ImpactPanel from "./ImpactPanel";
 import LinkPreviewDialog from "./LinkPreviewDialog";
@@ -44,6 +46,31 @@ function EmptyState({ scopeLabel, scopeIntent }) {
       <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
         Tell me about your goal and we'll build the milestones together.
       </p>
+    </div>
+  );
+}
+
+/**
+ * ChatLoadingSkeleton — shimmer shown while the open chat's history is
+ * being fetched, so the composer doesn't sit over a blank/empty state that
+ * then pops into a transcript.
+ */
+function ChatLoadingSkeleton() {
+  return (
+    <div
+      data-testid="chat-loading"
+      aria-busy="true"
+      aria-live="polite"
+      className="flex flex-col items-start gap-6"
+    >
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="w-full space-y-2">
+          <div className="h-3 w-14 gc-skeleton" />
+          <div className="h-4 w-[85%] gc-skeleton" />
+          <div className="h-4 w-[72%] gc-skeleton" />
+          {i % 2 === 0 && <div className="h-4 w-[48%] gc-skeleton" />}
+        </div>
+      ))}
     </div>
   );
 }
@@ -162,7 +189,10 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
   if (m.role === "user") {
     return (
       <div data-testid="chat-message-user" className="flex flex-col items-end gc-fade-up">
-        <span className="font-medium text-xs text-[var(--text-muted)] mb-1">You</span>
+        <div className="flex items-center gap-1 mb-1">
+          <CopyButton text={m.content} />
+          <span className="font-medium text-xs text-[var(--text-muted)]">You</span>
+        </div>
         <div className="max-w-[85%] bg-[var(--bg-tertiary)] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words">
           {m.content}
         </div>
@@ -171,16 +201,29 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
   }
   return (
     <div data-testid="chat-message-coach" className="flex flex-col items-start">
-      <span className="font-medium text-xs text-[var(--accent)] mb-1">Coach</span>
+      <div className="flex items-center gap-1 mb-1">
+        <span className="font-medium text-xs text-[var(--accent)]">Coach</span>
+        {/* Only once the reply has settled (no point copying a stream). */}
+        {!m.streaming && <CopyButton text={m.content} />}
+      </div>
       {/* A4 signature moment — the reply "sets" like type. The wrapper
           deliberately no longer carries `gc-fade-up`: a completed reply
           remounts (its id swaps from the client stream id to the server id),
           so the generic fade-up used to run at exactly the same instant as
           this. One arrival, one animation — the coach's, not the bubble's. */}
-      <div className={`max-w-[92%] text-lg leading-[1.65] font-serif whitespace-pre-wrap break-words text-[var(--voice-fg)]${settled ? " gc-type-set" : ""}`}>
-        <SetLines content={m.content} settled={settled} />
-        {m.streaming && <span className="gc-caret text-[var(--accent)]">▋</span>}
-      </div>
+      {/* Coach reply. While streaming we render the raw text (cheap per
+          delta + keeps the caret); once it settles we render GFM markdown
+          so tables/lists/code display properly instead of as raw pipes. */}
+      {m.streaming ? (
+        <div className="max-w-[92%] text-lg leading-[1.65] font-serif whitespace-pre-wrap break-words text-[var(--voice-fg)]">
+          <SetLines content={m.content} settled={false} />
+          <span className="gc-caret text-[var(--accent)]">▋</span>
+        </div>
+      ) : (
+        <div className={`max-w-[92%] text-lg leading-[1.65] font-serif break-words text-[var(--voice-fg)]${settled ? " gc-type-set" : ""}`}>
+          <MarkdownMessage content={m.content} />
+        </div>
+      )}
       {(m.proposals || []).length > 0 && (
         <div className="w-[92%] mt-2">
           {m.proposals.map((p) => (
@@ -207,7 +250,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, onAnswerChoice = null, showConfirm = true, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", emptyPrompt = "", onViewGoal = null, showModeSelect = true }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, onAnswerChoice = null, showConfirm = true, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", emptyPrompt = "", loading = false, onViewGoal = null, showModeSelect = true }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -595,7 +638,9 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         className={`flex-1 min-h-0 ${messages.length ? "overflow-y-auto" : "overflow-hidden"} px-4 sm:px-6 py-6 space-y-6`}
       >
         {messages.length === 0 && (
-          emptyPrompt ? (
+          loading ? (
+            <ChatLoadingSkeleton />
+          ) : emptyPrompt ? (
             <div
               data-testid="chat-empty-simple"
               className="h-full flex flex-col justify-center max-w-lg"

@@ -218,6 +218,70 @@ body {
 @keyframes gc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .gc-caret { animation: gc-blink 1s step-end infinite; }
 
+/* ── Coach markdown (MarkdownMessage) ────────────────────────────────────
+   Renders the coach's GFM output (tables, lists, code, links) with the app
+   tokens. Tables get a horizontal-scroll wrapper so a wide table scrolls
+   instead of breaking the chat layout. */
+.gc-md { color: inherit; overflow-wrap: anywhere; }
+.gc-md > :first-child { margin-top: 0; }
+.gc-md > :last-child { margin-bottom: 0; }
+.gc-md p { margin: 0.5rem 0; }
+.gc-md h1, .gc-md h2, .gc-md h3, .gc-md h4 {
+  margin: 1rem 0 0.5rem;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+.gc-md ul, .gc-md ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+.gc-md ul { list-style: disc; }
+.gc-md ol { list-style: decimal; }
+.gc-md li { margin: 0.15rem 0; }
+.gc-md li > ul, .gc-md li > ol { margin: 0.15rem 0; }
+.gc-md a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.gc-md strong { font-weight: 600; color: var(--text-primary); }
+.gc-md blockquote {
+  margin: 0.5rem 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border);
+  color: var(--text-secondary);
+}
+.gc-md hr { margin: 0.75rem 0; border: 0; border-top: 1px solid var(--border); }
+.gc-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.gc-md pre {
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.gc-md pre code { background: transparent; padding: 0; font-size: 0.82rem; }
+.gc-md-table-wrap { margin: 0.75rem 0; width: 100%; overflow-x: auto; }
+.gc-md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.85rem;
+}
+.gc-md th, .gc-md td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+.gc-md th { background: var(--bg-secondary); font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+.gc-md td { color: var(--text-secondary); }
+.gc-md img { max-width: 100%; border-radius: 8px; }
+
+
 /* Safe-area-aware FAB positioning for iOS Safari (home indicator) */
 .gc-safe-bottom {
   bottom: max(1.5rem, env(safe-area-inset-bottom));
