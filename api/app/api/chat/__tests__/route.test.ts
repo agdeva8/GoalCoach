@@ -301,6 +301,9 @@ describe('proactive_propose flag', () => {
     try {
       const res = await chatPost(chatReq({ message: 'I want to learn swimming', proactive_propose: true }))
       expect(res.status).toBe(200)
+      // Drain the SSE body so the ops graph runs and streamChat fires (the
+      // graph adds an async boundary before generation starts).
+      await res.text()
       expect(mockStreamChatFn.mock.calls.length).toBeGreaterThan(0)
       const call = mockStreamChatFn.mock.calls[0][0] as any
       expect(call.system).toContain('=== ADD GOAL MODE ===')
@@ -317,6 +320,8 @@ describe('proactive_propose flag', () => {
     try {
       const res = await chatPost(chatReq({ message: 'I want to learn swimming' }))
       expect(res.status).toBe(200)
+      // Drain the SSE body so the ops graph runs before we inspect the calls.
+      await res.text()
       // Both initial and fallback calls must omit ADD GOAL MODE.
       for (const [call] of mockStreamChatFn.mock.calls as any[]) {
         expect(call.system).not.toContain('=== ADD GOAL MODE ===')

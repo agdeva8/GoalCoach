@@ -35,19 +35,8 @@ import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 
-import {
-  MODEL_REGISTRY,
-  getModel,
-  parseProposals,
-  splitProseAndTools,
-  proposeGoalFromMessage,
-  parseDropIntent,
-  streamChat,
-  TOOL_START,
-  TOOL_END,
-  type ProviderId,
-  type Proposal,
-} from '@/lib/emergent/llm'
+import { MODEL_REGISTRY, type ProviderId, type Proposal } from '@/lib/emergent/llm'
+import { buildOpsGraph, type OpsGraphResult } from '@/lib/chat/ops-graph'
 import { SYSTEM_PROMPT } from '@/lib/llm/prompts'
 import { resolveRequestUser } from '@/lib/request-user'
 
@@ -310,7 +299,6 @@ export async function POST(req: NextRequest) {
 
   const encoder = new TextEncoder()
   let assistantMessageId: string | null = null
-  let fullText = ''
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -323,252 +311,57 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        let proseEmitted = 0
-        let inTools = false
-
         // Operation-mode hint now lives in the SYSTEM_PROMPT itself (see
         // lib/llm/prompts.ts — "=== OPERATION MODE ==="). When
         // `proactive_propose` is true (frontend's signal that the user
         // wants a goal created NOW), we append an inline `=== ADD GOAL
-        // MODE ===` block as a strong nudge. The prompt's permanent
-        // ADD GOAL MODE section handles the general guidance; this inline
-        // block forces the "create + milestones now, not a clarifying
-        // question" path even when the LLM might otherwise hesitate.
+        // MODE ===` block as a strong nudge.
         const addGoalHint = proactive_propose
           ? '\n\n=== ADD GOAL MODE ===\nThe user has opened the Add Goal dialog and wants a goal created now. State your single biggest assumption in one short line, then emit a [[TOOLS]] block with a create_goal + 2-3 add_milestone actions. Use TODAY + ~90 days as the default target_date if no deadline was given.'
           : ''
 
-        for await (const ev of streamChat({
+        // The whole turn (generate → optional refine → finalize) is a
+        // LangGraph in `lib/chat/ops-graph.ts`, streaming prose deltas back
+        // through `getWriter()` and publishing the final result custom chunk.
+        const graph = buildOpsGraph({
+          userId: caller.userId,
           provider: requestedProvider,
           system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString + addGoalHint,
-          messages: coreMessages,
-          sessionId: caller.userId,
-        })) {
-          if (ev.type === 'text_delta') {
-            fullText += ev.content
+          coreMessages,
+          scopedKind,
+          autoAnswer,
+          clarify,
+          message,
+          convTitle,
+          userGoals: (userState.goals || []) as Array<{
+            id: string
+            title: string
+            status?: string
+          }>,
+        })
 
-            if (inTools) {
-              // Once in the tools block, suppress further prose deltas.
-              continue
-            }
+        let result: OpsGraphResult | null = null
+        const runStream = await (graph.stream as unknown as (
+          input: unknown,
+          config: unknown,
+        ) => Promise<AsyncIterable<unknown>>)({}, { streamMode: 'custom' })
 
-            // Track the tools delimiter. Once we've crossed it we
-            // suppress further delta events.
-            const toolIdx = fullText.indexOf(TOOL_START)
-            if (toolIdx === -1) {
-              // No delimiter yet — be conservative and hold back the
-              // last `max(len(start))` chars in case a boundary is split
-              // across chunks.
-              const safeLen = TOOL_START.length
-              const safeUpTo = Math.max(proseEmitted, fullText.length - safeLen)
-              if (safeUpTo > proseEmitted) {
-                enqueue({ type: 'delta', content: fullText.slice(proseEmitted, safeUpTo) })
-                proseEmitted = safeUpTo
-              }
-            } else {
-              // Tools delimiter reached — emit only the prose before it.
-              if (toolIdx > proseEmitted) {
-                enqueue({ type: 'delta', content: fullText.slice(proseEmitted, toolIdx) })
-              }
-              proseEmitted = toolIdx
-              inTools = true
-            }
-          } else if (ev.type === 'stream_done') {
-            // Use whatever was accumulated during the stream (in case
-            // stream_done carries a more accurate full text).
-            if (ev.content && ev.content.length > fullText.length) {
-              fullText = ev.content
-            }
+        for await (const chunk of runStream) {
+          const c = chunk as { type?: string; content?: string }
+          if (c?.type === 'delta') {
+            enqueue({ type: 'delta', content: c.content })
+          } else if (c?.type === 'result') {
+            result = chunk as OpsGraphResult
           }
         }
 
-        // Parse proposals from the accumulated text.
-        let { prose, proposals } = splitProseAndTools(fullText)
+        if (!result) throw new Error('ops graph produced no result')
+        const { prose, proposals, needsClarification, clarifyingQuestions } = result
+
         assistantMessageId = `msg_${Date.now()}_${randomUUID().slice(0, 8)}`
 
-        // Option B fallback — safety net behind the prompt strengthening in
-        // `SYSTEM_PROMPT` (see `lib/llm/prompts.ts` CLARIFY paragraph). When
-        // `auto_answer` is on, the prompt instructs the model to end its
-        // turn with a [[TOOLS]] block; if the model still responds with
-        // prose-only "I'm assuming X…" (an early-model regression we saw in
-        // production), we send one follow-up turn asking the model to emit
-        // ONLY the [[TOOLS]] block. The follow-up's prose is hidden from
-        // the client; only the recovered proposals are surfaced as a
-        // `tools` SSE event tagged with the same message_id so the
-        // confirm/reject UI behaves like any other turn.
-        //
-        // If the follow-up also produces no proposals, we surface a
-        // `needs_clarification` SSE event with a short clarifying question
-        // (or two) so the frontend can prompt the user instead of leaving
-        // them staring at a prose-only dump. This is the "grill me" hook —
-        // the coach falls back to clarifying questions when it can't
-        // safely auto-answer.
-        //
-        // Gates:
-        //   - auto_answer must be on (clarify mode wins — see below)
-        //   - first pass produced zero proposals
-        //   - first pass produced some prose (nothing to base proposals on
-        //     otherwise — a fully empty response is a different failure)
-        //   - first pass did NOT contain [[TOOLS]] (don't retry when the
-        //     model tried and `parseProposals` simply failed to extract
-        //     anything — retrying won't help)
-        let needsClarification: string | null = null
-        let clarifyingQuestions: string[] = []
-        // The general chat is a read-only navigator — never auto-synthesize
-        // state changes there (see the filter below and the SYSTEM_PROMPT's
-        // "GENERAL CHAT IS READ-ONLY" rule).
-        if (autoAnswer && !clarify && scopedKind !== 'general') {
-          if (
-            proposals.length === 0 &&
-            prose.trim().length > 0 &&
-            !fullText.includes(TOOL_START)
-          ) {
-            try {
-              const todayDate = new Date().toISOString().split('T')[0]
-              const ninetyDaysOut = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-              const followUpMessages = [
-                ...coreMessages,
-                { role: 'assistant' as const, content: prose },
-                {
-                  role: 'user' as const,
-                  content:
-                    'SYSTEM CORRECTION — your previous turn only stated assumptions in prose. ' +
-                    'You MUST now emit a [[TOOLS]] block so the user has something concrete to confirm. ' +
-                    'If the user\'s message implies a single concrete goal, just propose it — do NOT ask for more detail.\n\n' +
-                    'Reply with EXACTLY this shape — one create_goal plus 2-4 add_milestone actions:\n\n' +
-                    '[[TOOLS]]\n' +
-                    '[\n' +
-                    '  {"action":"create_goal","title":"<concise title>","horizon":"short","why":"<one sentence>","first_action":"<smallest next step>","target_date":"' + todayDate + '},\n' +
-                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 1>","description":"<what done looks like>","why":"<why this step matters>","target_date":"' + todayDate + '"},\n' +
-                    '  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 2>","description":"<what done looks like>","why":"<why this step matters>","target_date":"' + ninetyDaysOut + '"}\n' +
-                    ']\n' +
-                    '[[/TOOLS]]\n\n' +
-                    'Use TODAY\'s date from LIVE STATE as the target_date anchor. ' +
-                    'If the user gave no explicit deadline, set target_date ~90 days from today. ' +
-                    'State your single biggest assumption in one short prose line, then emit the [[TOOLS]] block.',
-                },
-              ]
-
-              let followUpFull = ''
-              for await (const ev of streamChat({
-                provider: requestedProvider,
-                system: SYSTEM_PROMPT + '\n\n=== LIVE STATE & MEMORY ===\n' + contextString,
-                messages: followUpMessages,
-                sessionId: caller.userId,
-              })) {
-                if (ev.type === 'text_delta') {
-                  followUpFull += ev.content
-                }
-              }
-
-              const { proposals: followUpProposals } = splitProseAndTools(followUpFull)
-              if (followUpProposals.length > 0) {
-                proposals = followUpProposals
-              } else {
-                // Both passes produced prose-only — pull clarifying questions
-                // out of the follow-up so the frontend can surface them as
-                // MCQ-style chips instead of leaving the user with a dump.
-                clarifyingQuestions = extractClarifyingQuestions(followUpFull || prose)
-                if (clarifyingQuestions.length > 0) {
-                  needsClarification = 'I want to make a real proposal, but I need a couple of details first.'
-                }
-              }
-            } catch {
-              // Fallback is best-effort. If the follow-up stream errors (network,
-              // proxy rate-limit, etc.), we still persist the original prose
-              // and emit `done` without proposals — the strengthened prompt
-              // should make this rare.
-            }
-          }
-        }
-
-        // Grill-me mode — the user explicitly asked to be grilled. Always
-        // surface clarifying questions, even if the model emitted proposals.
-        if (clarify && proposals.length === 0) {
-          clarifyingQuestions = extractClarifyingQuestions(prose)
-          if (clarifyingQuestions.length > 0) {
-            needsClarification = 'Before I propose anything, a couple of details would change the plan meaningfully:'
-          }
-        }
-
-        // Final-tier safety net. For a drop/pause conversation this ALWAYS
-        // runs regardless of auto-answer: the user opened this surface to
-        // remove a goal, so a prose-only reply (or a repeat "ask") is a
-        // dead-end. Resolve the target from the message first, then from the
-        // conversation title ("Drop \"X\"?") — a tapped choice like "Drop it
-        // for good" carries the decision, not the goal name.
-        //
-        // For every other scoped kind the net is unchanged: it only fires in
-        // auto-answer mode and only synthesizes a create_goal.
-        const isDropConv = scopedKind === 'drop_goal'
-        if (
-          !clarify &&
-          scopedKind !== 'general' &&
-          message.length > 0 &&
-          (autoAnswer || isDropConv)
-        ) {
-          // The drop heuristic needs the user's current goals. The
-          // state has already been loaded once at the top of the route
-          // for the system context, so we reuse that snapshot here.
-          const dropCandidates = (userState.goals || [])
-            .filter((g: any) => g.status !== 'dropped')
-            .map((g: any) => ({
-              title: g.title,
-              goalId: g.id,
-            }))
-          const directDrop = parseDropIntent(message, dropCandidates)
-          const contextualDrop =
-            isDropConv && !directDrop
-              ? parseDropIntent(message, dropCandidates, {
-                  contextText: convTitle,
-                })
-              : null
-
-          if (
-            isDropConv &&
-            contextualDrop &&
-            proposals.length > 0 &&
-            proposals.every((p: any) => p.action === 'ask')
-          ) {
-            // The terse confirmation resolved the coach's ask — swap the
-            // ask for the real drop instead of asking again (ask loop).
-            proposals = [contextualDrop]
-          } else if (proposals.length === 0) {
-            const dropProposal = directDrop || contextualDrop
-            if (dropProposal) {
-              proposals.push(dropProposal)
-            } else if (autoAnswer) {
-              const synthesized = proposeGoalFromMessage(message)
-              if (synthesized) {
-                proposals.push(synthesized)
-              } else if (!needsClarification) {
-                // Last-ditch: surface a clarifying question so the user
-                // gets an interactive chip rather than a silent prose
-                // dump. Only fires when no proposals came out and the
-                // planner didn't already emit one.
-                clarifyingQuestions = extractClarifyingQuestions(prose)
-                if (clarifyingQuestions.length > 0) {
-                  needsClarification =
-                    'Tell me a little more so I can shape a real proposal:'
-                }
-              }
-            }
-          }
-        }
-
-        // General chat is a read-only navigator — never let a stray tool
-        // block apply an edit from the free-form chat. Keep only `navigate`
-        // suggestions and `ask` choice prompts (neither is a state change);
-        // the actual change happens on the dedicated surface.
-        if (scopedKind === 'general') {
-          proposals = proposals.filter(
-            (p) => p.action === 'navigate' || p.action === 'ask',
-          )
-        }
-
-        // Persist the assistant message + proposals in a single
-        // transaction. Matches the onFinish semantics from the previous
-        // AI-SDK `streamText` flow.
+        // Persist the assistant message + proposals in a single transaction.
+        // Matches the onFinish semantics from the previous flow.
         await db.transaction(async (tx: any) => {
           await tx.insert(messages).values({
             id: assistantMessageId!,
@@ -623,7 +416,6 @@ export async function POST(req: NextRequest) {
       }
     },
   })
-
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
@@ -632,52 +424,6 @@ export async function POST(req: NextRequest) {
       Connection: 'keep-alive',
     },
   })
-}
-
-/* -------------------------------------------------------------------------- */
-/* extractClarifyingQuestions — pull 1-2 short questions out of a coach turn  */
-/*                                                                             */
-/* Used by the autoAnswer fallback when both the first pass AND the           */
-/* follow-up retry produced prose-only output. Returns short, single-sentence */
-/* questions the frontend can render as MCQ chips next to the chat input.    */
-/*                                                                             */
-/* Heuristic (intentionally simple — the prompt is the real lever here):     */
-/*   - Split into sentences, drop empty / too-long / non-interrogative ones. */
-/*   - Keep at most 2 — the system prompt says "1-2 sharp clarifying         */
-/*     questions", so anything more is over-eager.                            */
-/*   - Strip a leading question mark / bullet / number if the model used      */
-/*     a list format.                                                         */
-/* -------------------------------------------------------------------------- */
-
-function extractClarifyingQuestions(text: string, max = 2): string[] {
-  if (!text || !text.trim()) return []
-
-  // Normalize bullets / numbers — "1)" / "1." / "- " prefixes often show up
-  // when the coach lists its questions in prose.
-  const cleaned = text
-    .replace(/\r/g, '')
-    .split(/\n+/)
-    .map((line) => line.replace(/^\s*(?:\d+[.)]\s+|[-*•]\s+)/, '').trim())
-    .filter(Boolean)
-    .join(' ')
-
-  // Sentence split — keep the trailing punctuation so we can detect "?"
-  const sentences = cleaned
-    .split(/(?<=[.?!])\s+(?=[A-Z(])/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && s.length <= 220 && s.endsWith('?'))
-
-  // De-dupe while preserving order.
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const s of sentences) {
-    const key = s.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push(s)
-    if (out.length >= max) break
-  }
-  return out
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,0 +1,323 @@
+/**
+ * Chat ops — LangGraph StateGraph for the general/scoped chat turn.
+ *
+ * This is the surface that produces EVERY state-changing proposal: create /
+ * update / drop / pause a goal, set dates, add milestones / blockers /
+ * commitments, complete a commitment. It used to be a ~250-line inline block
+ * inside `/api/chat/stream`; it is now an explicit graph that streams through
+ * the AI SDK (`streamChat` → `streamText`) with LangGraph orchestration.
+ *
+ * Graph:
+ *
+ *   START → n_generate ─┬─(prose-only, auto-answer)→ n_refine ─┐
+ *                       └──────────────────────────→ n_finalize ←┘
+ *                                                        │
+ *                                                       END
+ *
+ * `n_generate` streams prose deltas to the client via `getWriter()` (the
+ * route forwards them as SSE `delta`), then parses the `[[TOOLS]]` block.
+ * `n_refine` is the silent follow-up that asks the model to emit tools only.
+ * `n_finalize` applies the grill-me + drop safety nets and the general-chat
+ * read-only filter, then publishes the `result` custom chunk.
+ *
+ * The `[[TOOLS]]` text protocol is intentionally preserved (AI SDK transport,
+ * legacy parse) so the SSE wire format and the frontend are unchanged.
+ */
+
+import { Annotation, END, START, StateGraph, getWriter } from '@langchain/langgraph'
+
+import {
+  parseDropIntent,
+  proposeGoalFromMessage,
+  splitProseAndTools,
+  TOOL_START,
+  type Proposal,
+} from '@/lib/emergent/llm'
+import { streamChat } from '@/lib/emergent/stream-chat'
+import type { ProviderId } from '@/lib/emergent/model-registry'
+
+export type ConvKind =
+  | 'general'
+  | 'add_goal'
+  | 'plan_day'
+  | 'review_progress'
+  | 'edit_goal'
+  | 'drop_goal'
+
+export interface OpsGraphArgs {
+  userId: string
+  provider: ProviderId
+  /** SYSTEM_PROMPT + LIVE STATE & MEMORY + optional inline mode hint. */
+  system: string
+  coreMessages: Array<{ role: 'user' | 'assistant'; content: string }>
+  scopedKind: ConvKind
+  autoAnswer: boolean
+  clarify: boolean
+  message: string
+  convTitle: string
+  userGoals: Array<{ id: string; title: string; status?: string }>
+}
+
+export interface OpsGraphResult {
+  prose: string
+  proposals: Proposal[]
+  needsClarification: string | null
+  clarifyingQuestions: string[]
+  fullText: string
+}
+
+const OpsState = Annotation.Root({
+  fullText: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
+  prose: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
+  proposals: Annotation<Proposal[]>({ reducer: (_a, b) => b, default: () => [] }),
+  hadToolsBlock: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
+  needsClarification: Annotation<string | null>({ reducer: (_a, b) => b, default: () => null }),
+  clarifyingQuestions: Annotation<string[]>({ reducer: (_a, b) => b, default: () => [] }),
+  result: Annotation<OpsGraphResult | null>({ reducer: (_a, b) => b, default: () => null }),
+})
+
+type OpsStateType = typeof OpsState.State
+type OpsUpdate = typeof OpsState.Update
+
+/** Write a custom stream chunk if we're inside a `streamMode: 'custom'` run. */
+function emit(chunk: unknown): void {
+  const w = getWriter()
+  if (w) w(chunk)
+}
+
+export function buildOpsGraph(args: OpsGraphArgs) {
+  const { userId, provider, system, coreMessages, scopedKind, autoAnswer, clarify, message, convTitle, userGoals } = args
+
+  /* Node 1 — primary generation (streams prose deltas). */
+  const generateNode = async (): Promise<OpsUpdate> => {
+    let fullText = ''
+    let proseEmitted = 0
+    let inTools = false
+
+    for await (const ev of streamChat({
+      provider,
+      system,
+      messages: coreMessages,
+      sessionId: userId,
+    })) {
+      if (ev.type === 'text_delta') {
+        fullText += ev.content
+        if (inTools) continue
+
+        const toolIdx = fullText.indexOf(TOOL_START)
+        if (toolIdx === -1) {
+          // Hold back the last `TOOL_START.length` chars in case the delimiter
+          // is split across chunks.
+          const safeUpTo = Math.max(proseEmitted, fullText.length - TOOL_START.length)
+          if (safeUpTo > proseEmitted) {
+            emit({ type: 'delta', content: fullText.slice(proseEmitted, safeUpTo) })
+            proseEmitted = safeUpTo
+          }
+        } else {
+          if (toolIdx > proseEmitted) {
+            emit({ type: 'delta', content: fullText.slice(proseEmitted, toolIdx) })
+          }
+          proseEmitted = toolIdx
+          inTools = true
+        }
+      } else if (ev.type === 'stream_done') {
+        if (ev.content && ev.content.length > fullText.length) fullText = ev.content
+      }
+    }
+
+    const { prose, proposals } = splitProseAndTools(fullText)
+    return {
+      fullText,
+      prose,
+      proposals,
+      hadToolsBlock: fullText.includes(TOOL_START),
+    }
+  }
+
+  /* Node 2 — silent follow-up: force a [[TOOLS]] block. */
+  const refineNode = async (s: OpsStateType): Promise<OpsUpdate> => {
+    const todayDate = new Date().toISOString().split('T')[0]
+    const ninetyDaysOut = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0]
+
+    const followUpMessages = [
+      ...coreMessages,
+      { role: 'assistant' as const, content: s.prose },
+      {
+        role: 'user' as const,
+        content:
+          'SYSTEM CORRECTION — your previous turn only stated assumptions in prose. ' +
+          'You MUST now emit a [[TOOLS]] block so the user has something concrete to confirm. ' +
+          "If the user's message implies a single concrete goal, just propose it — do NOT ask for more detail.\n\n" +
+          'Reply with EXACTLY this shape — one create_goal plus 2-4 add_milestone actions:\n\n' +
+          '[[TOOLS]]\n' +
+          '[\n' +
+          `  {"action":"create_goal","title":"<concise title>","horizon":"short","why":"<one sentence>","first_action":"<smallest next step>","target_date":"${todayDate}"},\n` +
+          `  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 1>","description":"<what done looks like>","why":"<why this step matters>","target_date":"${todayDate}"},\n` +
+          `  {"action":"add_milestone","goal_title":"<same title as above>","title":"<milestone 2>","description":"<what done looks like>","why":"<why this step matters>","target_date":"${ninetyDaysOut}"}\n` +
+          ']\n' +
+          '[[/TOOLS]]\n\n' +
+          "Use TODAY's date from LIVE STATE as the target_date anchor. " +
+          'If the user gave no explicit deadline, set target_date ~90 days from today. ' +
+          'State your single biggest assumption in one short prose line, then emit the [[TOOLS]] block.',
+      },
+    ]
+
+    let followUpFull = ''
+    try {
+      for await (const ev of streamChat({
+        provider,
+        system,
+        messages: followUpMessages,
+        sessionId: userId,
+      })) {
+        if (ev.type === 'text_delta') followUpFull += ev.content
+      }
+    } catch {
+      // Best-effort: keep the original prose, emit `done` without proposals.
+      return {}
+    }
+
+    const { proposals: followUpProposals } = splitProseAndTools(followUpFull)
+    if (followUpProposals.length > 0) {
+      return { proposals: followUpProposals }
+    }
+    const questions = extractClarifyingQuestions(followUpFull || s.prose)
+    if (questions.length > 0) {
+      return {
+        clarifyingQuestions: questions,
+        needsClarification:
+          'I want to make a real proposal, but I need a couple of details first.',
+      }
+    }
+    return {}
+  }
+
+  /* Node 3 — grill-me, drop safety net, general filter, publish result. */
+  const finalizeNode = async (s: OpsStateType): Promise<OpsUpdate> => {
+    let proposals = s.proposals
+    let needsClarification = s.needsClarification
+    let clarifyingQuestions = s.clarifyingQuestions
+
+    // Grill-me mode — always surface clarifying questions.
+    if (clarify && proposals.length === 0) {
+      clarifyingQuestions = extractClarifyingQuestions(s.prose)
+      if (clarifyingQuestions.length > 0) {
+        needsClarification =
+          'Before I propose anything, a couple of details would change the plan meaningfully:'
+      }
+    }
+
+    // Final-tier safety net. For a drop/pause conversation this ALWAYS runs
+    // regardless of auto-answer; for every other scoped kind it only fires
+    // in auto-answer mode and only synthesizes a create_goal.
+    const isDropConv = scopedKind === 'drop_goal'
+    if (!clarify && scopedKind !== 'general' && message.length > 0 && (autoAnswer || isDropConv)) {
+      const dropCandidates = userGoals
+        .filter((g) => g.status !== 'dropped')
+        .map((g) => ({ title: g.title, goalId: g.id }))
+      const directDrop = parseDropIntent(message, dropCandidates)
+      const contextualDrop =
+        isDropConv && !directDrop
+          ? parseDropIntent(message, dropCandidates, { contextText: convTitle })
+          : null
+
+      if (
+        isDropConv &&
+        contextualDrop &&
+        proposals.length > 0 &&
+        proposals.every((p) => p.action === 'ask')
+      ) {
+        // The terse confirmation resolved the coach's ask — swap the ask for
+        // the real drop instead of asking again (ask loop).
+        proposals = [contextualDrop]
+      } else if (proposals.length === 0) {
+        const dropProposal = directDrop || contextualDrop
+        if (dropProposal) {
+          proposals = [dropProposal]
+        } else if (autoAnswer) {
+          const synthesized = proposeGoalFromMessage(message)
+          if (synthesized) {
+            proposals = [synthesized]
+          } else if (!needsClarification) {
+            clarifyingQuestions = extractClarifyingQuestions(s.prose)
+            if (clarifyingQuestions.length > 0) {
+              needsClarification = 'Tell me a little more so I can shape a real proposal:'
+            }
+          }
+        }
+      }
+    }
+
+    // General chat is a read-only navigator — keep only navigate / ask.
+    if (scopedKind === 'general') {
+      proposals = proposals.filter((p) => p.action === 'navigate' || p.action === 'ask')
+    }
+
+    const result: OpsGraphResult = {
+      prose: s.prose,
+      proposals,
+      needsClarification,
+      clarifyingQuestions,
+      fullText: s.fullText,
+    }
+    emit({ type: 'result', ...result })
+    return { result }
+  }
+
+  const afterGenerate = (s: OpsStateType): string => {
+    const shouldRefine =
+      s.proposals.length === 0 &&
+      autoAnswer &&
+      !clarify &&
+      scopedKind !== 'general' &&
+      s.prose.trim().length > 0 &&
+      !s.hadToolsBlock
+    return shouldRefine ? 'n_refine' : 'n_finalize'
+  }
+
+  return new StateGraph(OpsState)
+    .addNode('n_generate', generateNode)
+    .addNode('n_refine', refineNode)
+    .addNode('n_finalize', finalizeNode)
+    .addEdge(START, 'n_generate')
+    .addConditionalEdges('n_generate', afterGenerate, {
+      n_refine: 'n_refine',
+      n_finalize: 'n_finalize',
+    })
+    .addEdge('n_refine', 'n_finalize')
+    .addEdge('n_finalize', END)
+    .compile()
+}
+
+/* -------------------------------------------------------------------------- */
+/* extractClarifyingQuestions — pull 1-2 short questions out of a coach turn  */
+/* -------------------------------------------------------------------------- */
+
+export function extractClarifyingQuestions(text: string, max = 2): string[] {
+  if (!text || !text.trim()) return []
+
+  const cleaned = text
+    .replace(/\r/g, '')
+    .split(/\n+/)
+    .map((line) => line.replace(/^\s*(?:\d+[.)]\s+|[-*•]\s+)/, '').trim())
+    .filter(Boolean)
+    .join(' ')
+
+  const sentences = cleaned
+    .split(/(?<=[.?!])\s+(?=[A-Z(])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.length <= 220 && s.endsWith('?'))
+
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const s of sentences) {
+    const key = s.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(s)
+    if (out.length >= max) break
+  }
+  return out
+}

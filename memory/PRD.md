@@ -522,6 +522,32 @@ User says: *"I want to switch job in the next 3 months. I have DSA prepared but 
 
 ---
 
+## Iteration 11 (2026-10) — AI SDK + LangGraph orchestration across all surfaces, shipped
+
+Every LLM surface now runs on the **Vercel AI SDK**, and every agentic flow is a **LangGraph `StateGraph`**. No user-facing behavior changed: the SSE wire format, the `[[TOOLS]]` proposal protocol, the confirm/reject flow, and every deterministic gate are preserved.
+
+### What shipped
+- **Shared AI SDK client** `api/lib/llm/client.ts`: one provider factory (`getSutraProvider` / `sutraChatModel`, pointed at the active backend via `resolveBackend`) plus one structured-output path (`generateObject` → `json_object` → `generateText`, Zod-validated, one repair retry). `goal-planner/llm.ts` now re-exports it.
+- **Motivation** (`api/lib/motivation/`): the pipeline is a LangGraph (`graph.ts`) — signals → search → fetch → critique → pick → frame → cache — with stage short-circuits as edges. `critique.ts` uses the shared structured-output client; `frame.ts` uses `generateText`. Cache helpers extracted to `cache.ts`; `recommend.ts` keeps the SWR/cache contract.
+- **Goal Planner** (`api/lib/goal-planner/orchestrator.ts`): a LangGraph `StateGraph` (`n_intake → n_clarify → n_plan → n_headroom → n_emit → n_cross_validate`). Clarify is a real **HITL `interrupt()`**; state persists via a **Postgres checkpointer** (`PostgresSaver`; `MemorySaver` in dev/test) and resumes across HTTP requests (`chat/plan/route.ts` detects a pending interrupt).
+- **General chat / all ops** (`api/lib/chat/ops-graph.ts`): the turn that produces every state-changing proposal (create / update / drop / pause a goal, set dates, add milestone / blocker / commitment, complete commitment) is a LangGraph (`n_generate → n_refine → n_finalize`) that streams prose deltas through `getWriter()`. `stream-chat.ts` is reimplemented on AI SDK `streamText` with the same `StreamEvent` contract, so the route and frontend are unchanged.
+
+### Dependencies
+`@langchain/langgraph`, `@langchain/core`, `@langchain/langgraph-checkpoint-postgres` (in `api`).
+
+### Persistence
+In production (`DATABASE_URL` set) the planner checkpointer creates `checkpoints` / `checkpoint_blobs` / `checkpoint_writes` / `checkpoint_migrations` via `.setup()` on first use. Dev/test use an in-memory saver.
+
+### Verified
+`tsc --noEmit` + `next build` clean. 90 planner/motivation/emergent tests, 5 ops-graph tests, and a clarify→resume regression test pass. Live smoke: all 3 provider rows stream via the AI SDK; structured output round-trips (DeepSeek falls back from json_schema to `json_object`, as designed). The 9 pre-existing failures (auth/guest, sources/download, tools/confirm, chat/history, auth-unification) are unrelated and identical to baseline.
+
+### Residual risk / follow-ups
+- The motivation and general-chat graphs are orchestration-only (no interrupts); the planner owns HITL suspend/resume.
+- Checkpoint writes add DB load per planner request; a fresh run clears its thread first.
+- `GOAL_PLANNER_USE_OBJECT_MODE=true` enables native `generateObject` (only for backends that support json_schema; DeepSeek does not).
+
+---
+
 ## Backlog / next
 - P0: **Goal Planner pipeline — headroom-aware multi-horizon plans** (Iteration 10, see below). Replaces the current single-shot LLM prompt with a typed 5-stage pipeline producing goal + phases + milestones + commitments + headroom check + drift detection. Ship behind `GOAL_PLANNER_ENABLED=false` (off by default); shadow → dogfood → flip; roll back if `plan_rejects` rate > 10%.
 - P1: **Calendar view + editable daily timetable + in-calendar blocker add/edit/remove** (blocker CRUD backend already in place; the daily_log table this iteration adds is the memory layer the timetable will read from).

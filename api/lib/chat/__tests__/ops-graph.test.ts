@@ -1,0 +1,115 @@
+/**
+ * Chat ops graph — orchestration tests.
+ *
+ * The model transport (`streamChat`) is mocked with a scripted queue; the
+ * real `[[TOOLS]]` parser, drop heuristics, grill-me and general-chat filter
+ * all run. Asserts the graph's streaming + final-result contract.
+ */
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { scripts } = vi.hoisted(() => ({ scripts: [] as string[][] }))
+
+vi.mock('@/lib/emergent/stream-chat', () => ({
+  streamChat: async function* () {
+    const script = scripts.shift() ?? []
+    const full = script.join('')
+    for (const t of script) yield { type: 'text_delta', content: t }
+    yield { type: 'stream_done', content: full }
+  },
+}))
+
+import { buildOpsGraph, type OpsGraphArgs, type OpsGraphResult } from '../ops-graph'
+
+function base(over: Partial<OpsGraphArgs> = {}): OpsGraphArgs {
+  return {
+    userId: 'u1',
+    provider: 'gemini',
+    system: 'SYS',
+    coreMessages: [{ role: 'user', content: 'hi' }],
+    scopedKind: 'add_goal',
+    autoAnswer: true,
+    clarify: false,
+    message: 'hi',
+    convTitle: '',
+    userGoals: [],
+    ...over,
+  }
+}
+
+async function run(args: OpsGraphArgs): Promise<{ result: OpsGraphResult; deltas: string[] }> {
+  const graph = buildOpsGraph(args)
+  let result: OpsGraphResult | null = null
+  const deltas: string[] = []
+  const it = await (graph.stream as unknown as (i: unknown, c: unknown) => Promise<AsyncIterable<unknown>>)(
+    {},
+    { streamMode: 'custom' },
+  )
+  for await (const c of it) {
+    const chunk = c as { type?: string; content?: string }
+    if (chunk.type === 'delta') deltas.push(chunk.content ?? '')
+    else if (chunk.type === 'result') result = c as OpsGraphResult
+  }
+  if (!result) throw new Error('no result chunk')
+  return { result, deltas }
+}
+
+describe('buildOpsGraph', () => {
+  beforeEach(() => {
+    scripts.length = 0
+  })
+
+  it('parses a [[TOOLS]] block and streams the prose before it', async () => {
+    scripts.push([
+      'Here is a concrete goal.\n\n[[TOOLS]]\n[{"action":"create_goal","title":"Learn Japanese"}]\n[[/TOOLS]]',
+    ])
+    const { result, deltas } = await run(base())
+    expect(result.prose).toContain('Here is a concrete goal.')
+    expect(result.prose).not.toContain('[[TOOLS]]')
+    expect(result.proposals).toHaveLength(1)
+    expect(result.proposals[0].action).toBe('create_goal')
+    expect(deltas.join('')).toContain('Here is a concrete goal.')
+    expect(deltas.join('')).not.toContain('[[TOOLS]]')
+  })
+
+  it('general chat is read-only — keeps only navigate/ask proposals', async () => {
+    scripts.push(['[[TOOLS]]\n[{"action":"create_goal","title":"X"},{"action":"ask","question":"Which one?"}]\n[[/TOOLS]]'])
+    const { result } = await run(base({ scopedKind: 'general' }))
+    expect(result.proposals).toHaveLength(1)
+    expect(result.proposals[0].action).toBe('ask')
+  })
+
+  it('refines a prose-only scoped turn into tools', async () => {
+    scripts.push(['Let me assume a deadline.'])
+    scripts.push(['[[TOOLS]]\n[{"action":"create_goal","title":"Run a 10k"}]\n[[/TOOLS]]'])
+    const { result } = await run(base({ scopedKind: 'add_goal', autoAnswer: true }))
+    // refine consumed the second script
+    expect(scripts).toHaveLength(0)
+    expect(result.proposals).toHaveLength(1)
+    expect(result.proposals[0].action).toBe('create_goal')
+  })
+
+  it('resolves a contextual drop from the conversation title', async () => {
+    scripts.push(['On it.'])
+    const { result } = await run(
+      base({
+        scopedKind: 'drop_goal',
+        autoAnswer: false,
+        message: 'Drop it for good',
+        convTitle: 'Drop "Switch jobs"?',
+        userGoals: [{ id: 'g1', title: 'Switch jobs', status: 'active' }],
+      }),
+    )
+    expect(result.proposals).toHaveLength(1)
+    expect(result.proposals[0].action).toBe('drop_goal')
+    expect(String(result.proposals[0].args.goal_title)).toBe('Switch jobs')
+  })
+
+  it('grill-me surfaces clarifying questions when no proposals are produced', async () => {
+    scripts.push(['Should you commit 3 or 6 months?'])
+    const { result } = await run(base({ scopedKind: 'plan_day', autoAnswer: false, clarify: true }))
+    expect(result.proposals).toHaveLength(0)
+    expect(result.clarifyingQuestions).toContain('Should you commit 3 or 6 months?')
+    expect(result.needsClarification).toBeTruthy()
+  })
+})
