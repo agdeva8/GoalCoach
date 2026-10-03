@@ -1,4 +1,5 @@
 import { X, GitCommit, Pencil, Target, FileText, Calendar } from "lucide-react";
+import NavigateCard from "./NavigateCard";
 
 const ACTION_LABELS = {
   create_goal: "Goal",
@@ -88,7 +89,11 @@ function flatProposal(p) {
  *   - No per-item Confirm (handled by the pinned button); Refine +
  *     Reject stay inline and open their respective modals.
  */
-export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenReject, busy }) {
+export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenReject, onNavigate, busy }) {
+  // Read-only navigator card (general chat) — no confirm/refine/reject.
+  if (proposal.action === "navigate") {
+    return <NavigateCard proposal={proposal} onNavigate={onNavigate} busy={busy} />;
+  }
   const status = proposal.status || "pending";
   const isDrop = proposal.action === "drop_goal" || proposal.action === "pause_goal";
   const d = flatProposal(proposal);

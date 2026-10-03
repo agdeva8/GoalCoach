@@ -247,6 +247,8 @@ export default function TrackingDashboard({
   grillMe = false,
   isGuest = false,
   registerCloser = null,
+  autoOpenAddGoal = false,
+  onAutoOpenAddGoalHandled = () => {},
 }) {
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [memoryGoal, setMemoryGoal] = useState(null); // { id, title } | null
@@ -275,6 +277,15 @@ export default function TrackingDashboard({
     const t = setTimeout(() => setAddGoalOpen(true), 600);
     return () => clearTimeout(t);
   }, [state, visibleGoals.length]);
+
+  // "Take me there → Add goal" from the general chat. Coach.js routes to
+  // this screen with `autoOpenAddGoal=true`; open the dialog once on
+  // arrival, then tell the parent we've consumed the signal.
+  useEffect(() => {
+    if (!autoOpenAddGoal) return;
+    setAddGoalOpen(true);
+    onAutoOpenAddGoalHandled();
+  }, [autoOpenAddGoal, onAutoOpenAddGoalHandled]);
 
   // Register / deregister the AddGoalDialog's closer with Coach.js so
   // the global back button (mobile panel-back-arrow AND browser back)

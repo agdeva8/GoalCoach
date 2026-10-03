@@ -45,6 +45,11 @@ export async function extractText(
       case 'json':
         text = JSON.stringify(JSON.parse(buffer.toString('utf8')), null, 2)
         break
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+        text = await extractImage(buffer)
+        break
       default:
         text = `[binary content — ${ext || 'unknown'} file]`
     }
@@ -75,6 +80,30 @@ async function extractDocx(buffer: Buffer): Promise<string> {
   } catch {
     // Not installed or parse error — strip binary headers.
     return buffer.toString('utf8').replace(/[^\x20-\x7E\n\r]/g, ' ')
+  }
+}
+
+/**
+ * extractImage — OCR an image buffer with tesseract.js.
+ *
+ * Local OCR (no external API key). The English language data is fetched
+ * on first use and cached by the library. A fresh worker is created per
+ * call — uploads are infrequent, so the ~1s overhead is acceptable and
+ * avoids leaking long-lived workers. Any failure bubbles up to
+ * `extractText`'s catch, which returns a safe placeholder.
+ */
+async function extractImage(buffer: Buffer): Promise<string> {
+  const { createWorker } = await import('tesseract.js')
+  const { tmpdir } = await import('node:os')
+  // Cache the ~5MB English language data in the OS temp dir. The library
+  // otherwise defaults to the process CWD, which dropped a stray
+  // `eng.traineddata` into the repo.
+  const worker = await createWorker('eng', undefined, { cachePath: tmpdir() })
+  try {
+    const { data } = await worker.recognize(buffer)
+    return (data?.text ?? '').trim()
+  } finally {
+    await worker.terminate()
   }
 }
 

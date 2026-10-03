@@ -39,3 +39,6 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tesseract.js OCR language cache (downloaded at runtime)
+eng.traineddata

@@ -61,6 +61,26 @@ import WelcomeToast from "../components/WelcomeToast";
  * shows the prior conversation; Coach.js only owns the dashboard
  * state + the chat-open flag.
  */
+/**
+ * General-chat navigator registry — the destinations a "Take me there"
+ * suggestion can point at. This is the lightweight map the coach's
+ * `navigate` action resolves through: target → panel + optional action.
+ * Keep it small and explicit; add a target here AND to the SYSTEM_PROMPT's
+ * allowed `navigate` targets when you add a surface.
+ */
+const NAV_TARGETS = {
+  add_goal: { panel: "state", openAddGoal: true },
+  drop_goal: { panel: "state" },
+  pause_goal: { panel: "state" },
+  edit_goal: { panel: "state" },
+  commitments: { panel: "today" },
+  today: { panel: "today" },
+  timeline: { panel: "timeline" },
+  sources: { panel: "sources" },
+  memories: { panel: "memories" },
+  motivation: { panel: "motivation" },
+};
+
 export default function Coach() {
   const { user, setUser, loading, logout } = useAuth();
   const isGuest = !!user?.is_guest;
@@ -115,6 +135,10 @@ export default function Coach() {
   // Iteration 5 — optional scoped chat context (set by Today Timetable /
   // Timeline / focused-task CTAs). Null = generic "Chat with your coach".
   const [chatScope, setChatScope] = useState(null);
+  // General-chat navigator — set when the coach suggests "Take me there →
+  // Add goal". TrackingDashboard opens the Add Goal dialog on arrival and
+  // calls `onAutoOpenAddGoalHandled` to clear it.
+  const [pendingAddGoal, setPendingAddGoal] = useState(false);
   const [devLoginAvailable, setDevLoginAvailable] = useState(false);
 
   const setAutoAnswer = (v) => {
@@ -196,7 +220,8 @@ export default function Coach() {
     setChatOpen(true);
   };
 
-  const openAction = (goal, type) => setActionModal({ goalTitle: goal.title, type });
+  const openAction = (goal, type) =>
+    setActionModal({ goalId: goal?.id || null, goalTitle: goal?.title || "", type });
 
   // When the user clicks "Ask the coach" inside ActionPromptModal,
   // open an ISOLATED focused-task chat (instead of the global
@@ -211,15 +236,30 @@ export default function Coach() {
       act && FRAMES[act.type || "edit"]
         ? FRAMES[act.type || "edit"].title(act.goalTitle)
         : `Add commitments for the "${act?.goalTitle || "goal"}" goal`;
+    // Map the goal action to its real conversation kind so the follow-up
+    // chat is NON-generic and drop/pause/edit-aware instead of a free-form
+    // plan_day bucket (founder feedback: the drop flow opened a generic
+    // chat). The server already supports these kinds (SCOPE_TO_KIND /
+    // CONV_KINDS in chat/stream). `refId` is intentionally NOT passed — the
+    // dialog mints a fresh per-open bucket so each drop/pause starts clean;
+    // the goal identity travels via the intent title ("Drop \"X\"?").
+    const ACTION_KIND = {
+      drop: "drop_goal",
+      pause: "edit_goal",
+      edit: "edit_goal",
+      add_step: "plan_day",
+    };
+    const kind = ACTION_KIND[act?.type] || "plan_day";
     setFocusedTask({
       title: frameTitle,
       subtitle: "This chat is scoped to the action you just described. It starts empty and resets when you close it.",
       prefillMessage: msg,
       icon: Sparkles,
-      // Spec §10.7 — focused-task chat runs as its own plan_day
-      // bucket; FocusedTaskChatDialog mints the per-open refId.
-      scope: "generic",
-      kind: "plan_day",
+      // Spec §10.7 — focused-task chat runs in its own bucket; the dialog
+      // mints the per-open refId. `scope` mirrors `kind` so any scope-based
+      // lookup resolves consistently.
+      scope: kind,
+      kind,
     });
   };
 
@@ -390,6 +430,19 @@ export default function Coach() {
     else goPanel("home");
   };
 
+  // "Take me there" — close the chat and route to the surface a `navigate`
+  // suggestion points at. The general chat never applies edits itself.
+  const onChatNavigate = (target) => {
+    setChatOpen(false);
+    setChatPrefill("");
+    setChatScope(null);
+    setFocusedTask(null);
+    const nav = NAV_TARGETS[target];
+    if (!nav) return;
+    if (nav.openAddGoal) setPendingAddGoal(true);
+    goPanel(nav.panel);
+  };
+
   return (
     <div className="h-[100dvh] flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
       <a
@@ -513,6 +566,8 @@ export default function Coach() {
                 grillMe={grillMe}
                 isGuest={isGuest}
                 registerCloser={pushCloser}
+                autoOpenAddGoal={pendingAddGoal}
+                onAutoOpenAddGoalHandled={() => setPendingAddGoal(false)}
               />
             ) : panelView === "today" ? (
               <Today state={state} onChange={refreshState} onOpenChat={openChatWith} />
@@ -554,6 +609,7 @@ export default function Coach() {
         setGrillMe={setGrillMe}
         onStateChange={(next) => setState(next)}
         onAction={(goal, type) => openAction(goal, type)}
+        onNavigate={onChatNavigate}
         onUploadFile={uploadFile}
         onAddLink={addLink}
         onOpenSignIn={openSignIn}
@@ -608,6 +664,7 @@ export default function Coach() {
         setAutoAnswer={setAutoAnswer}
         setGrillMe={setGrillMe}
         onStateChange={(next) => setState(next)}
+        onNavigate={onChatNavigate}
         onUploadFile={uploadFile}
         onAddLink={addLink}
         onOpenSignIn={openSignIn}

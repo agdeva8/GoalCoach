@@ -144,7 +144,7 @@ function SetLines({ content, settled }) {
   ));
 }
 
-function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, busyProposal, onViewGoal }) {
+function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate, busyProposal, onViewGoal }) {
   // Success divider — appended by the parent after a confirm closes the
   // conversation bucket (spec §10.5). Rendered inline in the same
   // stream; the messages are never cleared on confirm.
@@ -193,6 +193,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
               onRefine={onRefine ? (thought) => onRefine(p, thought) : undefined}
               onOpenRefine={onOpenRefine ? () => onOpenRefine(p) : undefined}
               onOpenReject={onOpenReject ? () => onOpenReject(p) : undefined}
+              onNavigate={onNavigate}
             />
           ))}
         </div>
@@ -204,7 +205,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", onViewGoal = null }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", onViewGoal = null }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -602,7 +603,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           </div>
         )}
         {messages.slice(-CHAT_RENDER_CAP).map((m) => (
-          <Message key={m.id} m={m} settled={settledId === m.id} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} onOpenRefine={onOpenRefine} onOpenReject={onOpenReject} busyProposal={busyProposal} onViewGoal={onViewGoal} />
+          <Message key={m.id} m={m} settled={settledId === m.id} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} onOpenRefine={onOpenRefine} onOpenReject={onOpenReject} onNavigate={onNavigate} busyProposal={busyProposal} onViewGoal={onViewGoal} />
         ))}
         <div ref={endRef} />
       </div>

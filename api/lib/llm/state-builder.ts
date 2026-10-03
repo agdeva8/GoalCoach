@@ -34,7 +34,7 @@
  * conversation even though it hasn't been persisted yet.
  */
 
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 
 import { cacheKey, readThrough } from '@/lib/cache'
 import { db } from '@/lib/db'
@@ -403,6 +403,60 @@ export type ConversationKind =
 export interface ConversationIntent {
   title?: string
   helperText?: string
+  /**
+   * Ids of sources the user attached in THIS conversation. The route
+   * passes the ids the client holds for the current chat session; we
+   * read their stored `text_excerpt` and inject an ATTACHED SOURCES
+   * block so the model can read the attachment. Ids are validated
+   * against the caller's own sources — never trust them as content.
+   */
+  sourceIds?: string[]
+}
+
+/* -------------------------------------------------------------------------- */
+/* loadAttachedSources — current-conversation attachments for the prompt.     */
+/*                                                                            */
+/* Reads only the rows the caller actually owns (userId guard) and only the  */
+/* ids passed in (current session), caps the count and per-excerpt length,   */
+/* and returns filename + stored `text_excerpt` for prompt injection.        */
+/* -------------------------------------------------------------------------- */
+
+const ATTACHED_SOURCE_MAX = 3
+const ATTACHED_EXCERPT_MAX = 3000
+
+async function loadAttachedSources(
+  userId: string,
+  ids: string[] | undefined,
+): Promise<Array<{ filename: string; excerpt: string }>> {
+  const unique = Array.from(new Set((ids ?? []).filter(Boolean))).slice(
+    0,
+    ATTACHED_SOURCE_MAX,
+  )
+  if (unique.length === 0) return []
+
+  const rows = await db
+    .select({
+      id: sources.id,
+      originalFilename: sources.originalFilename,
+      textExcerpt: sources.textExcerpt,
+    })
+    .from(sources)
+    .where(
+      and(
+        eq(sources.userId, userId),
+        inArray(sources.id, unique),
+        eq(sources.isDeleted, false),
+      ),
+    )
+
+  const byId = new Map(rows.map((r) => [r.id, r]))
+  return unique
+    .map((id) => byId.get(id))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r))
+    .map((r) => ({
+      filename: r.originalFilename || 'attachment',
+      excerpt: (r.textExcerpt ?? '').slice(0, ATTACHED_EXCERPT_MAX).trim(),
+    }))
 }
 
 export async function buildContext(
@@ -429,12 +483,13 @@ export async function buildContext(
     return d.toISOString().slice(0, 10)
   })()
 
-  const [state, history, dailyLogs] = await Promise.all([
+  const [state, history, dailyLogs, attachedSources] = await Promise.all([
     loadState(userId),
     loadHistory(userId, conversationId, historyLimit),
     kind === 'general'
       ? Promise.resolve([] as DailyLogRow[])
       : getDailyLogsSince(userId, sevenDaysAgo),
+    loadAttachedSources(userId, intent?.sourceIds),
   ])
 
   // The following block renders the LIVE STATE & MEMORY section. Output
@@ -463,6 +518,27 @@ export async function buildContext(
     lines.push(`CONVERSATION INTENT: ${intentTitle}`)
     const intentHelp = intent?.helperText?.trim()
     if (intentHelp) lines.push(intentHelp)
+  }
+
+  // ATTACHED SOURCES — files/links the user attached in THIS conversation.
+  // The upload route already extracted + stored `text_excerpt`; inject it
+  // here so the model can actually read what was attached (previously
+  // attachments were stored but never reached the LLM). Scoped by id to the
+  // current session (never the whole library) and bounded so a large
+  // document can't blow the context window.
+  if (attachedSources.length > 0) {
+    lines.push('')
+    lines.push(
+      'ATTACHED SOURCES (the user attached these in this conversation — read them and use them):',
+    )
+    for (const s of attachedSources) {
+      if (s.excerpt) {
+        lines.push(`- ${s.filename}:`)
+        lines.push(s.excerpt)
+      } else {
+        lines.push(`- ${s.filename} (no extractable text)`)
+      }
+    }
   }
 
   if (kind === 'add_goal') {

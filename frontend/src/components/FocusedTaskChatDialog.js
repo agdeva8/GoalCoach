@@ -41,6 +41,7 @@ export default function FocusedTaskChatDialog({
   setGrillMe,
   onStateChange,
   onAction,
+  onNavigate,
   onUploadFile,
   onAddLink,
   onOpenSignIn,
@@ -128,6 +129,8 @@ export default function FocusedTaskChatDialog({
             kind,
             title,
             helperText,
+            // Current-conversation attachments — see ChatModal.
+            sourceIds: sources.map((s) => s.id),
           }),
         });
         if (!resp.ok || !resp.body) throw new Error("stream failed");
@@ -219,7 +222,7 @@ export default function FocusedTaskChatDialog({
         setSending(false);
       }
     },
-    [open, user, autoAnswer, grillMe, scope, kind, title, helperText],
+    [open, user, autoAnswer, grillMe, scope, kind, title, helperText, sources],
   );
 
   const confirmProposal = useCallback(
@@ -371,11 +374,13 @@ export default function FocusedTaskChatDialog({
     send(`Re-propose applying ALL of these notes at once. Return the proposals again with the changes applied.\n\n${lines.join("\n")}`);
   }, [messages, send]);
 
+  // Count BOTH refinements and rejections on the latest plan — a card is
+  // refined XOR rejected, so either should surface the batch action.
   const latestWithProposals = [...messages].reverse().find(
     (m) => m.role === "assistant" && (m.proposals || []).length > 0,
   );
-  const refinedCount = (latestWithProposals?.proposals || []).filter(
-    (p) => p.refinement,
+  const changedCount = (latestWithProposals?.proposals || []).filter(
+    (p) => p.refinement || p.status === "rejected",
   ).length;
 
   const onAnswerClarification = useCallback(
@@ -475,6 +480,7 @@ export default function FocusedTaskChatDialog({
           }}
           onOpenRefine={onOpenRefine}
           onOpenReject={onOpenReject}
+          onNavigate={onNavigate}
           busyProposal={busyProposal}
           autoAnswer={autoAnswer}
           setAutoAnswer={setAutoAnswer}
@@ -513,7 +519,7 @@ export default function FocusedTaskChatDialog({
           </button>
         </div>
       )}
-      {refinedCount > 0 && (
+      {changedCount > 0 && (
         <div className="mt-3">
           <button
             data-testid="pinned-refine-button"
@@ -521,7 +527,7 @@ export default function FocusedTaskChatDialog({
             disabled={sending}
             className="w-full h-12 rounded-full inline-flex items-center justify-center gap-2 text-[15px] font-semibold bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 active:scale-[0.99] transition-opacity"
           >
-            <Pencil className="w-4 h-4" aria-hidden="true" /> Refine goals ({refinedCount})
+            <Pencil className="w-4 h-4" aria-hidden="true" /> Apply changes ({changedCount})
           </button>
         </div>
       )}

@@ -87,6 +87,12 @@ interface ChatRequestBody {
   kind?: unknown
   title?: unknown
   helperText?: unknown
+  // Current-conversation attachments (Iteration 9+): the ids of the sources
+  // the user attached in THIS chat. The upload route already stored the
+  // extracted `text_excerpt`; buildContext reads those rows and injects an
+  // ATTACHED SOURCES block so the model can actually read the attachment
+  // (previously attachments were stored but never reached the LLM).
+  sourceIds?: unknown
 }
 
 // Conversations.kind enum mirrors `db/schema.ts:conversations.kind`. A
@@ -161,6 +167,14 @@ export async function POST(req: NextRequest) {
   // a goal created NOW". Treated as a strong autoAnswer nudge that also
   // appends ADD GOAL MODE instructions to the system prompt.
   const proactive_propose = body.proactive_propose === true
+
+  // Current-conversation attachment ids — strings only, capped so a
+  // malicious client can't ask us to load a huge batch.
+  const sourceIds = Array.isArray(body.sourceIds)
+    ? body.sourceIds
+        .filter((v): v is string => typeof v === 'string' && v.length > 0)
+        .slice(0, 10)
+    : []
 
   // Persist the user's message first so it's in history by the time
   // `buildContext` runs. The assistant message + proposals are
@@ -277,7 +291,7 @@ export async function POST(req: NextRequest) {
       scopedKind,
       message,
       autoAnswer,
-      { title: convTitle, helperText: convHelper },
+      { title: convTitle, helperText: convHelper, sourceIds },
     ),
     loadHistory(
       caller.userId,
@@ -400,7 +414,10 @@ export async function POST(req: NextRequest) {
         //     anything — retrying won't help)
         let needsClarification: string | null = null
         let clarifyingQuestions: string[] = []
-        if (autoAnswer && !clarify) {
+        // The general chat is a read-only navigator — never auto-synthesize
+        // state changes there (see the filter below and the SYSTEM_PROMPT's
+        // "GENERAL CHAT IS READ-ONLY" rule).
+        if (autoAnswer && !clarify && scopedKind !== 'general') {
           if (
             proposals.length === 0 &&
             prose.trim().length > 0 &&
@@ -486,6 +503,7 @@ export async function POST(req: NextRequest) {
         if (
           autoAnswer &&
           !clarify &&
+          scopedKind !== 'general' &&
           proposals.length === 0 &&
           message.length > 0
         ) {
@@ -517,6 +535,13 @@ export async function POST(req: NextRequest) {
               }
             }
           }
+        }
+
+        // General chat is a read-only navigator — never let a stray tool
+        // block apply an edit from the free-form chat. Keep only `navigate`
+        // suggestions; the actual change happens on the dedicated surface.
+        if (scopedKind === 'general') {
+          proposals = proposals.filter((p) => p.action === 'navigate')
         }
 
         // Persist the assistant message + proposals in a single

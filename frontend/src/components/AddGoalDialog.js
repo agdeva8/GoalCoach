@@ -238,6 +238,9 @@ export default function AddGoalDialog({
           scope: "goal",
           refId: refIdRef.current,
           kind: "add_goal",
+          // Current-conversation attachments — server injects the stored
+          // text excerpts into the prompt.
+          sourceIds: sources.map((s) => s.id),
         }),
       });
       if (!resp.ok || !resp.body) throw new Error("stream failed");
@@ -555,14 +558,18 @@ export default function AddGoalDialog({
       const proposals = m.proposals || [];
       if (proposals.length === 0) continue;
 
-      // Priority 1 — if the user has saved any refinements, the button
-      // becomes the batch "Refine goals" action.
+      // Priority 1 — if the user has saved any refinements OR rejections,
+      // the button becomes the batch "Apply changes" action. A card is
+      // refined XOR rejected, so count both (founder feedback: rejecting
+      // alone never changed the pinned footer).
       const refined = proposals.filter((p) => p.refinement);
-      if (refined.length > 0) {
+      const rejectedRefs = proposals.filter((p) => p.status === "rejected");
+      const changedCount = refined.length + rejectedRefs.length;
+      if (changedCount > 0) {
         return {
           messageId: m.id,
           proposalId: null,
-          label: `Refine goals (${refined.length})`,
+          label: `Apply changes (${changedCount})`,
           variant: "refine",
           proposals,
         };
