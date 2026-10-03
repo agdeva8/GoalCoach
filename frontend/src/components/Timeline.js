@@ -380,6 +380,17 @@ export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat,
   // The editable day planner (timetable blocks / blockers / commitments)
   // opens when a day is clicked in the calendar view.
   const [selectedDay, setSelectedDay] = useState(null);
+  const dayPlannerRef = useRef(null);
+  // The planner renders below the (tall) month grid, so scroll it into
+  // view on open — otherwise clicking a day near the bottom looks like a
+  // no-op.
+  useEffect(() => {
+    if (!selectedDay) return;
+    const t = setTimeout(() => {
+      dayPlannerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [selectedDay]);
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
@@ -671,12 +682,14 @@ export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat,
       )}
 
       {viewType === "calendar" && selectedDay && (
-        <DayPlanner
-          day={selectedDay}
-          state={state}
-          onChange={onChange}
-          onClose={() => setSelectedDay(null)}
-        />
+        <div ref={dayPlannerRef}>
+          <DayPlanner
+            day={selectedDay}
+            state={state}
+            onChange={onChange}
+            onClose={() => setSelectedDay(null)}
+          />
+        </div>
       )}
     </div>
   );
