@@ -1,0 +1,259 @@
+import { describe, expect, it } from 'vitest'
+
+import { runPlanPipeline, type CompleteFn, type PlanPipelineArgs } from '../orchestrator'
+import { EmitSchema, IntakeSchema, PlanSchema } from '../schemas'
+import type { Emit, Intake, Plan } from '../schemas'
+
+const TITLE = 'Land a senior SDE offer'
+
+const intakeOk: Intake = {
+  shape: 'one_new_goal',
+  needs_clarification: false,
+  clarifying_questions: [],
+  referenced_goal_titles: [],
+  framing_line: '',
+}
+
+const plan: Plan = {
+  goal: {
+    title: TITLE,
+    horizon: 'short',
+    why: 'gaps',
+    first_action: 'Pick a resource',
+    start_date: '2026-10-01',
+    target_date: '2027-01-29',
+    weekly_hours: 7,
+    phase_objectives: {
+      Foundations: 'SD Ch 1-12',
+      Mocks: '5 mocks passed',
+      Active: 'Offer in hand',
+    },
+  },
+  milestones: [
+    { title: 'SD fundamentals', target_date: '2026-11-05', phase: 'Foundations', rationale: 'x' },
+    { title: '5 mocks', target_date: '2026-12-17', phase: 'Mocks', rationale: 'y' },
+    { title: 'Offer', target_date: '2027-01-29', phase: 'Active', rationale: 'z' },
+  ],
+  blockers: [],
+  commitments: [
+    { goal_title: TITLE, text: 'Pick a resource', due: '2026-10-02', phase: 'Foundations' },
+  ],
+  prose: 'The daily slot is the load-bearing constraint.',
+}
+
+const emitOk: Emit = {
+  tools: [
+    {
+      action: 'create_goal',
+      args: { title: TITLE, horizon: 'short', target_date: '2027-01-29', weekly_hours: 7 },
+    },
+    {
+      action: 'add_milestone',
+      args: { goal_title: TITLE, title: 'SD fundamentals', target_date: '2026-11-05', phase: 'Foundations' },
+    },
+    {
+      action: 'add_commitment',
+      args: { goal_title: TITLE, text: 'Pick a resource', due: '2026-10-02', phase: 'Foundations' },
+    },
+  ],
+}
+
+function fakeComplete(opts: {
+  intake?: unknown
+  plan?: unknown
+  emits?: unknown[]
+  throwAt?: 'intake' | 'plan' | 'emit'
+}) {
+  let emitIdx = 0
+  return (async (args: { schema: unknown }) => {
+    const meta = { mode: 'object' as const }
+    if (args.schema === IntakeSchema) {
+      if (opts.throwAt === 'intake') throw new Error('intake boom')
+      return { object: opts.intake, meta }
+    }
+    if (args.schema === PlanSchema) {
+      if (opts.throwAt === 'plan') throw new Error('plan boom')
+      return { object: opts.plan, meta }
+    }
+    if (args.schema === EmitSchema) {
+      if (opts.throwAt === 'emit') throw new Error('emit boom')
+      return { object: opts.emits![emitIdx++], meta }
+    }
+    throw new Error('unexpected schema')
+  }) as unknown as CompleteFn
+}
+
+function base(over: Partial<PlanPipelineArgs> = {}): PlanPipelineArgs {
+  return {
+    userId: 'u1',
+    intent: 'add_goal',
+    message: 'I want to switch jobs',
+    context: 'LIVE STATE',
+    provider: 'gemini',
+    today: '2026-10-01',
+    existingGoalTitles: [],
+    budgetHours: 40,
+    activeGoalWeeklyHours: [5],
+    ...over,
+  }
+}
+
+describe('runPlanPipeline', () => {
+  it('runs a happy path and returns ok with tools + headroom', async () => {
+    const res = await runPlanPipeline(
+      base({
+        deps: { complete: fakeComplete({ intake: intakeOk, plan, emits: [emitOk] }) },
+      }),
+    )
+    expect(res.kind).toBe('ok')
+    if (res.kind !== 'ok') return
+    expect(res.tools).toHaveLength(3)
+    expect(res.headroom?.decision).toBe('proceed')
+    expect(res.modes).toEqual(['object', 'object', 'object'])
+    expect(res.rejects).toEqual([])
+  })
+
+  it('returns clarify when Intake asks for it', async () => {
+    const res = await runPlanPipeline(
+      base({
+        deps: {
+          complete: fakeComplete({
+            intake: { ...intakeOk, needs_clarification: true, clarifying_questions: ['By when?'] },
+          }),
+        },
+      }),
+    )
+    expect(res.kind).toBe('clarify')
+    if (res.kind === 'clarify') expect(res.questions).toEqual(['By when?'])
+  })
+
+  it('early-returns for over_committed/meta/routine shapes', async () => {
+    const res = await runPlanPipeline(
+      base({
+        deps: {
+          complete: fakeComplete({
+            intake: { ...intakeOk, shape: 'over_committed', framing_line: 'Too many goals.' },
+          }),
+        },
+      }),
+    )
+    expect(res.kind).toBe('early')
+    if (res.kind === 'early') expect(res.shape).toBe('over_committed')
+  })
+
+  it('returns renegotiate (with 4 options) when headroom says no', async () => {
+    const res = await runPlanPipeline(
+      base({
+        budgetHours: 10,
+        activeGoalWeeklyHours: [5, 5],
+        deps: { complete: fakeComplete({ intake: intakeOk, plan, emits: [emitOk] }) },
+      }),
+    )
+    expect(res.kind).toBe('renegotiate')
+    if (res.kind === 'renegotiate') {
+      expect(res.options).toHaveLength(4)
+      expect(res.headroom.decision).toBe('renegotiate')
+    }
+  })
+
+  it('falls back to no_change when renegotiation rounds are exhausted', async () => {
+    const res = await runPlanPipeline(
+      base({
+        budgetHours: 10,
+        activeGoalWeeklyHours: [5, 5],
+        renegotiation: { round: 2, choice: 'reduce_new_hours', priorPlan: plan, constraint: 'x' },
+        deps: { complete: fakeComplete({ intake: intakeOk, plan, emits: [emitOk] }) },
+      }),
+    )
+    expect(res.kind).toBe('no_change')
+  })
+
+  it('recovers from one cross-validation failure (records recovered reject)', async () => {
+    const badEmit: Emit = {
+      tools: [
+        {
+          action: 'add_milestone',
+          args: { goal_title: TITLE, title: 'SD fundamentals', target_date: '2000-01-01', phase: 'Foundations' },
+        },
+      ],
+    }
+    const res = await runPlanPipeline(
+      base({
+        deps: {
+          complete: fakeComplete({ intake: intakeOk, plan, emits: [badEmit, emitOk] }),
+        },
+      }),
+    )
+    expect(res.kind).toBe('ok')
+    expect(res.rejects.some((r) => r.stage === 'cross_validate' && r.recovered)).toBe(true)
+  })
+
+  it('never throws — two cross-validation failures become no_change', async () => {
+    const badEmit: Emit = {
+      tools: [
+        {
+          action: 'add_milestone',
+          args: { goal_title: 'nope', title: 'x', target_date: '2000-01-01', phase: 'Nope' },
+        },
+      ],
+    }
+    const res = await runPlanPipeline(
+      base({
+        deps: { complete: fakeComplete({ intake: intakeOk, plan, emits: [badEmit, badEmit] }) },
+      }),
+    )
+    expect(res.kind).toBe('no_change')
+  })
+
+  it('degrades to no_change when a stage throws', async () => {
+    const res = await runPlanPipeline(
+      base({ deps: { complete: fakeComplete({ intake: intakeOk, throwAt: 'plan' }) } }),
+    )
+    expect(res.kind).toBe('no_change')
+  })
+
+  it('drops an invented blocker and its add_blocker tool', async () => {
+    const planWithBlocker: Plan = {
+      ...plan,
+      blockers: [{ title: 'Travel', start_date: '2026-11-01', end_date: '2026-11-05', note: '' }],
+    }
+    const emitWithBlocker: Emit = {
+      tools: [
+        ...emitOk.tools,
+        { action: 'add_blocker', args: { title: 'Travel', start_date: '2026-11-01', end_date: '2026-11-05' } },
+      ],
+    }
+    const res = await runPlanPipeline(
+      base({
+        // base() message names no blocker cue
+        deps: { complete: fakeComplete({ intake: intakeOk, plan: planWithBlocker, emits: [emitWithBlocker] }) },
+      }),
+    )
+    expect(res.kind).toBe('ok')
+    if (res.kind !== 'ok') return
+    expect(res.tools.some((t) => t.action === 'add_blocker')).toBe(false)
+    expect(res.rejects.some((r) => r.recovered && r.reason.includes('invented'))).toBe(true)
+  })
+
+  it('keeps a blocker the user actually named', async () => {
+    const planWithBlocker: Plan = {
+      ...plan,
+      blockers: [{ title: 'Travel', start_date: '2026-11-01', end_date: '2026-11-05', note: '' }],
+    }
+    const emitWithBlocker: Emit = {
+      tools: [
+        ...emitOk.tools,
+        { action: 'add_blocker', args: { title: 'Travel', start_date: '2026-11-01', end_date: '2026-11-05' } },
+      ],
+    }
+    const res = await runPlanPipeline(
+      base({
+        message: 'Switch jobs — I have a travel trip in November.',
+        deps: { complete: fakeComplete({ intake: intakeOk, plan: planWithBlocker, emits: [emitWithBlocker] }) },
+      }),
+    )
+    expect(res.kind).toBe('ok')
+    if (res.kind !== 'ok') return
+    expect(res.tools.some((t) => t.action === 'add_blocker')).toBe(true)
+  })
+})

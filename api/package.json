@@ -24,6 +24,8 @@
     "migrate:mongo": "tsx db/migrate-from-mongo.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.83",
+    "ai": "^7.0.127",
     "cheerio": "^1.2.0",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.40.0",

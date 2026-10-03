@@ -64,6 +64,9 @@ export const AUDIT_TYPES = {
   CREATE_BLOCKER: 'create:blocker',
   UPDATE_BLOCKER: 'update:blocker',
   DELETE_BLOCKER: 'delete:blocker',
+  // Iteration 10 (Goal Planner).
+  UPSERT_DAILY_LOG: 'upsert:daily_log',
+  DRIFT_GOAL: 'drift:goal',
 } as const
 
 export type AuditType = (typeof AUDIT_TYPES)[keyof typeof AUDIT_TYPES]

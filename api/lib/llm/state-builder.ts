@@ -38,6 +38,7 @@ import { and, asc, desc, eq } from 'drizzle-orm'
 
 import { cacheKey, readThrough } from '@/lib/cache'
 import { db } from '@/lib/db'
+import { getDailyLogsSince, type DailyLogRow } from '@/lib/daily-log'
 import {
   blockers,
   commitments,
@@ -421,9 +422,19 @@ export async function buildContext(
 
   const historyLimit = kind === 'general' ? 24 : 12
 
-  const [state, history] = await Promise.all([
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const sevenDaysAgo = (() => {
+    const d = new Date(`${todayIso}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - 6)
+    return d.toISOString().slice(0, 10)
+  })()
+
+  const [state, history, dailyLogs] = await Promise.all([
     loadState(userId),
     loadHistory(userId, conversationId, historyLimit),
+    kind === 'general'
+      ? Promise.resolve([] as DailyLogRow[])
+      : getDailyLogsSince(userId, sevenDaysAgo),
   ])
 
   // The following block renders the LIVE STATE & MEMORY section. Output
@@ -548,6 +559,26 @@ export async function buildContext(
     lines.push(
       `LOAD: ${oc.active_goals} active goals, ${oc.open_commitments} open commitments. Level: ${oc.level}.`,
     )
+  }
+
+  // DAILY LOG (last 7 days) — non-general kinds only, to preserve the
+  // 'general' branch's legacy byte-parity. This is the coach's memory of the
+  // day: without it, every scoped chat starts blank (Iteration 10, effect 5.3).
+  if (kind !== 'general' && dailyLogs.length > 0) {
+    lines.push('')
+    lines.push('DAILY LOG (last 7 days, newest first):')
+    for (const log of dailyLogs) {
+      const done = log.commitments.filter((c) => c.completed).length
+      const notes = log.commitments
+        .map((c) => c.note)
+        .filter((n) => n && n.trim().length > 0)
+      const parts = [
+        `${done}/${log.commitments.length} commitments done`,
+        log.text ? `note: ${log.text}` : '',
+        notes.length > 0 ? `done-notes: ${notes.join('; ')}` : '',
+      ].filter(Boolean)
+      lines.push(`- ${log.date}: ${parts.join(' | ')}`)
+    }
   }
 
   // RECENT CONVERSATION — always filtered to the current bucket (the

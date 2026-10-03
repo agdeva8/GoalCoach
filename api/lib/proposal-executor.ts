@@ -245,6 +245,23 @@ async function applyCreateGoal(
   const startDate: string = args.start_date ?? todayIso()
   const targetDate: string | null = args.target_date ?? null
 
+  // Iteration 10 (Goal Planner) — optional plan fields. The pipeline emits
+  // these on create_goal; the legacy one-shot path omits them. Absent →
+  // weekly_hours stays NULL (unestimated) and phase_objectives/life_area get
+  // their schema defaults.
+  const weeklyHours: number | null =
+    typeof args.weekly_hours === 'number' && Number.isFinite(args.weekly_hours)
+      ? Math.round(args.weekly_hours)
+      : null
+  const phaseObjectives: Record<string, string> =
+    args.phase_objectives &&
+    typeof args.phase_objectives === 'object' &&
+    !Array.isArray(args.phase_objectives)
+      ? (args.phase_objectives as Record<string, string>)
+      : {}
+  const lifeArea: string =
+    typeof args.life_area === 'string' ? args.life_area : ''
+
   const goalId = newId('goal')
 
   await db.transaction(async (tx: any) => {
@@ -257,6 +274,9 @@ async function applyCreateGoal(
       nextAction,
       startDate,
       targetDate,
+      weeklyHours,
+      phaseObjectives,
+      lifeArea,
       status: 'active',
     })
     await tx.insert(schema.auditLog).values({
@@ -318,6 +338,20 @@ async function applyUpdateGoal(
   }
   if (typeof args.target_date === 'string') {
     updates.targetDate = args.target_date
+  }
+  // Iteration 10 — plan fields (optional).
+  if (typeof args.weekly_hours === 'number' && Number.isFinite(args.weekly_hours)) {
+    updates.weeklyHours = Math.round(args.weekly_hours)
+  }
+  if (
+    args.phase_objectives &&
+    typeof args.phase_objectives === 'object' &&
+    !Array.isArray(args.phase_objectives)
+  ) {
+    updates.phaseObjectives = args.phase_objectives
+  }
+  if (typeof args.life_area === 'string') {
+    updates.lifeArea = args.life_area
   }
 
   await db.transaction(async (tx: any) => {
@@ -434,6 +468,8 @@ async function applyAddMilestone(
   const args = proposal.args
   const title: string = args.title ?? ''
   const targetDate: string | null = args.target_date ?? null
+  // Iteration 10 (Goal Planner) — phase name (key in goal.phase_objectives).
+  const phase: string = typeof args.phase === 'string' ? args.phase : ''
 
   // Resolve the parent goal. Without this fallback, milestones created
   // by the LLM were inserted with `goalId=null, goalTitle=''` — they
@@ -458,6 +494,7 @@ async function applyAddMilestone(
       goalTitle: ref.goalTitle,
       title,
       targetDate,
+      phase,
       status: 'open',
     })
     await tx.insert(schema.auditLog).values({
@@ -520,6 +557,8 @@ async function applyAddCommitment(
   const args = proposal.args
   const text: string = args.text ?? ''
   const due: string | null = args.due ?? null
+  // Iteration 10 (Goal Planner) — phase name (key in goal.phase_objectives).
+  const phase: string = typeof args.phase === 'string' ? args.phase : ''
 
   // Resolve parent goal (id or title). Same orphan-prevention logic as
   // applyAddMilestone — without this, every commitment logged by the
@@ -541,6 +580,7 @@ async function applyAddCommitment(
       goalTitle,
       text,
       due,
+      phase,
       status: 'open',
     })
     await tx.insert(schema.auditLog).values({

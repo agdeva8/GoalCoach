@@ -36,6 +36,41 @@
       "when": 1790374386733,
       "tag": "0005_powerful_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790375000000,
+      "tag": "0006_conversations",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790376000000,
+      "tag": "0007_commitments_note",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790377000000,
+      "tag": "0008_motivation_pipeline",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790378000000,
+      "tag": "0009_conversation_closed_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790985690135,
+      "tag": "0010_parallel_gambit",
+      "breakpoints": true
     }
   ]
 }

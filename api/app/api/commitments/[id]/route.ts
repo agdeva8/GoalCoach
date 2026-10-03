@@ -34,7 +34,9 @@ import {
   notFoundResponse,
 } from '@/lib/auth-route'
 import { AUDIT_TYPES, writeAudit } from '@/lib/audit'
+import { mergeCommitmentNote } from '@/lib/daily-log'
 import { db } from '@/lib/db'
+import { recomputeGoalDrift } from '@/lib/drift-service'
 import { commitments, goals } from '@/db/schema'
 
 export const runtime = 'nodejs'
@@ -90,7 +92,13 @@ export async function PATCH(
   }
 
   const existing = await db
-    .select({ id: commitments.id, text: commitments.text })
+    .select({
+      id: commitments.id,
+      text: commitments.text,
+      due: commitments.due,
+      goalId: commitments.goalId,
+      status: commitments.status,
+    })
     .from(commitments)
     .where(
       and(eq(commitments.id, id), eq(commitments.userId, auth.userId!)),
@@ -150,6 +158,29 @@ export async function PATCH(
     .from(commitments)
     .where(eq(commitments.id, id))
     .limit(1)
+
+  // Iteration 10 daily-logging effects — best-effort; never fail the mutation.
+  const today = new Date().toISOString().slice(0, 10)
+  const effDue = input.due !== undefined ? input.due : existing[0].due
+  const effGoalId =
+    input.goal_id !== undefined ? input.goal_id : existing[0].goalId
+  const becomingDone =
+    input.status === 'done' && existing[0].status !== 'done'
+
+  // 5.1 — tick moves drift.
+  if (becomingDone && effGoalId) {
+    await recomputeGoalDrift(auth.userId!, [effGoalId]).catch(() => {})
+  }
+  // 5.2 — a note on today's commitment is echoed into the daily log.
+  if (input.note !== undefined && input.note.trim() !== '' && effDue === today) {
+    await mergeCommitmentNote(
+      auth.userId!,
+      today,
+      id,
+      input.note,
+      input.status === 'done' || existing[0].status === 'done',
+    ).catch(() => {})
+  }
 
   return NextResponse.json({ commitment: row[0] ? serialize(row[0]) : null })
 }
