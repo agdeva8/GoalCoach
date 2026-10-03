@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,9 @@ import Logo from "../components/Logo";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import HonestyAuditView from "../components/HonestyAuditView";
+import DevDiagnostics from "../components/DevDiagnostics";
+import { isDebugMode, setDebugMode } from "../lib/debug";
+import pkg from "../../package.json";
 
 // Text size — 5 options, with the 3rd as the product default (16px,
 // the platform browser default). The CSS variable `--sutra-font-scale`
@@ -102,6 +105,34 @@ export default function Settings() {
   // B3#15 — in-flight provider switch; disables the list + lets the
   // catch below revert the optimistic selection.
   const [switchingProvider, setSwitchingProvider] = useState(false);
+
+  // Debug/Developer panel — off for everyone unless `?debug=1` was opened
+  // once (persisted, see lib/debug.js). The hidden entry point is the
+  // footer below: 7 rapid taps on the build stamp toggles it. Kept as
+  // state (not just a module read) so the tab can be revealed live, but
+  // enabling always reloads so eruda attaches at boot.
+  const [debugOn, setDebugOn] = useState(isDebugMode);
+  const tapCount = useRef(0);
+  const tapTimer = useRef(null);
+
+  const handleBuildTap = () => {
+    tapCount.current += 1;
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => { tapCount.current = 0; }, 1500);
+    if (tapCount.current >= 7) {
+      tapCount.current = 0;
+      clearTimeout(tapTimer.current);
+      setDebugMode(true);
+      toast.success("Developer mode on");
+      setTimeout(() => window.location.reload(), 400);
+    }
+  };
+
+  const disableDebug = () => {
+    setDebugOn(false);
+    setDebugMode(false);
+    window.location.reload();
+  };
 
   // Text size — read from localStorage at mount (the index.html
   // pre-paint script already applied it to <html>, so this only
@@ -240,6 +271,11 @@ export default function Settings() {
               <TabsTrigger value="audit" className={SECTION_TAB_TRIGGER}>
                 Audit
               </TabsTrigger>
+              {debugOn && (
+                <TabsTrigger value="developer" className={SECTION_TAB_TRIGGER}>
+                  Developer
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Coach tab — model, persona, honesty tone */}
@@ -378,7 +414,27 @@ export default function Settings() {
                 <span className="text-[var(--text-muted)]">›</span>
               </button>
             </TabsContent>
+
+            {/* Developer tab — only mounted when debug mode is on. */}
+            {debugOn && (
+              <TabsContent value="developer">
+                <DevDiagnostics user={user} onDisable={disableDebug} />
+              </TabsContent>
+            )}
           </Tabs>
+
+          {/* Hidden debug entry point: 7 quick taps on the build stamp turns
+              debug mode on. Deliberately understated so it's invisible in
+              normal use but reachable on a phone (no URL bar in an installed
+              PWA, so `?debug=1` isn't always available). */}
+          <button
+            type="button"
+            onClick={handleBuildTap}
+            aria-label="Sutra build info"
+            className="mt-10 mx-auto block text-[11px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors select-none"
+          >
+            Sutra · v{pkg.version}
+          </button>
         </div>
       </main>
 

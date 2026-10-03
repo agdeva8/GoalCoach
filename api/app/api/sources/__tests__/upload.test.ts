@@ -185,6 +185,25 @@ describe('POST /api/sources/upload', () => {
     }
   })
 
+  it('accepts image types offered by the UI (webp/gif/heic/heif/bmp/tiff)', async () => {
+    // Regression: the Memories picker advertises image/webp and the camera
+    // input is `image/*` (HEIC on iOS), but the server allow-list previously
+    // rejected everything except png/jpg/jpeg.
+    for (const [name, type] of [
+      ['photo.webp', 'image/webp'],
+      ['anim.gif', 'image/gif'],
+      ['capture.heic', 'image/heic'],
+      ['capture.heif', 'image/heif'],
+      ['scan.bmp', 'image/bmp'],
+      ['scan.tiff', 'image/tiff'],
+    ]) {
+      const form = new FormData()
+      form.set('file', makeFile(name, 'binary', type))
+      const res = await POST(makeUploadRequest(form, SESSION_TOKEN))
+      expect(res.status, `${name} should be accepted`).toBe(200)
+    }
+  })
+
   it('calls Emergent Object Storage upload with user-scoped path', async () => {
     const form = new FormData()
     form.set('file', makeFile('report.pdf', '%PDF-1.4', 'application/pdf'))

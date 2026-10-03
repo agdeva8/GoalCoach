@@ -202,7 +202,7 @@ export default function Memories({ state, onChange }) {
                   <input
                     data-testid="memories-file-input"
                     type="file"
-                    accept="image/png,image/jpeg,image/webp"
+                    accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
                     aria-label="Photo file"
                     hidden
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -452,6 +452,20 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
               <Download className="w-3.5 h-3.5" aria-hidden="true" />
             </a>
           )}
+          {!isPhoto && memory.kind === "instagram" && memory.external_url && (
+            <a
+              href={memory.external_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid={`memory-open-instagram-overlay-${memory.id}`}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Open on Instagram"
+              title="Open on Instagram"
+              className="h-11 w-11 flex items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+            </a>
+          )}
           {!isPhoto && (
             <button
               type="button"
@@ -504,6 +518,26 @@ function MemoryCard({ memory, isPhoto, onOpen, onDelete }) {
               >
                 <Download className="w-3 h-3" aria-hidden="true" />
                 <span className="hidden sm:inline">download</span>
+              </a>
+            </>
+          )}
+          {memory.kind === "instagram" && memory.external_url && (
+            <>
+              <span className="opacity-50">·</span>
+              {/* Reliable escape hatch: some posts (e.g. long share
+                  links / private accounts) can't be rendered by the
+                  embed, so let the user open the original URL. */}
+              <a
+                href={memory.external_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={`memory-open-instagram-${memory.id}`}
+                className="min-h-11 min-w-11 inline-flex items-center justify-center gap-1 hover:text-[var(--accent)] transition-colors"
+                title="Open this post on Instagram"
+                aria-label="Open this post on Instagram"
+              >
+                <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                <span className="hidden sm:inline">instagram</span>
               </a>
             </>
           )}

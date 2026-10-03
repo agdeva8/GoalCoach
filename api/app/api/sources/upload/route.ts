@@ -18,8 +18,14 @@ import { extractText } from '@/lib/sources'
 
 const MAX_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 
+// Keep this in sync with the accept lists in the Memories UI
+// (frontend/src/components/Memories.js) and the "Take photo" camera input
+// (`image/*`). iOS camera captures arrive as HEIC/HEIF, and browsers use
+// WebP, so a png/jpg/jpeg-only allow-list rejects files the UI offers.
 const ALLOWED_EXTENSIONS = new Set([
-  'pdf', 'md', 'txt', 'csv', 'json', 'png', 'jpg', 'jpeg', 'docx',
+  'pdf', 'md', 'txt', 'csv', 'json', 'docx',
+  'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'avif',
+  'heic', 'heif',
 ])
 
 export const runtime = 'nodejs'

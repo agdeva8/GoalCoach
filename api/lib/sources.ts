@@ -48,6 +48,14 @@ export async function extractText(
       case 'png':
       case 'jpg':
       case 'jpeg':
+      case 'webp':
+      case 'gif':
+      case 'bmp':
+      case 'tif':
+      case 'tiff':
+      case 'avif':
+      case 'heic':
+      case 'heif':
         text = await extractImage(buffer)
         break
       default:

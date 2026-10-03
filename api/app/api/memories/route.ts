@@ -41,7 +41,11 @@ function extractInstagramShortcode(url: string): string | null {
     const u = new URL(url)
     if (!u.host.endsWith('instagram.com')) return null
     // Match patterns like /p/{shortcode}/, /reel/{shortcode}/, /reels/{shortcode}/
-    const re = new RegExp('\\/+(?:p|reel|reels|tv)\\/([A-Za-z0-9_-]{6,32})\\/?')
+    // NOTE: shortcodes are usually 11 chars, but Instagram issues much longer
+    // opaque codes for share links (commonly content from private accounts).
+    // Do NOT cap the length — truncating produces an invalid code, which the
+    // embed endpoint resolves to the viewer's own profile instead of the post.
+    const re = new RegExp('\\/+(?:p|reel|reels|tv)\\/([A-Za-z0-9_-]{6,})\\/?')
     const m = u.pathname.match(re)
     if (m && m[1]) return m[1]
     return null

@@ -142,7 +142,7 @@ export default function GoalMemoryDialog({ open, onClose, goalId, goalTitle, onS
               ref={fileRef}
               type="file"
               hidden
-              accept="image/png,image/jpeg,image/webp"
+              accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
               onChange={(e) => { setFile(e.target.files?.[0] || null); setSubmitError(""); }}
               data-testid="goal-memory-file-input"
             />
