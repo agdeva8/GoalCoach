@@ -12,8 +12,15 @@ import { applyProposal } from '../proposal-executor'
  */
 const mocks = vi.hoisted(() => {
   const captured: Array<{ table: unknown; values: any }> = []
-  const goalRow = { id: 'goal_1', title: 'T' }
+  const goalRow = {
+    id: 'goal_1',
+    title: 'T',
+    status: 'active',
+    weeklyHours: 6,
+  }
   const tx = {
+    update: () => ({ set: () => ({ where: async () => undefined }) }),
+    delete: () => ({ where: async () => undefined }),
     insert: (table: unknown) => ({
       values: async (values: any) => {
         captured.push({ table, values })
@@ -93,5 +100,61 @@ describe('applyProposal — Goal Planner field persistence (Iteration 10)', () =
     })
     expect(res.success).toBe(true)
     expect(insertedFor(schema.commitments).phase).toBe('Mocks')
+  })
+
+  it('pause_goal audits the capacity freed for the opt-in re-plan suggestion', async () => {
+    const res = await applyProposal('u1', {
+      id: 'p-pause',
+      action: 'pause_goal',
+      args: { goal_title: 'T', reason: 'Taking a break' },
+    })
+    expect(res.success).toBe(true)
+    const audit = mocks.captured.find((c) => c.table === schema.auditLog)?.values
+    expect(audit.payload).toMatchObject({
+      goal_id: 'goal_1',
+      goal_title: 'T',
+      freed_weekly_hours: 6,
+    })
+  })
+
+  it('update_goal pause also records freed capacity', async () => {
+    const res = await applyProposal('u1', {
+      id: 'p-update-pause',
+      action: 'update_goal',
+      args: { goal_title: 'T', status: 'paused' },
+    })
+    expect(res.success).toBe(true)
+    const audit = mocks.captured.find((c) => c.table === schema.auditLog)?.values
+    expect(audit.payload).toMatchObject({
+      goal_id: 'goal_1',
+      freed_weekly_hours: 6,
+    })
+  })
+
+  it('update_goal status=dropped routes through the cascade', async () => {
+    const res = await applyProposal('u1', {
+      id: 'p-update-drop',
+      action: 'update_goal',
+      args: { goal_title: 'T', status: 'dropped' },
+    })
+    expect(res.success).toBe(true)
+    const audit = mocks.captured.find((c) => c.table === schema.auditLog)?.values
+    expect(audit.type).toBe('confirm:drop_goal')
+    expect(audit.payload).toMatchObject({ goal_id: 'goal_1', goal_title: 'T' })
+  })
+
+  it('set_goal_dates audits the resolved goal id for infeasibility checks', async () => {
+    const res = await applyProposal('u1', {
+      id: 'p-dates',
+      action: 'set_goal_dates',
+      args: { goal_title: 'T', target_date: '2026-10-01' },
+    })
+    expect(res.success).toBe(true)
+    const audit = mocks.captured.find((c) => c.table === schema.auditLog)?.values
+    expect(audit.payload).toMatchObject({
+      goal_id: 'goal_1',
+      goal_title: 'T',
+      args: { target_date: '2026-10-01' },
+    })
   })
 })

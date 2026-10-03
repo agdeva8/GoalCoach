@@ -54,6 +54,7 @@ export default function DayPlanner({ day, state, onChange = () => {}, onClose })
   const [blockStart, setBlockStart] = useState("09:00");
   const [blockEnd, setBlockEnd] = useState("10:00");
   const [blockNote, setBlockNote] = useState("");
+  const [blockGoalId, setBlockGoalId] = useState("");
 
   // Blocker dialog
   const [blockerDialogOpen, setBlockerDialogOpen] = useState(false);
@@ -104,6 +105,7 @@ export default function DayPlanner({ day, state, onChange = () => {}, onClose })
     setBlockStart("09:00");
     setBlockEnd("10:00");
     setBlockNote("");
+    setBlockGoalId("");
   };
   const openEditBlock = (b) => {
     setEditBlock(b);
@@ -113,16 +115,18 @@ export default function DayPlanner({ day, state, onChange = () => {}, onClose })
     setBlockStart(b.start_time || "09:00");
     setBlockEnd(b.end_time || "10:00");
     setBlockNote(b.note || "");
+    setBlockGoalId(b.goal_id || "");
   };
   const closeBlockDialog = () => { setEditBlock(null); setBlockDialogOpen(false); };
   const saveBlock = async () => {
     if (!blockLabel.trim() || !blockStart || !blockEnd) return;
     setSaving(true);
     try {
-      const payload = { block_date: dateStr, start_time: blockStart, end_time: blockEnd, label: blockLabel.trim(), kind: blockKind, note: blockNote };
+      const payload = { block_date: dateStr, start_time: blockStart, end_time: blockEnd, label: blockLabel.trim(), kind: blockKind, goal_id: blockGoalId || null, note: blockNote };
       if (editBlock) { setBlocks((prev) => prev.map((b) => (b.id === editBlock.id ? { ...b, ...payload } : b))); await api.updateBlock(editBlock.id, payload); }
       else { await api.createBlock(payload); }
       loadBlocks();
+      onChange();
       closeBlockDialog();
     } catch (e) { console.error("Failed to save block", e); } finally { setSaving(false); }
   };
@@ -131,7 +135,7 @@ export default function DayPlanner({ day, state, onChange = () => {}, onClose })
     const id = editBlock.id;
     setBlocks((prev) => prev.filter((b) => b.id !== id));
     closeBlockDialog();
-    try { await api.deleteBlock(id); } catch (e) { console.error(e); loadBlocks(); }
+    try { await api.deleteBlock(id); onChange(); } catch (e) { console.error(e); loadBlocks(); }
   };
 
   // --- blockers -----------------------------------------------------------
@@ -327,6 +331,26 @@ export default function DayPlanner({ day, state, onChange = () => {}, onClose })
                 </button>
               ))}
             </div>
+          </div>
+          <div>
+            <label htmlFor="block-goal-select" className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1">Goal (optional)</label>
+            <select
+              id="block-goal-select"
+              data-testid="block-goal-select"
+              value={blockGoalId}
+              onChange={(e) => setBlockGoalId(e.target.value)}
+              className="min-h-11 w-full px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+            >
+              <option value="">Unlinked schedule block</option>
+              {(state?.goals || [])
+                .filter((g) => g.status !== "dropped")
+                .map((g) => (
+                  <option key={g.id} value={g.id}>{g.title}</option>
+                ))}
+            </select>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+              Link goal-related work so the coach can flag schedule conflicts.
+            </p>
           </div>
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1">Note</label>

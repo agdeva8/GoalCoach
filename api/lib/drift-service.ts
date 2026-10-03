@@ -4,7 +4,9 @@
  * Snapshot-based: given a user's current goals, milestones and commitments it
  * computes each active goal's drift via the pure `computeDrift`, and writes
  * `goals.drift_status` when it changes (auditing the transition). Called after
- * every commitment tick / daily-log save / blocker change.
+ * every relevant commitment change / daily-log save / blocker change, and
+ * once per user per UTC day when the dashboard read model misses its cache
+ * (so a deadline that passed while the user was away is detected at return).
  *
  * Deliberately cheap and synchronous — one user-scoped read of three tables,
  * no worker. The "completed_hours < 60% of target_hours" rule is not computable

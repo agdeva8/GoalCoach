@@ -26,6 +26,8 @@ import {
   goals,
   milestones,
   sources,
+  timetableBlocks,
+  users,
 } from '@/db/schema'
 import {
   clearCache,
@@ -46,6 +48,8 @@ const mocks = vi.hoisted(() => {
     blockers: [] as unknown[],
     sources: [] as unknown[],
     audit: [] as unknown[],
+    users: [] as unknown[],
+    timetableBlocks: [] as unknown[],
   }
 
   function buildChain(tableName: keyof typeof results): any {
@@ -62,6 +66,8 @@ const mocks = vi.hoisted(() => {
         blockers,
         sources,
         auditLog,
+        users,
+        timetableBlocks,
       } as Record<string, unknown>
       for (const [name, table] of Object.entries(tableByName)) {
         if (table === t) return results[name as keyof typeof results].length === 0
@@ -89,6 +95,8 @@ const mocks = vi.hoisted(() => {
     blockers: buildChain('blockers'),
     sources: buildChain('sources'),
     audit: buildChain('audit'),
+    users: buildChain('users'),
+    timetableBlocks: buildChain('timetableBlocks'),
   }
 
   let selectCallCount = 0
@@ -104,6 +112,8 @@ const mocks = vi.hoisted(() => {
         if (t === blockers) return chains.blockers
         if (t === sources) return chains.sources
         if (t === auditLog) return chains.audit
+        if (t === users) return chains.users
+        if (t === timetableBlocks) return chains.timetableBlocks
         throw new Error(`unknown table: ${String(t)}`)
       })
       stub.where = vi.fn(() => stub)
@@ -161,6 +171,9 @@ vi.mock('@/lib/auth', () => ({
     ),
 }))
 vi.mock('@/lib/db', () => ({ db: mocks.dbMock }))
+vi.mock('@/lib/drift-service', () => ({
+  recomputeGoalDrift: vi.fn().mockResolvedValue([]),
+}))
 
 // Imported AFTER mocks so the route sees the mocked db.
 import { GET } from '../route'

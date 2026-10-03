@@ -32,7 +32,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 
 import { applyProposal } from '@/lib/proposal-executor'
-import { loadState } from '@/lib/llm/state-builder'
+import { loadDashboardState } from '@/lib/dashboard-state'
 import { resolveRequestUser } from '@/lib/request-user'
 import {
   TEST_USER_ID,
@@ -276,7 +276,7 @@ async function confirmInDb(
 
   // Compute fresh state for the response — matches FastAPI which returns
   // load_state() result after apply_proposal.
-  const state = await loadState(userId)
+  const state = await loadDashboardState(userId)
   return NextResponse.json({
     ok: true,
     result,

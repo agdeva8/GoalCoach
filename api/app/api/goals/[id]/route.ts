@@ -36,7 +36,18 @@ import {
 } from '@/lib/auth-route'
 import { AUDIT_TYPES, asIsoDateOrNull, writeAudit } from '@/lib/audit'
 import { db } from '@/lib/db'
-import { goals } from '@/db/schema'
+import { applyGoalDropCascade } from '@/lib/goal-drop'
+import {
+  auditLog,
+  commitments,
+  goals,
+  milestones,
+  timetableBlocks,
+  users,
+} from '@/db/schema'
+
+/** Schema bundle the shared drop cascade expects (`lib/goal-drop.ts`). */
+const schema = { auditLog, commitments, goals, milestones, timetableBlocks, users }
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -95,7 +106,12 @@ export async function PATCH(
 
   // Verify ownership first — single round-trip.
   const existing = await db
-    .select({ id: goals.id, title: goals.title })
+    .select({
+      id: goals.id,
+      title: goals.title,
+      status: goals.status,
+      weeklyHours: goals.weeklyHours,
+    })
     .from(goals)
     .where(and(eq(goals.id, id), eq(goals.userId, auth.userId!)))
     .limit(1)
@@ -104,6 +120,26 @@ export async function PATCH(
     return notFoundResponse('Goal not found')
   }
   const existingTitle = existing[0].title
+
+  // A status='dropped' PATCH is a full drop: cascade-clean the goal's plan
+  // (commitments closed, milestones + scheduled blocks removed) rather than
+  // flip the flag only. Any other field edits in the same body are
+  // superseded by the drop.
+  if (input.status === 'dropped') {
+    await applyGoalDropCascade(
+      db,
+      schema,
+      auth.userId!,
+      { goalId: id, goalTitle: existingTitle },
+      { auditType: AUDIT_TYPES.DROP_GOAL },
+    )
+    const dropped = await db
+      .select()
+      .from(goals)
+      .where(eq(goals.id, id))
+      .limit(1)
+    return NextResponse.json({ goal: dropped[0] ? serialize(dropped[0]) : null })
+  }
 
   // Translate snake_case JSON -> camelCase Drizzle columns.
   const updates: Record<string, any> = { updatedAt: new Date() }
@@ -129,7 +165,17 @@ export async function PATCH(
           : input.status === 'paused'
             ? `Paused goal '${existingTitle}'`
             : `Updated goal '${existingTitle}'`,
-      payload: { goal_id: id, fields: input },
+      payload: {
+        goal_id: id,
+        goal_title: existingTitle,
+        freed_weekly_hours:
+          input.status === 'paused' &&
+          existing[0].status === 'active' &&
+          typeof existing[0].weeklyHours === 'number'
+            ? existing[0].weeklyHours
+            : null,
+        fields: input,
+      },
     })
   })
 
@@ -167,18 +213,13 @@ export async function DELETE(
     return notFoundResponse('Goal not found')
   }
 
-  await db.transaction(async (tx: any) => {
-    await tx
-      .update(goals)
-      .set({ status: 'dropped', updatedAt: new Date() })
-      .where(eq(goals.id, id))
-    await writeAudit(tx, {
-      userId: auth.userId!,
-      type: AUDIT_TYPES.DROP_GOAL,
-      summary: `Dropped goal '${existing[0].title}'`,
-      payload: { goal_id: id },
-    })
-  })
+  await applyGoalDropCascade(
+    db,
+    schema,
+    auth.userId!,
+    { goalId: id, goalTitle: existing[0].title },
+    { auditType: AUDIT_TYPES.DROP_GOAL },
+  )
 
   return NextResponse.json({ ok: true })
 }

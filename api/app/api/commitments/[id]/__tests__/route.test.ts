@@ -57,8 +57,12 @@ vi.mock('@/lib/env', () => ({
 
 vi.mock('@/lib/auth', () => ({ auth: () => mocks.mockAuth(), getAuthenticatedUser: () => mocks.mockAuth().then((s: any) => s ? { user: { id: s.user.id, email: null, name: null, image: null, modelProvider: 'gemini', isGuest: false }, source: 'session' } : null) }))
 vi.mock('@/lib/db', () => ({ db: mocks.dbMock }))
+vi.mock('@/lib/drift-service', () => ({
+  recomputeGoalDrift: vi.fn().mockResolvedValue([]),
+}))
 
 const { PATCH, DELETE } = await import('../route')
+const { recomputeGoalDrift } = await import('@/lib/drift-service')
 
 const FOUNDING_USER = 'user_founder01'
 const COMMIT_ID = 'commit_a1b2c3d4e5f6'
@@ -157,6 +161,24 @@ describe('PATCH /api/commitments/[id]', () => {
     expect(chain.update).toHaveBeenCalled()
     const setArg = chain.set.mock.calls[0][0]
     expect(setArg.status).toBe('done')
+  })
+
+  it('recomputes drift when a completed commitment is reopened', async () => {
+    vi.mocked(recomputeGoalDrift).mockResolvedValue([])
+    selectResultHolder.current = [
+      {
+        id: COMMIT_ID,
+        text: 'Run 3x',
+        due: '2026-10-02',
+        goalId: 'goal_1',
+        status: 'done',
+      },
+    ]
+    const res = await PATCH(patchReq({ status: 'open' }), {
+      params: Promise.resolve({ id: COMMIT_ID }),
+    })
+    expect(res.status).toBe(200)
+    expect(recomputeGoalDrift).toHaveBeenCalledWith(FOUNDING_USER, ['goal_1'])
   })
 })
 

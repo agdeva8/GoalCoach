@@ -29,6 +29,11 @@ import { isGoalPlannerEnabledFor } from '@/lib/goal-planner/config'
 import { runPlanPipeline, getPendingPlanInterrupt } from '@/lib/goal-planner/orchestrator'
 import type { PlanPipelineArgs } from '@/lib/goal-planner/orchestrator'
 import {
+  computeGoalDropImpact,
+  dropImpactSentence,
+  resolveGoalRef,
+} from '@/lib/goal-drop'
+import {
   INTENTS,
   PlanSchema,
   RenegotiationOptionSchema,
@@ -288,6 +293,24 @@ export async function POST(req: NextRequest) {
           assistantText = `Confirming: ${label} "${String(p.args.goal_title ?? 'that goal')}".`
         }
       }
+    }
+  }
+
+  // Drop-impact preview. For every drop_goal proposal attach a deterministic
+  // preview (what will be cleaned up + freed hours) so the confirm card can
+  // show exactly what the drop changes BEFORE the user commits, and append a
+  // one-line summary to the coach's prose. Best-effort: a preview failure
+  // leaves the plain confirm card intact.
+  for (const p of proposals) {
+    if (p.action !== 'drop_goal') continue
+    try {
+      const ref = await resolveGoalRef(db, schema, userId, p.args)
+      if (!ref) continue
+      const impact = await computeGoalDropImpact(db, schema, userId, ref)
+      p.args = { ...p.args, impact }
+      assistantText = `${assistantText}\n\n${dropImpactSentence(impact)}`.trim()
+    } catch {
+      /* preview is optional — never fail the turn for it */
     }
   }
 

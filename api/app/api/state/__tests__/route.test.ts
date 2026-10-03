@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => {
   const blockChain: any = {}
   const sourcesChain: any = {}
   const auditChain: any = {}
+  const userChain: any = {}
+  const timetableChain: any = {}
 
   // Each table has its own chain with a stable result for `.limit()`.
   function buildChain(result: unknown[]): any {
@@ -67,6 +69,8 @@ const mocks = vi.hoisted(() => {
       createdAt: new Date('2026-09-24T00:00:00Z'),
     },
   ]
+  const userRows = [{ availableWeeklyHours: 40 }]
+  const timetableRows: any[] = []
 
   const cGoals = buildChain(goalsRows)
   const cCommits = buildChain(commitRows)
@@ -74,14 +78,16 @@ const mocks = vi.hoisted(() => {
   const cBlocks = buildChain(blockRows)
   const cSources = buildChain(sourceRows)
   const cAudit = buildChain(auditRows)
+  const cUsers = buildChain(userRows)
+  const cTimetable = buildChain(timetableRows)
 
   const dbMock = {
     select: vi.fn(() => {
       // We discriminate on the order in which `.from()` is called.
       // The route loads goals, commitments, milestones, blockers,
-      // sources, audit_summary.recent in that exact order. We rotate
+      // sources, audit summary, user capacity, timetable blocks. We rotate
       // through the prepared chains in lockstep.
-      const queue = [cGoals, cCommits, cMiles, cBlocks, cSources, cAudit]
+      const queue = [cGoals, cCommits, cMiles, cBlocks, cSources, cAudit, cUsers, cTimetable]
       const out: any = {}
       out.from = vi.fn(() => {
         const pick = queue.shift()
@@ -100,6 +106,8 @@ const mocks = vi.hoisted(() => {
   void blockChain
   void sourcesChain
   void auditChain
+  void userChain
+  void timetableChain
 
   return { mockAuth, dbMock }
 })
@@ -123,6 +131,9 @@ vi.mock('@/lib/env', () => ({
 
 vi.mock('@/lib/auth', () => ({ auth: () => mocks.mockAuth(), getAuthenticatedUser: () => mocks.mockAuth().then((s: any) => s ? { user: { id: s.user.id, email: null, name: null, image: null, modelProvider: 'gemini', isGuest: false }, source: 'session' } : null) }))
 vi.mock('@/lib/db', () => ({ db: mocks.dbMock }))
+vi.mock('@/lib/drift-service', () => ({
+  recomputeGoalDrift: vi.fn().mockResolvedValue([]),
+}))
 
 const SESSION_TOKEN = 'test_session_founder01'
 

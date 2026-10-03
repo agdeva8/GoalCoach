@@ -164,12 +164,18 @@ export async function PATCH(
   const effDue = input.due !== undefined ? input.due : existing[0].due
   const effGoalId =
     input.goal_id !== undefined ? input.goal_id : existing[0].goalId
-  const becomingDone =
-    input.status === 'done' && existing[0].status !== 'done'
+  const driftRelevantChange =
+    (input.status !== undefined && input.status !== existing[0].status) ||
+    input.due !== undefined ||
+    input.goal_id !== undefined
 
-  // 5.1 — tick moves drift.
-  if (becomingDone && effGoalId) {
-    await recomputeGoalDrift(auth.userId!, [effGoalId]).catch(() => {})
+  // 5.1 — ticking either direction, moving a due date, or relinking a
+  // commitment can change drift for its old and/or new parent goal.
+  const affectedGoalIds = Array.from(
+    new Set([existing[0].goalId, effGoalId].filter((id): id is string => !!id)),
+  )
+  if (driftRelevantChange && affectedGoalIds.length > 0) {
+    await recomputeGoalDrift(auth.userId!, affectedGoalIds).catch(() => {})
   }
   // 5.2 — a note on today's commitment is echoed into the daily log.
   if (input.note !== undefined && input.note.trim() !== '' && effDue === today) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Sparkles, Pencil } from "lucide-react";
+import { MessageSquare, Sparkles, Pencil, RefreshCw } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
 import RefineModal from "./RefineModal";
@@ -44,11 +44,9 @@ export default function FocusedTaskChatDialog({
   // When true, the prefill is SENT on open (goal actions) so the coach
   // replies immediately instead of leaving it in the composer.
   autoSend = false,
-  // Drop flow: when the coach agrees and proposes dropping THE target goal,
-  // apply it automatically instead of showing a confirm card. A counter-
-  // proposal (pause / edit / a different goal) still renders as a card.
-  autoApplyDrop = false,
-  targetGoalTitle = "",
+  // Called ({ goalTitle, freed }) after a drop frees weekly capacity and
+  // other goals remain — the parent opens a `review_progress` chat. Optional.
+  onRequestReplan = null,
   prefillMessage = "",
   icon: Icon = MessageSquare,
   user,
@@ -78,6 +76,9 @@ export default function FocusedTaskChatDialog({
   const [busyProposal, setBusyProposal] = useState(null);
   const [pendingClarifications, setPendingClarifications] = useState(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  // Set after a successful drop that freed capacity — renders the opt-in
+  // "re-plan your remaining goals?" banner.
+  const [dropReplan, setDropReplan] = useState(null);
   // Iteration 9 — refine / reject modal state. Focused-task chats
   // already start empty (no bucket bleed), so these are independent.
   const [refiningProposal, setRefiningProposal] = useState(null);
@@ -88,6 +89,12 @@ export default function FocusedTaskChatDialog({
   // chip X can delete them server-side (same pattern as ChatModal).
   const [sources, setSources] = useState([]);
   const streamIdRef = useRef(0);
+  // Always-current view of messages, so confirmProposal can read the
+  // proposal (and its drop impact) without a stale closure.
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   // Iteration 10 — renegotiation dialog state.
   const [renegotiation, setRenegotiation] = useState(null);
   const [busyChoice, setBusyChoice] = useState(null);
@@ -108,6 +115,7 @@ export default function FocusedTaskChatDialog({
       setBusyProposal(null);
       setPendingClarifications(null);
       setHistoryLoaded(false);
+      setDropReplan(null);
       setSources([]);
       setRenegotiation(null);
       setBusyChoice(null);
@@ -343,6 +351,10 @@ export default function FocusedTaskChatDialog({
   const confirmProposal = useCallback(
     async (messageId, proposalId) => {
       setBusyProposal(proposalId);
+      // Read from the ref (not the closure) so the drop impact is current.
+      const pendingProposal = messagesRef.current
+        .find((m) => m.id === messageId)
+        ?.proposals?.find((p) => p.id === proposalId);
       try {
         const { result, state, ref_id } = await api.confirm(messageId, proposalId);
         // Spec §10.4 — swap to the server-pre-minted next bucket.
@@ -389,6 +401,24 @@ export default function FocusedTaskChatDialog({
         });
         // Bubble state up so the dashboard re-renders
         onStateChange?.(state);
+        // Drop freed capacity and other goals remain → offer a re-plan
+        // (opt-in; the user decides).
+        const impact = pendingProposal?.args?.impact;
+        if (
+          pendingProposal?.action === "drop_goal" &&
+          impact &&
+          typeof impact.freed_weekly_hours === "number" &&
+          impact.freed_weekly_hours > 0 &&
+          (impact.other_active_goals || 0) > 0
+        ) {
+          setDropReplan({
+            goalTitle:
+              pendingProposal.args?.goal_title ||
+              pendingProposal.args?.title ||
+              "the goal",
+            freed: impact.freed_weekly_hours,
+          });
+        }
       } catch (e) {
         toast.error("Couldn't confirm that proposal. Try again.");
       } finally {
@@ -398,26 +428,11 @@ export default function FocusedTaskChatDialog({
     [onStateChange],
   );
 
-  // Drop flow — once the coach agrees and proposes dropping the goal the
-  // user asked about, apply it immediately: the user already chose to drop,
-  // so a confirm card is redundant. Counter-proposals (pause / edit / a
-  // different goal) still render as a normal card for the user to decide.
-  const autoAppliedDropRef = useRef(new Set());
-  useEffect(() => {
-    if (!autoApplyDrop) return;
-    const norm = (s) => (s || "").trim().toLowerCase();
-    for (const m of messages) {
-      for (const p of m.proposals || []) {
-        if (p.action !== "drop_goal") continue;
-        if ((p.status || "pending") !== "pending") continue;
-        if (autoAppliedDropRef.current.has(p.id)) continue;
-        const t = p.args?.goal_title || p.args?.title || p.title || "";
-        if (targetGoalTitle && norm(t) && norm(t) !== norm(targetGoalTitle)) continue;
-        autoAppliedDropRef.current.add(p.id);
-        confirmProposal(m.id, p.id);
-      }
-    }
-  }, [messages, autoApplyDrop, targetGoalTitle, confirmProposal]);
+  // Drop flow (revised): a drop proposal is NO LONGER auto-applied. The
+  // card now carries a deterministic impact preview ("what this changes" +
+  // freed hours), so the user explicitly confirms the destructive cascade
+  // from the card. After a successful drop the banner below offers the
+  // opt-in re-plan.
 
   const rejectProposal = useCallback((messageId, proposalId, reason) => {
     // Optimistic — flip the UI immediately, persist in the background.
@@ -666,6 +681,34 @@ export default function FocusedTaskChatDialog({
           onDismissClarifications={onDismissClarifications}
         />
       </div>
+      {dropReplan && (
+        <div
+          data-testid="drop-replan-banner"
+          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border-accent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] p-3"
+        >
+          <RefreshCw className="w-4 h-4 text-[var(--accent)] shrink-0" aria-hidden="true" />
+          <span className="flex-1 min-w-[200px] text-[13px] leading-relaxed text-[var(--text-primary)]">
+            You now have <span className="font-semibold">{dropReplan.freed}h/week</span> free
+            from dropping &ldquo;{dropReplan.goalTitle}&rdquo;. Re-plan your remaining goals?
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              data-testid="drop-replan-button"
+              onClick={() => onRequestReplan?.(dropReplan)}
+              className="min-h-9 inline-flex items-center gap-1.5 rounded-full bg-[var(--accent)] px-3 text-xs font-semibold text-[var(--bg-primary)] hover:opacity-90"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Re-plan
+            </button>
+            <button
+              data-testid="drop-replan-dismiss"
+              onClick={() => setDropReplan(null)}
+              className="min-h-9 rounded-full px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
       <RenegotiationDialog
         open={!!renegotiation}
         onClose={closeRenegotiation}

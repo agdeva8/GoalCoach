@@ -2,7 +2,8 @@
  * Dashboard read model — the cached `GET /api/state` payload.
  *
  * `GET /api/state` is the dashboard's single hot read: it aggregates
- * `loadState` (5 tables) plus the 10-row audit summary. This module owns
+ * `loadState` (5 tables), a 10-row audit summary, weekly capacity, and the
+ * goal-linked timetable blocks used by re-plan suggestions. This module owns
  * that payload as a cache-managed read model and is the write-through half
  * of lib/cache.ts:
  *
@@ -31,11 +32,46 @@ import { desc, eq } from 'drizzle-orm'
 
 import { invalidateUser, cacheKey, readThrough } from '@/lib/cache'
 import { db } from '@/lib/db'
-import { auditLog } from '@/db/schema'
+import { auditLog, timetableBlocks, users } from '@/db/schema'
 import { loadState, type CoachState } from '@/lib/llm/state-builder'
+import { recomputeGoalDrift } from '@/lib/drift-service'
+import {
+  computeReplanSuggestions,
+  type ReplanSuggestion,
+} from '@/lib/replan-suggestions'
 
 /** Cache namespace — pairs with `cacheKey(userId, DASHBOARD_NS)`. */
 export const DASHBOARD_NS = 'dashboard'
+
+/** Last UTC day drift was checked for each user in this process. */
+const driftCheckedOn = new Map<string, string>()
+
+/**
+ * Time passing can make an open milestone overdue even if the user has not
+ * written anything since their last visit. Re-check once per user/day on a
+ * dashboard cache miss so the session-start nudge is based on current dates,
+ * not only on the timestamp of the last mutation. This is throttled because
+ * the dashboard read model itself has a short (15s) cache TTL.
+ */
+async function refreshDriftForDashboard(userId: string): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10)
+  if (driftCheckedOn.get(userId) === today) return
+
+  try {
+    const transitions = await recomputeGoalDrift(userId)
+    if (transitions.length > 0) invalidateUser(userId)
+    driftCheckedOn.set(userId, today)
+    if (driftCheckedOn.size > 200) {
+      const oldestUser = driftCheckedOn.keys().next().value
+      if (oldestUser) driftCheckedOn.delete(oldestUser)
+    }
+  } catch (err) {
+    // Drift is advisory; a failed recompute must not block the dashboard.
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('[drift] dashboard refresh failed', err)
+    }
+  }
+}
 
 export interface DashboardState extends CoachState {
   audit_summary: {
@@ -46,50 +82,101 @@ export interface DashboardState extends CoachState {
       created_at: string
     }>
   }
+  /** Deterministic, opt-in suggestions for drift, capacity, date/hour, blocker, and timetable conflicts. */
+  replan_suggestions: ReplanSuggestion[]
+  /** User's weekly capacity, used by date/hour-edit feasibility checks. */
+  available_weekly_hours: number | null
   /** When this snapshot was computed — NOT the response time when cached. */
   generated_at: string
 }
 
 /**
- * Canonical loader for the `GET /api/state` body. Kept byte-compatible with
- * the inline logic this route used to own (see the route's doc block for
- * the response contract): `loadState` first, then the 10 most recent audit
- * rows, then `generated_at` stamped at snapshot time.
+ * Canonical loader for the `GET /api/state` body: `loadState`, recent audit
+ * rows, user weekly capacity, linked timetable blocks for conflict checks,
+ * deterministic re-plan suggestions, and `generated_at`.
  *
- * Sequential on purpose: `lib/app/api/state/__tests__/route.test.ts` mocks
- * the DB by table-arrival order, and the audit query only needs the same
- * round trips `loadState` already pays for in parallel internally.
+ * Audit, capacity, and timetable reads run concurrently after `loadState`.
  */
 export async function loadDashboardState(
   userId: string,
 ): Promise<DashboardState> {
+  await refreshDriftForDashboard(userId)
   const state = await loadState(userId)
 
-  const recentRows = await db
-    .select({
-      id: auditLog.id,
-      type: auditLog.type,
-      summary: auditLog.summary,
-      createdAt: auditLog.createdAt,
-    })
-    .from(auditLog)
-    .where(eq(auditLog.userId, userId))
-    .orderBy(desc(auditLog.createdAt))
-    .limit(10)
+  const [recentRows, userRows, timetableRows] = await Promise.all([
+    db
+      .select({
+        id: auditLog.id,
+        type: auditLog.type,
+        summary: auditLog.summary,
+        payload: auditLog.payload,
+        createdAt: auditLog.createdAt,
+      })
+      .from(auditLog)
+      .where(eq(auditLog.userId, userId))
+      .orderBy(desc(auditLog.createdAt))
+      .limit(10),
+    db
+      .select({ availableWeeklyHours: users.availableWeeklyHours })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1),
+    db
+      .select({
+        id: timetableBlocks.id,
+        label: timetableBlocks.label,
+        goalId: timetableBlocks.goalId,
+        blockDate: timetableBlocks.blockDate,
+        startTime: timetableBlocks.startTime,
+        endTime: timetableBlocks.endTime,
+      })
+      .from(timetableBlocks)
+      .where(eq(timetableBlocks.userId, userId))
+      .limit(1000),
+  ])
+  const availableWeeklyHours = userRows[0]?.availableWeeklyHours ?? null
+
+  const recent = recentRows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    summary: r.summary,
+    created_at:
+      r.createdAt instanceof Date
+        ? r.createdAt.toISOString()
+        : String(r.createdAt),
+  }))
+
+  const replan_suggestions = computeReplanSuggestions({
+    goals: state.goals,
+    blockers: state.blockers,
+    milestones: state.milestones,
+    commitments: state.commitments,
+    timetableBlocks: timetableRows.map((b) => ({
+      id: b.id,
+      label: b.label,
+      goal_id: b.goalId,
+      block_date: b.blockDate,
+      start_time: typeof b.startTime === 'string' ? b.startTime.slice(0, 5) : '',
+      end_time: typeof b.endTime === 'string' ? b.endTime.slice(0, 5) : '',
+    })),
+    availableWeeklyHours,
+    recentAudit: recentRows.map((r) => ({
+      id: r.id,
+      type: r.type,
+      summary: r.summary,
+      payload: r.payload,
+      created_at:
+        r.createdAt instanceof Date
+          ? r.createdAt.toISOString()
+          : String(r.createdAt),
+    })),
+  })
 
   return {
     ...state,
-    audit_summary: {
-      recent: recentRows.map((r) => ({
-        id: r.id,
-        type: r.type,
-        summary: r.summary,
-        created_at:
-          r.createdAt instanceof Date
-            ? r.createdAt.toISOString()
-            : String(r.createdAt),
-      })),
-    },
+    audit_summary: { recent },
+    replan_suggestions,
+    available_weekly_hours: availableWeeklyHours,
     generated_at: new Date().toISOString(),
   }
 }

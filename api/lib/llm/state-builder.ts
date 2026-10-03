@@ -64,6 +64,12 @@ export interface StateGoal {
   status: 'active' | 'paused' | 'dropped'
   next_action?: string | null
   target_date?: string | null
+  /** Goal window start — used by the re-plan trigger evaluation. */
+  start_date?: string | null
+  /** Plan-vs-actual drift flag (Iteration 10). Surfaces the drift nudge. */
+  drift_status?: 'on_track' | 'at_risk'
+  /** Estimate used to evaluate remaining weekly capacity after an edit. */
+  weekly_hours?: number | null
   // Sources attached to this goal (the dashboard renders chips per
   // goal; the chat-time context doesn't currently use these but
   // keeping the field avoids a future migration).
@@ -76,6 +82,7 @@ export interface StateCommitment {
   status: 'open' | 'done'
   due?: string | null
   goal_title?: string | null
+  goal_id?: string | null
 }
 
 export interface StateMilestone {
@@ -84,6 +91,7 @@ export interface StateMilestone {
   target_date?: string | null
   goal_title?: string | null
   status: string
+  goal_id?: string | null
 }
 
 export interface StateBlocker {
@@ -170,7 +178,10 @@ export async function loadStateCore(userId: string): Promise<CoachState> {
       horizon: goals.horizon,
       status: goals.status,
       nextAction: goals.nextAction,
+      startDate: goals.startDate,
       targetDate: goals.targetDate,
+      driftStatus: goals.driftStatus,
+      weeklyHours: goals.weeklyHours,
     })
     .from(goals)
     .where(eq(goals.userId, userId))
@@ -184,6 +195,9 @@ export async function loadStateCore(userId: string): Promise<CoachState> {
       status: commitments.status,
       due: commitments.due,
       goalTitle: commitments.goalTitle,
+      // Selected only to filter out children of dropped goals below —
+      // never surfaced in the state shape.
+      goalId: commitments.goalId,
     })
     .from(commitments)
     .where(eq(commitments.userId, userId))
@@ -197,6 +211,9 @@ export async function loadStateCore(userId: string): Promise<CoachState> {
       targetDate: milestones.targetDate,
       goalTitle: milestones.goalTitle,
       status: milestones.status,
+      // Selected only to filter out children of dropped goals below —
+      // never surfaced in the state shape.
+      goalId: milestones.goalId,
     })
     .from(milestones)
     .where(eq(milestones.userId, userId))
@@ -289,24 +306,41 @@ export async function loadStateCore(userId: string): Promise<CoachState> {
     status: g.status,
     next_action: g.nextAction,
     target_date: g.targetDate,
+    start_date: g.startDate,
+    drift_status: g.driftStatus,
+    weekly_hours: g.weeklyHours,
     sources: byGoal.get(g.id) ?? [],
   }))
 
-  const commitmentsList: StateCommitment[] = commitmentsRows.map((c) => ({
-    id: c.id,
-    text: c.text,
-    status: c.status,
-    due: c.due,
-    goal_title: c.goalTitle,
-  }))
+  // Defense-in-depth: hide any commitment/milestone whose parent goal is
+  // dropped. The drop cascade (lib/goal-drop.ts) already closes/deletes
+  // them, but this also cleans up goals dropped BEFORE that fix and
+  // guarantees the chat context + dashboard never show dead plan items.
+  const droppedGoalIds = new Set(
+    goalsRows.filter((g) => g.status === 'dropped').map((g) => g.id),
+  )
 
-  const milestonesList: StateMilestone[] = milestonesRows.map((m) => ({
-    id: m.id,
-    title: m.title,
-    target_date: m.targetDate,
-    goal_title: m.goalTitle,
-    status: m.status,
-  }))
+  const commitmentsList: StateCommitment[] = commitmentsRows
+    .filter((c) => !c.goalId || !droppedGoalIds.has(c.goalId))
+    .map((c) => ({
+      id: c.id,
+      text: c.text,
+      status: c.status,
+      due: c.due,
+      goal_title: c.goalTitle,
+      goal_id: c.goalId,
+    }))
+
+  const milestonesList: StateMilestone[] = milestonesRows
+    .filter((m) => !m.goalId || !droppedGoalIds.has(m.goalId))
+    .map((m) => ({
+      id: m.id,
+      title: m.title,
+      target_date: m.targetDate,
+      goal_title: m.goalTitle,
+      status: m.status,
+      goal_id: m.goalId,
+    }))
 
   const blockersList: StateBlocker[] = blockersRows.map((b) => ({
     id: b.id,

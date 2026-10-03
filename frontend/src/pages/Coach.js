@@ -46,6 +46,8 @@ import ActionPromptModal, { FRAMES } from "../components/ActionPromptModal";
 import SourceActionDialog from "../components/SourceActionDialog";
 import GoalBoundaryConfirmDialog from "../components/GoalBoundaryConfirmDialog";
 import FocusedTaskChatDialog from "../components/FocusedTaskChatDialog";
+import ReplanSuggestions from "../components/ReplanSuggestions";
+import ReplanToast from "../components/ReplanToast";
 import ChatModal from "../components/ChatModal";
 import WelcomeToast from "../components/WelcomeToast";
 
@@ -265,10 +267,8 @@ export default function Coach() {
       emptyPrompt: ACTION_EMPTY_PROMPT[act?.type] || "Talk it through with me.",
       // Send the reason on open so the coach replies immediately.
       autoSend: true,
-      // Drop flow: auto-apply the coach's drop_goal proposal for THIS goal
-      // (the user already chose to drop) instead of showing a confirm card.
-      autoApplyDrop: act?.type === "drop",
-      targetGoalTitle: act?.goalTitle || "",
+      // Drop flow: the coach proposes the drop with a deterministic impact
+      // preview on the card; the user confirms it there (no silent apply).
       prefillMessage: msg,
       icon: Sparkles,
       // Spec §10.7 — focused-task chat runs in its own bucket; the dialog
@@ -297,6 +297,33 @@ export default function Coach() {
       // dialog mints the per-open refId.
       scope: "generic",
       kind: "plan_day",
+    });
+  };
+
+  // Drop flow → opt-in re-plan. Opens the `review_progress` chat with a
+  // prefilled instruction; the coach proposes date/scope changes the user
+  // confirms through the normal proposal flow. Never auto-runs.
+  const onRequestReplan = ({ goalTitle, freed }) => {
+    setFocusedTask(null);
+    openChatWith(
+      `I dropped "${goalTitle}" and freed ${freed}h/week. Re-plan my remaining goals to use that capacity.`,
+      {
+        scope: "review_progress",
+        kind: "review_progress",
+        title: "Re-plan my remaining goals",
+        helperText: `You freed ${freed}h/week by dropping "${goalTitle}". The coach will propose changes for you to confirm.`,
+      },
+    );
+  };
+
+  const openReplanSuggestion = (suggestion) => {
+    openChatWith(suggestion.prefill, {
+      scope: "review_progress",
+      kind: "review_progress",
+      title: suggestion.goal_title
+        ? `Re-plan: ${suggestion.goal_title}`
+        : "Re-plan my goals",
+      helperText: suggestion.message,
     });
   };
 
@@ -555,6 +582,13 @@ export default function Coach() {
         </div>
 
         <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto w-full">
+          <div className="mb-4">
+            <ReplanSuggestions
+              suggestions={state?.replan_suggestions || []}
+              active={["state", "today", "timeline"].includes(panelView)}
+              onReplan={openReplanSuggestion}
+            />
+          </div>
           <Suspense fallback={<PanelSkeleton />}>
             {panelView === "home" ? (
               <Overview
@@ -639,6 +673,10 @@ export default function Coach() {
       />
 
       <WelcomeToast user={user} state={state} signedIn={!isGuest} />
+      <ReplanToast
+        suggestions={state?.replan_suggestions || []}
+        onReplan={openReplanSuggestion}
+      />
 
       <HonestyAuditView open={auditOpen} onClose={() => setAuditOpen(false)} />
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
@@ -673,8 +711,7 @@ export default function Coach() {
         subtitle={focusedTask?.subtitle}
         emptyPrompt={focusedTask?.emptyPrompt}
         autoSend={focusedTask?.autoSend}
-        autoApplyDrop={focusedTask?.autoApplyDrop}
-        targetGoalTitle={focusedTask?.targetGoalTitle}
+        onRequestReplan={onRequestReplan}
         prefillMessage={focusedTask?.prefillMessage}
         icon={focusedTask?.icon}
         user={user}

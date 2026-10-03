@@ -44,6 +44,8 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 
+import { applyGoalDropCascade, resolveGoalRef } from '@/lib/goal-drop'
+
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -119,53 +121,9 @@ function todayIso(): string {
 /* bug while still letting the LLM reference goals by their natural title.   */
 /* -------------------------------------------------------------------------- */
 
-interface GoalRef {
-  goalId: string
-  goalTitle: string
-}
-
-async function resolveGoalRef(
-  db: any,
-  schema: any,
-  userId: string,
-  args: Record<string, any>
-): Promise<GoalRef | null> {
-  const idRaw = typeof args.goal_id === 'string' ? args.goal_id.trim() : ''
-  const titleRaw = typeof args.goal_title === 'string' ? args.goal_title.trim() : ''
-
-  if (idRaw) {
-    const rows = await db
-      .select({ id: schema.goals.id, title: schema.goals.title })
-      .from(schema.goals)
-      .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, idRaw)))
-      .limit(1)
-    if (rows.length) return { goalId: rows[0].id, goalTitle: rows[0].title }
-    // Fall through to title lookup so a stale ID still has a chance — the
-    // title is the stable surface the LLM actually sees.
-  }
-
-  if (titleRaw) {
-    const all = await db
-      .select({ id: schema.goals.id, title: schema.goals.title })
-      .from(schema.goals)
-      .where(eq(schema.goals.userId, userId))
-      .limit(500)
-    const needle = titleRaw.toLowerCase()
-    const exact = all.find((g: { title: string }) => g.title.trim().toLowerCase() === needle)
-    if (exact) return { goalId: exact.id, goalTitle: exact.title }
-    // Last-ditch: substring that covers the common "title slightly
-    // rephrased" case while staying tighter than the old regex fuzzy
-    // match. We never want a goal called "Runn" to land on "Running".
-    const partial = all.find(
-      (g: { title: string }) =>
-        g.title.trim().toLowerCase() === needle ||
-        (needle.length >= 6 && g.title.trim().toLowerCase().includes(needle))
-    )
-    if (partial) return { goalId: partial.id, goalTitle: partial.title }
-  }
-
-  return null
-}
+// `resolveGoalRef` now lives in `lib/goal-drop.ts` so the executor, the
+// DELETE /api/goals/[id] route, and the planner's drop-impact preview all
+// resolve goals the exact same way. Imported at the top of this file.
 
 /* -------------------------------------------------------------------------- */
 /* Public entry point                                                         */
@@ -192,9 +150,15 @@ export async function applyProposal(
     case 'create_goal':
       return applyCreateGoal(db, schema, userId, proposal)
     case 'update_goal':
+      // Older prompts/clients may encode a pause/drop as `update_goal`.
+      // Keep those transitions on the same shared side-effect path so a
+      // status field can never bypass the drop cascade or capacity audit.
+      if (proposal.args.status === 'dropped') {
+        return applyDropGoal(db, schema, userId, proposal, 'confirm:drop_goal')
+      }
       return applyUpdateGoal(db, schema, userId, proposal)
     case 'drop_goal':
-      return applyStatusChange(db, schema, userId, proposal, 'dropped', 'Dropped')
+      return applyDropGoal(db, schema, userId, proposal)
     case 'pause_goal':
       return applyStatusChange(db, schema, userId, proposal, 'paused', 'Paused')
     case 'set_goal_dates':
@@ -315,6 +279,18 @@ async function applyUpdateGoal(
   }
   const goalId = ref.goalId
 
+  const priorRows = await db
+    .select({ status: schema.goals.status, weeklyHours: schema.goals.weeklyHours })
+    .from(schema.goals)
+    .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, goalId)))
+    .limit(1)
+  const freedWeeklyHours =
+    args.status === 'paused' &&
+    priorRows[0]?.status === 'active' &&
+    typeof priorRows[0]?.weeklyHours === 'number'
+      ? priorRows[0].weeklyHours
+      : null
+
   const updates: Record<string, any> = { updatedAt: new Date() }
   if (typeof args.title === 'string' && args.title.length > 0) {
     updates.title = args.title
@@ -361,7 +337,13 @@ async function applyUpdateGoal(
       userId,
       type: `confirm:${proposal.action}`,
       summary: `Updated goal '${ref.goalTitle}'`,
-      payload: { proposal_id: proposal.id, args },
+      payload: {
+        proposal_id: proposal.id,
+        goal_id: goalId,
+        goal_title: ref.goalTitle,
+        freed_weekly_hours: freedWeeklyHours,
+        args,
+      },
     })
   })
 
@@ -372,20 +354,50 @@ async function applyUpdateGoal(
 }
 
 /**
- * Shared implementation for drop_goal and pause_goal.
+ * Drop a goal — flip it to `dropped` AND cascade-clean its plan in one
+ * transaction (close open commitments, delete milestones + scheduled
+ * blocks, audit the counts). Delegates to `applyGoalDropCascade` so the
+ * LLM confirm path and the direct DELETE route share one implementation.
  *
- * Lifted out so both terminal/pause transitions share identical
- * transaction + audit semantics — and so future maintainers find one
- * place to update when "what does a goal status change audit entry look
- * like" inevitably changes.
+ * See `lib/goal-drop.ts` + memory/HLD-drop-goal-cascade.md.
+ */
+async function applyDropGoal(
+  db: any,
+  schema: any,
+  userId: string,
+  proposal: Proposal,
+  auditType = `confirm:${proposal.action}`,
+): Promise<ApplyProposalResult> {
+  const ref = await resolveGoalRef(db, schema, userId, proposal.args)
+  if (!ref) {
+    return {
+      success: false,
+      result: `No matching goal for '${proposal.args.goal_id ?? proposal.args.goal_title ?? ''}'`,
+    }
+  }
+
+  const { result } = await applyGoalDropCascade(db, schema, userId, ref, {
+    auditType,
+    reason:
+      typeof proposal.args.reason === 'string' ? proposal.args.reason : undefined,
+  })
+
+  return { success: true, result }
+}
+
+/**
+ * Shared implementation for pause_goal.
+ *
+ * Pause is deliberately NON-destructive (reversible), so it only flips
+ * status + audits — it does NOT cascade. Drop uses `applyDropGoal` above.
  */
 async function applyStatusChange(
   db: any,
   schema: any,
   userId: string,
   proposal: Proposal,
-  newStatus: GoalStatus,
-  verb: 'Dropped' | 'Paused'
+  newStatus: 'paused',
+  verb: 'Paused'
 ): Promise<ApplyProposalResult> {
   // Same goal-reference resolution as `applyUpdateGoal` — see comment
   // there. Without it, "drop the swimming goal" silently returns
@@ -398,6 +410,17 @@ async function applyStatusChange(
     }
   }
   const reason: string | undefined = proposal.args.reason
+  const currentRows = await db
+    .select({ status: schema.goals.status, weeklyHours: schema.goals.weeklyHours })
+    .from(schema.goals)
+    .where(and(eq(schema.goals.userId, userId), eq(schema.goals.id, ref.goalId)))
+    .limit(1)
+  const freedWeeklyHours =
+    newStatus === 'paused' &&
+    currentRows[0]?.status === 'active' &&
+    typeof currentRows[0]?.weeklyHours === 'number'
+      ? currentRows[0].weeklyHours
+      : null
 
   await db.transaction(async (tx: any) => {
     await tx
@@ -409,7 +432,13 @@ async function applyStatusChange(
       userId,
       type: `confirm:${proposal.action}`,
       summary: `${verb} goal '${ref.goalTitle}'${reason ? ` (${reason})` : ''}`,
-      payload: { proposal_id: proposal.id, args: proposal.args },
+      payload: {
+        proposal_id: proposal.id,
+        goal_id: ref.goalId,
+        goal_title: ref.goalTitle,
+        freed_weekly_hours: freedWeeklyHours,
+        args: proposal.args,
+      },
     })
   })
 
@@ -449,7 +478,12 @@ async function applySetGoalDates(
       userId,
       type: `confirm:${proposal.action}`,
       summary: `Timeline set for '${ref.goalTitle}': ${args.start_date ?? '?'} -> ${args.target_date ?? '?'}`,
-      payload: { proposal_id: proposal.id, args },
+      payload: {
+        proposal_id: proposal.id,
+        goal_id: ref.goalId,
+        goal_title: ref.goalTitle,
+        args,
+      },
     })
   })
 

@@ -104,6 +104,66 @@ function flatProposal(p) {
  *   - No per-item Confirm (handled by the pinned button); Refine +
  *     Reject stay inline and open their respective modals.
  */
+/**
+ * DropImpactBlock — deterministic preview of what a goal drop will change,
+ * attached to the proposal as `args.impact` by `/api/chat/plan`. Lets the
+ * user see (and back out of) the cascade before it runs. Renders null when
+ * no impact is present (e.g. the legacy SSE drop path).
+ */
+function DropImpactBlock({ impact }) {
+  if (!impact) return null;
+  const c = impact.counts || {};
+  const freed = impact.freed_weekly_hours;
+  const budget = impact.budget_hours;
+  const lines = [
+    c.commitments > 0 &&
+      `${c.commitments} open commitment${c.commitments === 1 ? "" : "s"} will be closed`,
+    c.milestones > 0 &&
+      `${c.milestones} milestone${c.milestones === 1 ? "" : "s"} will be removed`,
+    c.timetable_blocks > 0 &&
+      `${c.timetable_blocks} scheduled block${c.timetable_blocks === 1 ? "" : "s"} will be removed`,
+  ].filter(Boolean);
+
+  return (
+    <div
+      data-testid="drop-impact"
+      className="rounded-xl border border-[var(--border-accent)] bg-[var(--bg-elevated)] p-3"
+    >
+      <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
+        What this changes
+      </div>
+      {lines.length > 0 ? (
+        <ul className="space-y-1">
+          {lines.map((l, i) => (
+            <li
+              key={i}
+              className="flex items-start gap-2 text-[13px] text-[var(--text-secondary)]"
+            >
+              <span
+                className="mt-1.5 h-1 w-1 rounded-full bg-[var(--warning)] shrink-0"
+                aria-hidden="true"
+              />
+              {l}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="text-[13px] text-[var(--text-secondary)]">
+          Nothing else is attached to this goal.
+        </div>
+      )}
+      {typeof freed === "number" && freed > 0 && (
+        <div className="mt-2 pt-2 border-t border-[var(--border)] text-[13px] text-[var(--text-primary)]">
+          Frees <span className="font-semibold">{freed}h/week</span>
+          {typeof budget === "number"
+            ? ` (load ${impact.load_before}h → ${impact.load_after}h of ${budget}h)`
+            : ` (load ${impact.load_before}h → ${impact.load_after}h)`}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ToolConfirmationPrompt({ proposal, onConfirm, onOpenRefine, onOpenReject, onNavigate, onAnswerChoice, showConfirm = true, busy }) {
   // Read-only navigator card (general chat) — no confirm/refine/reject.
   if (proposal.action === "navigate") {
@@ -252,6 +312,13 @@ export default function ToolConfirmationPrompt({ proposal, onConfirm, onOpenRefi
             <FieldRow icon={FileText} label="Why" value={d.why} />
             <FieldRow icon={Calendar} label="Date" value={d.target_date || d.due} accent />
           </div>
+        )}
+
+        {/* Drop preview — deterministic cascade summary from the planner
+            (`args.impact`). The user sees exactly what will be cleaned up
+            (and freed hours) before the destructive confirm. */}
+        {proposal.action === "drop_goal" && d.impact && (
+          <DropImpactBlock impact={d.impact} />
         )}
 
         {/* Saved notes — the user's local refinement / rejection reason.
