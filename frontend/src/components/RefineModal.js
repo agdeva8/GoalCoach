@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { Pencil, Send, Loader2 } from "lucide-react";
+import { Pencil, Check, Loader2 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
-import ProposalPreview from "./ProposalPreview";
 
 // Per-action chip library — common refine instructions so users
 // don't have to write a sentence. Tapping a chip fills the textarea;
-// tapping a second chip appends with a comma. The user can still
-// edit before sending. (Founder feedback, Iteration 9.)
+// tapping a second chip appends with a comma.
 const REFINE_CHIPS_BY_ACTION = {
   create_goal: [
     "Push the target date later",
@@ -36,58 +34,27 @@ const REFINE_CHIPS_BY_ACTION = {
     "Make it more specific",
     "Different first action",
   ],
-  add_blocker: [
-    "Shorter window",
-    "Move the window earlier",
-    "Move the window later",
-  ],
-  drop_goal: [
-    "Don't drop — pause it instead",
-    "Wrong goal",
-  ],
-  pause_goal: [
-    "Don't pause — drop it",
-    "Longer pause window",
-    "Shorter pause window",
-  ],
-  complete_commitment: [
-    "Already done — confirm",
-  ],
-  update_commitment: [
-    "Push the due date later",
-    "Smaller text",
-    "Drop this commitment",
-  ],
-  set_goal_dates: [
-    "Push the dates later",
-    "Pull the dates earlier",
-  ],
+  add_blocker: ["Shorter window", "Move the window earlier", "Move the window later"],
+  drop_goal: ["Don't drop — pause it instead", "Wrong goal"],
+  pause_goal: ["Don't pause — drop it", "Longer pause window", "Shorter pause window"],
+  complete_commitment: ["Already done — confirm"],
+  update_commitment: ["Push the due date later", "Smaller text", "Drop this commitment"],
+  set_goal_dates: ["Push the dates later", "Pull the dates earlier"],
 };
-const DEFAULT_REFINE_CHIPS = [
-  "Try again from scratch",
-  "Different framing",
-  "Smaller scope",
-];
+const DEFAULT_REFINE_CHIPS = ["Try again from scratch", "Different framing", "Smaller scope"];
 
 /**
- * RefineModal — open from ToolConfirmationPrompt's "Refine" button.
+ * RefineModal — records a refinement NOTE on a proposal.
  *
- * Founder feedback (Iteration 9): no chat round-trip for a refine —
- * the user types ONE thought, the server LLM is called once with a
- * focused "re-propose taking into account: <thought>" prompt, and the
- * old proposal is REPLACED IN PLACE in the same assistant message.
+ * Iteration 9+ (founder feedback): clicking Refine does NOT call the LLM.
+ * The note is stored on the card; clicking Refine again reopens this
+ * modal pre-filled so the user can update it. All refinements are applied
+ * at once from the pinned "Refine goals" button.
  *
  * Props:
- *   open            — controlled open state
- *   onClose         — close handler
- *   proposalTitle   — the proposal's name (e.g. "Ship side-project MVP"),
- *                     used to label what the user is refining
- *   proposalAction  — the action label (e.g. "create goal", "add milestone")
- *   onSubmit        — async (thought) => void; the parent calls the new
- *                     POST /api/chat/refine route and replaces the proposal
- *                     in the messages list when it returns
- *
- * The component is dumb — it owns only its input + busy state.
+ *   open, onClose, proposalTitle, proposalAction, proposalActionKey
+ *   initialValue — the existing refinement (pre-fills; empty for a new one)
+ *   onSubmit(thought) — stores the note on the proposal
  */
 export default function RefineModal({
   open,
@@ -95,21 +62,20 @@ export default function RefineModal({
   proposalTitle = "",
   proposalAction = "change",
   proposalActionKey = "",
+  initialValue = "",
   onSubmit,
-  onConfirm,
 }) {
   const [thought, setThought] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     if (open) {
-      setThought("");
+      setThought(initialValue || "");
       setBusy(false);
       setError("");
     }
-  }, [open]);
+  }, [open, initialValue]);
 
   const chips = (proposalActionKey && REFINE_CHIPS_BY_ACTION[proposalActionKey]) || DEFAULT_REFINE_CHIPS;
 
@@ -122,105 +88,65 @@ export default function RefineModal({
     });
   };
 
-  const submit = async () => {
+  const submit = () => {
     const t = thought.trim();
-    if (!t || busy) return;
+    if (!t) return;
     setBusy(true);
-    setError("");
     try {
-      const newProposal = await onSubmit?.(t);
-      setPreview(newProposal);
-    } catch (e) {
-      setError(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const confirm = async () => {
-    if (!preview || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      await onConfirm?.(preview);
+      onSubmit?.(t);
       onClose?.();
     } catch (e) {
-      setError(typeof e?.message === "string" ? e.message : "Couldn't confirm the refined changes. Try again.");
+      setError(typeof e?.message === "string" ? e.message : "Couldn't save that refinement.");
     } finally {
       setBusy(false);
     }
   };
 
-  // No auto-submit on Enter — founder feedback (Iteration 9+, mid-slice):
-  // free-text typing shouldn't fire the LLM round-trip until the user
-  // explicitly clicks "Ask for changes" below. Shift+Enter still inserts
-  // a newline; Enter is reserved for the explicit button.
-  const onKey = (e) => {
-    if (e.key === "Enter" && e.shiftKey) {
-      // Default behaviour — insert newline at caret.
-      return;
-    }
-    // Plain Enter does NOT submit. The user types freely and clicks the
-    // button below when ready.
-  };
+  // Enter inserts a newline; the explicit button submits.
+  const onKey = () => {};
 
   return (
     <CenteredDialog
       open={open}
-      onClose={busy ? undefined : onClose}
+      onClose={onClose}
       icon={Pencil}
       title={proposalTitle ? `Refine "${proposalTitle}"` : "Refine this"}
-      subtitle={`What should the coach change? The coach will re-propose ${proposalAction} once, taking your note into account — no chat round-trip.`}
+      subtitle={`What should change about this ${proposalAction}? It's saved on the card — apply all your refinements together with the "Refine goals" button.`}
       maxWidth="max-w-xl"
       testId="refine-modal"
     >
       <div className="space-y-3">
-        {preview ? (
-          <div>
-            <p className="text-xs font-medium text-[var(--text-muted)] mb-1">Preview</p>
-            <ProposalPreview proposal={preview} />
+        {chips.length > 0 && (
+          <div data-testid="refine-modal-chips" className="flex flex-wrap gap-1.5">
+            {chips.map((c) => (
+              <button
+                key={c}
+                type="button"
+                data-testid={`refine-chip-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                onClick={() => tapChip(c)}
+                disabled={busy}
+                className="min-h-11 text-left text-xs px-2.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-50"
+              >
+                {c}
+              </button>
+            ))}
           </div>
-        ) : (
-          <>
-            {chips.length > 0 && (
-              <div data-testid="refine-modal-chips" className="flex flex-wrap gap-1.5">
-                {chips.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    data-testid={`refine-chip-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                    onClick={() => tapChip(c)}
-                    disabled={busy}
-                    className="min-h-11 text-left text-xs px-2.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-50"
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )}
-            <label
-              htmlFor="refine-modal-input"
-              className="block text-xs font-medium text-[var(--text-muted)]"
-            >
-              Your note
-            </label>
-            <textarea
-              id="refine-modal-input"
-              data-testid="refine-modal-input"
-              autoFocus
-              value={thought}
-              onChange={(e) => setThought(e.target.value)}
-              onKeyDown={onKey}
-              rows={3}
-              disabled={busy}
-              placeholder="e.g. Push the target date a month later, make the first step smaller, swap 'medium-term' for 'long-term'…"
-              className="block w-full bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] rounded px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none resize-none disabled:opacity-50"
-            />
-            <p className="text-xs text-[var(--text-muted)]">
-              Enter for a new line · Shift+Enter for a new line · Tap <span className="text-[var(--accent)] font-medium">Refine the changes</span> below to send
-            </p>
-          </>
         )}
+        <label htmlFor="refine-modal-input" className="block text-xs font-medium text-[var(--text-muted)]">
+          Your note
+        </label>
+        <textarea
+          id="refine-modal-input"
+          data-testid="refine-modal-input"
+          autoFocus
+          value={thought}
+          onChange={(e) => setThought(e.target.value)}
+          onKeyDown={onKey}
+          rows={3}
+          disabled={busy}
+          placeholder="e.g. Push the target date a month later, make the first step smaller…"
+          className="block w-full bg-[var(--bg-primary)] border border-[var(--border)] focus:border-[var(--border-accent)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none resize-none disabled:opacity-50"
+        />
         {error && (
           <p data-testid="refine-modal-error" role="alert" className="text-xs text-[var(--danger)]">
             {error}
@@ -236,43 +162,24 @@ export default function RefineModal({
           >
             Cancel
           </button>
-          {preview ? (
-            <button
-              type="button"
-              data-testid="refine-modal-confirm"
-              onClick={confirm}
-              disabled={busy}
-              className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-medium bg-[var(--success)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
-            >
-              {busy ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Confirming…
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" aria-hidden="true" /> Confirm Refine
-                </>
-              )}
-            </button>
-          ) : (
-            <button
-              type="button"
-              data-testid="refine-modal-submit"
-              onClick={submit}
-              disabled={!thought.trim() || busy}
-              className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-medium bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
-            >
-              {busy ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Refining…
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" aria-hidden="true" /> Refine the changes
-                </>
-              )}
-            </button>
-          )}
+          <button
+            type="button"
+            data-testid="refine-modal-submit"
+            onClick={submit}
+            disabled={!thought.trim() || busy}
+            className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-semibold bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity rounded-xl"
+          >
+            {busy ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Saving…
+              </>
+            ) : (
+              <>
+                <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                {initialValue ? "Update refinement" : "Add refinement"}
+              </>
+            )}
+          </button>
         </div>
       </div>
     </CenteredDialog>

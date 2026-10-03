@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Sparkles } from "lucide-react";
+import { MessageSquare, Sparkles, Pencil } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
 import RefineModal from "./RefineModal";
@@ -304,52 +304,55 @@ export default function FocusedTaskChatDialog({
   const onOpenRefine = useCallback((proposal) => setRefiningProposal(proposal), []);
   const onOpenReject = useCallback((proposal) => setRejectingProposal(proposal), []);
 
-  const submitRefine = useCallback(async (thought) => {
+  const submitRefine = useCallback((thought) => {
     if (!refiningProposal) return;
-    const messageId = findProposalMessageId(refiningProposal);
-    if (!messageId) throw new Error("Couldn't find the original proposal to refine.");
-    setBusyProposal(refiningProposal.id);
-    try {
-      const result = await api.refine(messageId, refiningProposal.id, thought);
-      const newProposal = result?.proposal || result;
-      if (!newProposal?.id) throw new Error("The coach didn't return a new proposal.");
-      // Two-step flow: return the preview; `confirmRefine` applies it.
-      return newProposal;
-    } catch (e) {
-      toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
-      throw e;
-    } finally {
-      setBusyProposal(null);
-    }
-  }, [refiningProposal, findProposalMessageId]);
-
-  const confirmRefine = useCallback((newProposal) => {
-    if (!refiningProposal) return;
-    const messageId = findProposalMessageId(refiningProposal);
-    if (!messageId) return;
+    const id = refiningProposal.id;
     setMessages((prev) =>
-      prev.map((m) =>
-        m.id === messageId
-          ? {
-              ...m,
-              proposals: m.proposals.map((p) =>
-                p.id === refiningProposal.id
-                  ? { ...newProposal, id: refiningProposal.id, status: "pending" }
-                  : p,
-              ),
-            }
-          : m,
-      ),
+      prev.map((m) => ({
+        ...m,
+        proposals: (m.proposals || []).map((p) =>
+          p.id === id ? { ...p, refinement: thought } : p,
+        ),
+      })),
     );
-    toast.success("Proposal refined.");
-  }, [refiningProposal, findProposalMessageId]);
+  }, [refiningProposal]);
 
-  const submitReject = useCallback(async (reason) => {
+  const submitReject = useCallback((reason) => {
     if (!rejectingProposal) return;
-    const messageId = findProposalMessageId(rejectingProposal);
-    if (!messageId) throw new Error("Couldn't find the original proposal to reject.");
-    await rejectProposal(messageId, rejectingProposal.id, reason);
-  }, [rejectingProposal, findProposalMessageId, rejectProposal]);
+    const id = rejectingProposal.id;
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        proposals: (m.proposals || []).map((p) =>
+          p.id === id ? { ...p, status: "rejected", rejection: reason || "" } : p,
+        ),
+      })),
+    );
+  }, [rejectingProposal]);
+
+  // Batch — send every saved refinement + rejection to the LLM once.
+  const applyRefinements = useCallback(() => {
+    const refined = [];
+    const rejected = [];
+    messages.forEach((m) => {
+      (m.proposals || []).forEach((p) => {
+        const label = p.args?.title || p.args?.text || p.title || p.action || "item";
+        if (p.refinement) refined.push(`- ${label}: ${p.refinement}`);
+        if (p.status === "rejected") rejected.push(`- ${label}${p.rejection ? `: ${p.rejection}` : ""}`);
+      });
+    });
+    const lines = [];
+    if (refined.length) { lines.push("Refine these (keep everything else):"); lines.push(...refined); }
+    if (rejected.length) { lines.push("Drop or rework these:"); lines.push(...rejected); }
+    send(`Re-propose applying ALL of these notes at once. Return the proposals again with the changes applied.\n\n${lines.join("\n")}`);
+  }, [messages, send]);
+
+  const latestWithProposals = [...messages].reverse().find(
+    (m) => m.role === "assistant" && (m.proposals || []).length > 0,
+  );
+  const refinedCount = (latestWithProposals?.proposals || []).filter(
+    (p) => p.refinement,
+  ).length;
 
   const onAnswerClarification = useCallback(
     (text) => {
@@ -486,20 +489,33 @@ export default function FocusedTaskChatDialog({
           </button>
         </div>
       )}
+      {refinedCount > 0 && (
+        <div className="mt-3">
+          <button
+            data-testid="pinned-refine-button"
+            onClick={applyRefinements}
+            disabled={sending}
+            className="w-full h-12 rounded-full inline-flex items-center justify-center gap-2 text-[15px] font-semibold bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 active:scale-[0.99] transition-opacity"
+          >
+            <Pencil className="w-4 h-4" aria-hidden="true" /> Refine goals ({refinedCount})
+          </button>
+        </div>
+      )}
       <RefineModal
         open={!!refiningProposal}
         onClose={() => setRefiningProposal(null)}
         proposalTitle={refiningProposal?.args?.title || refiningProposal?.title || refiningProposal?.args?.goal_title || ""}
         proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
         proposalActionKey={refiningProposal?.action || ""}
+        initialValue={refiningProposal?.refinement || ""}
         onSubmit={submitRefine}
-        onConfirm={confirmRefine}
       />
       <RejectModal
         open={!!rejectingProposal}
         onClose={() => setRejectingProposal(null)}
         proposalTitle={rejectingProposal?.args?.title || rejectingProposal?.title || rejectingProposal?.args?.goal_title || ""}
         proposalActionKey={rejectingProposal?.action || ""}
+        initialValue={rejectingProposal?.rejection || ""}
         onSubmit={submitReject}
       />
     </CenteredDialog>

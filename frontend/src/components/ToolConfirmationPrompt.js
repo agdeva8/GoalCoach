@@ -228,9 +228,23 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
             <FieldRow icon={Calendar} label="Date" value={d.target_date || d.due} accent />
           </div>
         )}
+
+        {/* Saved notes — the user's local refinement / rejection reason.
+            Reopen by tapping Refine / Reject again. Applied in a batch
+            from the pinned "Refine goals" button. */}
+        {proposal.refinement && (
+          <div data-testid="proposal-refinement" className="rounded-xl bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-primary)]">
+            <span className="font-semibold text-[var(--accent)]">Refinement:</span> {proposal.refinement}
+          </div>
+        )}
+        {proposal.rejection && (
+          <div data-testid="proposal-rejection" className="rounded-xl bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-primary)]">
+            <span className="font-semibold text-[var(--danger)]">Rejection:</span> {proposal.rejection}
+          </div>
+        )}
       </div>
 
-      {status === "pending" && (
+      {status !== "confirmed" && (
         <div className="flex border-t border-[var(--border)]">
           <button
             data-testid="refine-tool-button"
@@ -238,7 +252,7 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
             onClick={() => onOpenRefine?.(proposal)}
             className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] disabled:opacity-40 transition-colors border-r border-[var(--border)]"
           >
-            <Pencil className="w-3.5 h-3.5" /> Refine
+            <Pencil className="w-3.5 h-3.5" /> {proposal.refinement ? "Edit refinement" : "Refine"}
           </button>
           <button
             data-testid="reject-tool-button"
@@ -246,7 +260,7 @@ export default function ToolConfirmationPrompt({ proposal, onOpenRefine, onOpenR
             onClick={() => onOpenReject?.(proposal)}
             className="min-h-11 flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] disabled:opacity-40 transition-colors"
           >
-            <X className="w-3.5 h-3.5" /> Reject
+            <X className="w-3.5 h-3.5" /> {proposal.rejection ? "Edit rejection" : "Reject"}
           </button>
         </div>
       )}

@@ -11,6 +11,7 @@ import {
   Wand2,
   Check,
   RefreshCw,
+  Pencil,
 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
@@ -442,20 +443,20 @@ export default function AddGoalDialog({
   };
 
   const reject = (messageId, proposalId, reason) => {
-    // Optimistic — flip the UI to 'rejected' immediately, persist in the
-    // background. Rejecting is a pure state change; the user shouldn't
-    // wait on a round-trip (founder feedback: "clicking reject takes too
-    // long — it should just be a UI state change").
+    // Local-only: mark the card rejected + store the reason. The pinned
+    // "Refine goals" button applies all refinements + rejections at once.
     setMessages((prev) =>
       prev.map((m) =>
         m.id === messageId
-          ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "rejected" } : p)) }
+          ? {
+              ...m,
+              proposals: m.proposals.map((p) =>
+                p.id === proposalId ? { ...p, status: "rejected", rejection: reason || "" } : p,
+              ),
+            }
           : m,
       ),
     );
-    api.reject(messageId, proposalId, reason).catch(() => {
-      toast.error("Couldn't record that rejection — check your connection.");
-    });
   };
 
   // Refine / Reject modal handlers (Iteration 9).
@@ -476,48 +477,18 @@ export default function AddGoalDialog({
     setRejectingProposal(proposal);
   };
 
-  const submitRefine = async (thought) => {
+  const submitRefine = (thought) => {
     if (!refiningProposal) return;
-    const messageId = findProposalMessageId(refiningProposal);
-    if (!messageId) {
-      throw new Error("Couldn't find the original proposal to refine.");
-    }
-    setBusyProposal(refiningProposal.id);
-    try {
-      const result = await api.refine(messageId, refiningProposal.id, thought);
-      const newProposal = result?.proposal || result;
-      if (!newProposal?.id) {
-        throw new Error("The coach didn't return a new proposal.");
-      }
-      return newProposal;
-    } catch (e) {
-      toast.error(typeof e?.message === "string" ? e.message : "Couldn't refine that. Try again.");
-      throw e;
-    } finally {
-      setBusyProposal(null);
-    }
-  };
-
-  const confirmRefine = (newProposal) => {
-    if (!refiningProposal) return;
-    const messageId = findProposalMessageId(refiningProposal);
-    if (!messageId) return;
-
+    // Local-only: store the note on the card. No LLM call here — the
+    // pinned "Refine goals" button applies ALL refinements at once.
     setMessages((prev) =>
-      prev.map((m) =>
-        m.id === messageId
-          ? {
-              ...m,
-              proposals: m.proposals.map((p) =>
-                p.id === refiningProposal.id
-                  ? { ...newProposal, id: refiningProposal.id, status: "pending" }
-                  : p,
-              ),
-            }
-          : m,
-      ),
+      prev.map((m) => ({
+        ...m,
+        proposals: (m.proposals || []).map((p) =>
+          p.id === refiningProposal.id ? { ...p, refinement: thought } : p,
+        ),
+      })),
     );
-    toast.success("Proposal refined.");
   };
 
   const submitReject = async (reason) => {
@@ -554,6 +525,20 @@ export default function AddGoalDialog({
       if (m.role !== "assistant" || m.streaming) continue;
       const proposals = m.proposals || [];
       if (proposals.length === 0) continue;
+
+      // Priority 1 — if the user has saved any refinements, the button
+      // becomes the batch "Refine goals" action.
+      const refined = proposals.filter((p) => p.refinement);
+      if (refined.length > 0) {
+        return {
+          messageId: m.id,
+          proposalId: null,
+          label: `Refine goals (${refined.length})`,
+          variant: "refine",
+          proposals,
+        };
+      }
+
       const pending = proposals.filter((p) => (p.status || "pending") === "pending");
       const hasCreateGoal = pending.some((p) => p.action === "create_goal");
 
@@ -584,6 +569,28 @@ export default function AddGoalDialog({
 
   const onPinnedAction = () => {
     if (!pinnedAction) return;
+
+    if (pinnedAction.variant === "refine") {
+      // Batch: send every saved refinement + rejection to the LLM once.
+      const ps = pinnedAction.proposals || [];
+      const labelFor = (p) => p.args?.title || p.args?.text || p.title || p.action || "item";
+      const refined = ps.filter((p) => p.refinement);
+      const rejected = ps.filter((p) => p.status === "rejected");
+      const lines = [];
+      if (refined.length) {
+        lines.push("Refine these (keep everything else):");
+        refined.forEach((p) => lines.push(`- ${labelFor(p)}: ${p.refinement}`));
+      }
+      if (rejected.length) {
+        lines.push("Drop or rework these:");
+        rejected.forEach((p) => lines.push(`- ${labelFor(p)}${p.rejection ? `: ${p.rejection}` : ""}`));
+      }
+      send(
+        `Re-propose the plan applying ALL of these notes at once. Return the full goal + milestones + commitments again with the changes applied.\n\n${lines.join("\n")}`,
+      );
+      return;
+    }
+
     if (pinnedAction.variant === "confirm") {
       confirm(pinnedAction.messageId, pinnedAction.proposalId);
       return;
@@ -759,13 +766,15 @@ export default function AddGoalDialog({
                   onClick={onPinnedAction}
                   disabled={sending || (pinnedAction.proposalId != null && busyProposal === pinnedAction.proposalId)}
                   className={`w-full h-12 rounded-full inline-flex items-center justify-center gap-2 text-[15px] font-semibold transition-opacity disabled:opacity-40 hover:opacity-90 active:scale-[0.99] ${
-                    pinnedAction.variant === "confirm"
+                    pinnedAction.variant === "confirm" || pinnedAction.variant === "refine"
                       ? "bg-[var(--accent)] text-[var(--bg-primary)]"
                       : "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                   }`}
                 >
                   {pinnedAction.variant === "confirm" ? (
                     <Check className="w-4 h-4" aria-hidden="true" />
+                  ) : pinnedAction.variant === "refine" ? (
+                    <Pencil className="w-4 h-4" aria-hidden="true" />
                   ) : (
                     <RefreshCw className="w-4 h-4" aria-hidden="true" />
                   )}
@@ -780,14 +789,15 @@ export default function AddGoalDialog({
             proposalTitle={refiningProposal?.args?.title || refiningProposal?.title || refiningProposal?.args?.goal_title || ""}
             proposalAction={(refiningProposal?.action || "change").replace(/_/g, " ")}
             proposalActionKey={refiningProposal?.action || ""}
+            initialValue={refiningProposal?.refinement || ""}
             onSubmit={submitRefine}
-            onConfirm={confirmRefine}
           />
           <RejectModal
             open={!!rejectingProposal}
             onClose={() => setRejectingProposal(null)}
             proposalTitle={rejectingProposal?.args?.title || rejectingProposal?.title || rejectingProposal?.args?.goal_title || ""}
             proposalActionKey={rejectingProposal?.action || ""}
+            initialValue={rejectingProposal?.rejection || ""}
             onSubmit={submitReject}
           />
         </>

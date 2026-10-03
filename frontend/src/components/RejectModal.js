@@ -89,6 +89,7 @@ export default function RejectModal({
   onClose,
   proposalTitle = "",
   proposalActionKey = "",
+  initialValue = "",
   onSubmit,
 }) {
   const [reason, setReason] = useState("");
@@ -98,12 +99,12 @@ export default function RejectModal({
 
   useEffect(() => {
     if (open) {
-      setReason("");
+      setReason(initialValue || "");
       setBusy(false);
       setError("");
       setSkipReason(false);
     }
-  }, [open]);
+  }, [open, initialValue]);
 
   const chips = (proposalActionKey && REJECT_CHIPS_BY_ACTION[proposalActionKey]) || DEFAULT_REJECT_CHIPS;
 
