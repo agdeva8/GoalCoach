@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Plus, Sparkles, ArrowLeft } from "lucide-react";
+import { MessageSquare, Plus, Sparkles, ChevronLeft } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -453,7 +453,7 @@ export default function Coach() {
                 title="Back"
                 className="-ml-2 h-11 w-11 flex items-center justify-center text-[var(--accent)] hover:text-[var(--text-primary)] transition-colors shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
               >
-                <ArrowLeft className="w-5 h-5" aria-hidden="true" />
+                <ChevronLeft className="w-5 h-5" aria-hidden="true" />
               </button>
             )}
             <GoalMenu large />

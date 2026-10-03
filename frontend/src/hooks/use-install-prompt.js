@@ -50,18 +50,35 @@ export function isIosSafari() {
   return !/crios|fxios|edgiOS|opios/i.test(ua);
 }
 
-function recentlyDismissed() {
-  // Snooze removed — see Guards note in the file header. Chrome's
-  // `beforeinstallprompt` is rate-limited at the browser level; we don't
-  // need our own. Keeping the function as a stub for the `dismissed`
-  // return below so the call site stays readable.
-  return false;
-}
+/* Install-prompt suppression — after the user dismisses, don't ask again
+ * for the next N app visits. A "visit" is one app load (the counter bumps
+ * once per mount). Keyed in localStorage so it survives reloads. */
+const VISIT_KEY = "sutra_install_visits";
+const DISMISS_KEY = "sutra_install_dismissed_at";
+const SUPPRESS_VISITS = 3;
 
 export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
+  // Visit counter (once per app load). Computed before `dismissed` so the
+  // suppression window can be measured against it.
+  const [visit] = useState(() => {
+    try {
+      const next = (Number(localStorage.getItem(VISIT_KEY)) || 0) + 1;
+      localStorage.setItem(VISIT_KEY, String(next));
+      return next;
+    } catch {
+      return 1;
+    }
+  });
   const [deferred, setDeferred] = useState(null);
   const [installed, setInstalled] = useState(isStandalone);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      const at = Number(localStorage.getItem(DISMISS_KEY)) || 0;
+      return at > 0 && (visit - at) < SUPPRESS_VISITS;
+    } catch {
+      return false;
+    }
+  });
   const [ready, setReady] = useState(false); // show-delay elapsed
 
   const iosSafari = isIosSafari();
@@ -111,15 +128,19 @@ export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
     }
     setDeferred(null);
     if (outcome === "accepted") setInstalled(true);
-    else setDismissed(true); // they said no to the native sheet too
+    else {
+      // They said no to the native sheet too — suppress for the next N visits.
+      setDismissed(true);
+      try { localStorage.setItem(DISMISS_KEY, String(visit)); } catch { /* ignore */ }
+    }
     return outcome;
-  }, [deferred]);
+  }, [deferred, visit]);
 
   const dismiss = useCallback(() => {
     setDismissed(true);
-    // No localStorage persistence — closing just hides the dialog. If
-    // Chrome fires `beforeinstallprompt` again later, we'll show it again.
-  }, []);
+    // Persist across the next SUPPRESS_VISITS app loads.
+    try { localStorage.setItem(DISMISS_KEY, String(visit)); } catch { /* ignore */ }
+  }, [visit]);
 
   return {
     // Dialog opens when the show-delay elapsed AND we can actually do

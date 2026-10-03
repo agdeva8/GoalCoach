@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
+  ChevronLeft,
   LogIn,
   LogOut,
   Type,
@@ -172,14 +172,14 @@ export default function Settings() {
       >
         Skip to content
       </a>
-      <header className="min-h-16 shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-md px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-50 py-2">
+      <header className="min-h-16 shrink-0 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-primary)_72%,transparent)] backdrop-blur-xl backdrop-saturate-150 px-4 sm:px-6 flex items-center gap-3 sticky top-0 z-50 py-2">
         <button
           onClick={leaveSettings}
           title="Back to Coach"
           aria-label="Back to Coach"
           className="flex items-center gap-2 h-11 px-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
           <span className="hidden sm:inline">Coach</span>
         </button>
 

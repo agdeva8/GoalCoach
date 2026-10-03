@@ -12,10 +12,7 @@ export default function Motivation({ state }) {
   return (
     <div data-testid="motivation-view" className="px-4 sm:px-6 py-5 sm:py-6 space-y-6 max-w-[820px] mx-auto w-full">
       <header>
-        <h2 className="text-[21px] sm:text-[24px] font-semibold tracking-tight text-[var(--text-primary)] leading-snug">
-          Motivation
-        </h2>
-        <p className="text-[14px] text-[var(--text-muted)] mt-1">
+        <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed max-w-md">
           A nudge for right now, drawn from where you actually are.
         </p>
       </header>

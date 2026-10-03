@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles, Target } from "lucide-react";
+import { ArrowRight, ChevronRight, Sparkles, Target } from "lucide-react";
 import TrackerCard from "./TrackerCard";
 import { OverCommitmentIndicator } from "./TrackingDashboard";
 import { useAuth } from "../context/AuthContext";
@@ -109,7 +109,7 @@ export default function Overview({ state, onOpenChat, onOpenToday, onOpenGoals }
                     <div className="text-[12px] text-[var(--text-muted)]">Target · {g.target_date}</div>
                   )}
                 </div>
-                <ArrowRight className="w-4 h-4 text-[var(--text-muted)] shrink-0" aria-hidden="true" />
+                <ChevronRight className="w-4 h-4 text-[var(--text-muted)] shrink-0" aria-hidden="true" />
               </button>
             ))}
           </div>

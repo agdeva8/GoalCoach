@@ -1118,8 +1118,8 @@ function EmptyState({ onPrefill, onOpenChatWith }) {
   };
 
   return (
-    <div data-testid="timeline-view" className="p-4 sm:p-6">
-      <div className="relative overflow-hidden border border-dashed border-[var(--border)] rounded-lg bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] px-6 py-10 sm:py-14 text-center">
+    <div data-testid="timeline-view" className="px-4 sm:px-6 py-5 sm:py-6 max-w-[900px] mx-auto w-full">
+      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-secondary)] px-6 py-10 sm:py-14 text-center">
         <svg
           aria-hidden="true"
           className="mx-auto mb-5 opacity-90"
@@ -1165,7 +1165,7 @@ function EmptyState({ onPrefill, onOpenChatWith }) {
           <button
             data-testid="timeline-prefill-button"
             onClick={onBuildTimeline}
-            className="font-medium min-h-11 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--bg-primary)] bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+            className="font-semibold mt-4 min-h-11 inline-flex items-center gap-1.5 px-5 py-2.5 text-sm text-[var(--bg-primary)] bg-[var(--accent)] hover:opacity-90 transition-opacity rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
           >
             Ask the coach to build my timeline
           </button>
@@ -1531,7 +1531,7 @@ function StripEmptyState({ onAsk }) {
   return (
     <div
       data-testid="timeline-view"
-      className="gc-fade-in flex flex-col items-center justify-center text-center gap-4 py-16 px-6 rounded-lg border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)]"
+      className="gc-fade-in flex flex-col items-center justify-center text-center gap-4 py-16 px-6 rounded-2xl bg-[var(--bg-secondary)]"
       role="region"
       aria-label="Timeline empty state"
     >
@@ -1602,7 +1602,7 @@ function StripBody({ children, testId }) {
 function EmptyStrip({ horizon, onAsk }) {
   return (
     <div
-      className="snap-start shrink-0 min-w-[260px] w-[280px] sm:w-[300px] rounded-md border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] px-3.5 py-4 flex flex-col items-start gap-2"
+      className="snap-start shrink-0 min-w-[260px] w-[280px] sm:w-[300px] rounded-2xl bg-[var(--bg-secondary)] px-4 py-4 flex flex-col items-start gap-2"
       role="note"
       aria-label={`Nothing due ${horizon.label.toLowerCase()}`}
     >
@@ -2688,8 +2688,7 @@ function CalendarEmptyState({ onAsk }) {
   return (
     <div
       data-testid="timeline-view"
-      className="flex flex-col items-center justify-center text-center px-6 py-16 rounded-lg border border-dashed border-[var(--border)]"
-      style={{ background: "var(--bg-secondary)" }}
+      className="flex flex-col items-center justify-center text-center px-6 py-16 rounded-2xl bg-[var(--bg-secondary)]"
     >
       <div
         className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
@@ -2719,10 +2718,10 @@ function CalendarEmptyState({ onAsk }) {
                 "Goals, milestones, and commitments will appear here as colored tiles across the days they cover.",
             })
           }
-          className="font-medium mt-4 inline-flex items-center gap-1.5 h-11 sm:h-9 px-3.5 rounded-md text-xs text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
+          className="font-medium mt-4 inline-flex items-center gap-1.5 h-11 px-5 rounded-full text-sm font-semibold text-[var(--bg-primary)] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
           style={{ background: "var(--accent)" }}
         >
-          <Sparkles size={13} aria-hidden="true" />
+          <Sparkles size={14} aria-hidden="true" />
           Ask the coach
         </button>
       )}

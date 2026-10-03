@@ -325,10 +325,9 @@ export default function TrackingDashboard({
   return (
     <div data-testid="tracking-dashboard" className="px-4 sm:px-6 py-5 sm:py-6 space-y-7 max-w-[820px] mx-auto w-full">
       <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[var(--text-primary)] leading-tight">Your goals</h2>
-          <p className="text-[13px] text-[var(--text-muted)] mt-1">Everything the coach is keeping track of for you.</p>
-        </div>
+        <p className="text-[14px] text-[var(--text-secondary)] max-w-md leading-relaxed">
+          Everything the coach is keeping track of for you.
+        </p>
         {visibleGoals.length > 0 && (
           <button data-testid="add-goal-button" onClick={openAddGoalDialog} className="flex items-center gap-1.5 px-4 h-11 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] text-sm font-semibold hover:opacity-90 transition-opacity shrink-0">
             <Plus className="w-4 h-4" /> Add goal

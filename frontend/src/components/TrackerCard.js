@@ -228,7 +228,7 @@ export default function TrackerCard({ state, onOpenChat, onOpenToday }) {
               This week
             </div>
             {data.milestonesThisWeek.length === 0 ? (
-              <div className="px-3 py-3 border border-dashed border-[var(--border)] rounded-md text-sm text-[var(--text-muted)] leading-relaxed">
+              <div className="px-3 py-3 rounded-xl bg-[var(--bg-tertiary)] text-[13px] text-[var(--text-muted)] leading-relaxed">
                 Nothing due in the next 7 days. Ask the coach to add one.
               </div>
             ) : (
