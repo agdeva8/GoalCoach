@@ -491,21 +491,21 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Final-tier safety net — when auto-answer is on AND the model
-        // and its follow-up both came back prose-only, build a
-        // confirmable proposal server-side from the message text.
-        // The user ALWAYS gets either a drop_goal/pause_goal (when the
-        // message targets an existing goal) or a create_goal (when
-        // it's a new goal introduction). Drop intent wins over the
-        // create-goal heuristic — "drop swimming" drops, never
-        // creates "Drop swimming". When neither heuristic matches
-        // we surface a clarifying question instead of a silent dump.
+        // Final-tier safety net. For a drop/pause conversation this ALWAYS
+        // runs regardless of auto-answer: the user opened this surface to
+        // remove a goal, so a prose-only reply (or a repeat "ask") is a
+        // dead-end. Resolve the target from the message first, then from the
+        // conversation title ("Drop \"X\"?") — a tapped choice like "Drop it
+        // for good" carries the decision, not the goal name.
+        //
+        // For every other scoped kind the net is unchanged: it only fires in
+        // auto-answer mode and only synthesizes a create_goal.
+        const isDropConv = scopedKind === 'drop_goal'
         if (
-          autoAnswer &&
           !clarify &&
           scopedKind !== 'general' &&
-          proposals.length === 0 &&
-          message.length > 0
+          message.length > 0 &&
+          (autoAnswer || isDropConv)
         ) {
           // The drop heuristic needs the user's current goals. The
           // state has already been loaded once at the top of the route
@@ -516,22 +516,41 @@ export async function POST(req: NextRequest) {
               title: g.title,
               goalId: g.id,
             }))
-          const dropProposal = parseDropIntent(message, dropCandidates)
-          if (dropProposal) {
-            proposals.push(dropProposal)
-          } else {
-            const synthesized = proposeGoalFromMessage(message)
-            if (synthesized) {
-              proposals.push(synthesized)
-            } else if (!needsClarification) {
-              // Last-ditch: surface a clarifying question so the user
-              // gets an interactive chip rather than a silent prose
-              // dump. Only fires when no proposals came out and the
-              // planner didn't already emit one.
-              clarifyingQuestions = extractClarifyingQuestions(prose)
-              if (clarifyingQuestions.length > 0) {
-                needsClarification =
-                  'Tell me a little more so I can shape a real proposal:'
+          const directDrop = parseDropIntent(message, dropCandidates)
+          const contextualDrop =
+            isDropConv && !directDrop
+              ? parseDropIntent(message, dropCandidates, {
+                  contextText: convTitle,
+                })
+              : null
+
+          if (
+            isDropConv &&
+            contextualDrop &&
+            proposals.length > 0 &&
+            proposals.every((p: any) => p.action === 'ask')
+          ) {
+            // The terse confirmation resolved the coach's ask — swap the
+            // ask for the real drop instead of asking again (ask loop).
+            proposals = [contextualDrop]
+          } else if (proposals.length === 0) {
+            const dropProposal = directDrop || contextualDrop
+            if (dropProposal) {
+              proposals.push(dropProposal)
+            } else if (autoAnswer) {
+              const synthesized = proposeGoalFromMessage(message)
+              if (synthesized) {
+                proposals.push(synthesized)
+              } else if (!needsClarification) {
+                // Last-ditch: surface a clarifying question so the user
+                // gets an interactive chip rather than a silent prose
+                // dump. Only fires when no proposals came out and the
+                // planner didn't already emit one.
+                clarifyingQuestions = extractClarifyingQuestions(prose)
+                if (clarifyingQuestions.length > 0) {
+                  needsClarification =
+                    'Tell me a little more so I can shape a real proposal:'
+                }
               }
             }
           }
