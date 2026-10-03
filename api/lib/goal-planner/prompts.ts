@@ -149,12 +149,18 @@ Fixed order when creating a goal: create_goal, then add_milestone ×N, then
 add_blocker ×N, then add_commitment ×N.
 
 Allowed actions for intent "${args.intent}":
-- add_goal: create_goal, add_milestone, add_blocker, add_commitment
+- add_goal: create_goal, add_milestone, add_blocker, add_commitment, set_goal_dates
 - plan_day: add_commitment, complete_commitment, add_blocker
 - edit_goal: update_goal, set_goal_dates, add_milestone, add_blocker, add_commitment
 - drop_goal: drop_goal, pause_goal
 - review_progress: update_goal, set_goal_dates, add_commitment,
   complete_commitment, add_blocker, pause_goal, drop_goal
+
+Renegotiation note (add_goal): when the RENEGOTIATION constraint block above
+requires shifting an existing goal (choice shift_existing_target), ALSO emit a
+set_goal_dates tool for the existing goal being pushed — goal_title must be an
+existing goal from LIVE STATE, target_date later than today, keeping the new
+goal exactly as planned.
 
 Every add_milestone.add_goal reference and add_commitment.goal_title must match
 the plan goal title (or an existing goal's exact title). Every

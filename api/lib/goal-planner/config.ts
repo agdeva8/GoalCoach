@@ -17,14 +17,19 @@ import 'server-only'
 /* -------------------------------------------------------------------------- */
 
 /**
- * Master switch. Off by default EVERYWHERE (dev/test/prod) — the rollout is
- * shadow → dogfood → flip (PRD Iteration 10 §Rollout). When false the
- * orchestrator is never called and the legacy one-shot chat path acts.
- *
- * Override with `GOAL_PLANNER_ENABLED=true` in env.
+ * Master switch. ON by default (Iteration 10 flipped on after founder
+ * testing); set `GOAL_PLANNER_ENABLED=false` to fall back to the legacy
+ * one-shot chat path. When false the orchestrator is never called and the
+ * legacy one-shot chat path acts.
+ */
+/**
+ * parsing — default ON. The planner is now the primary path for the five
+ * planned kinds; unsetting the env var falls back to the legacy chat path
+ * only when explicitly set to 'false'.
  */
 function parseEnabledFlag(raw: string | undefined): boolean {
-  return raw === 'true'
+  if (raw === 'false') return false
+  return true
 }
 
 export const GOAL_PLANNER_ENABLED = parseEnabledFlag(

@@ -73,7 +73,12 @@ export type ToolAction = z.infer<typeof ToolActionSchema>
 
 /** Tool actions each intent is permitted to emit (Stage 4 enforcement). */
 export const ALLOWED_ACTIONS: Record<Intent, readonly ToolAction[]> = {
-  add_goal: ['create_goal', 'add_milestone', 'add_blocker', 'add_commitment'],
+  // `set_goal_dates` is allowed for add_goal specifically for the
+  // shift-existing-target renegotiation option: when the new plan doesn't
+  // fit, the user may choose to push an existing goal's timeline out. The
+  // cross-validator still requires the referenced goal to exist and any
+  // dates to come from the plan.
+  add_goal: ['create_goal', 'add_milestone', 'add_blocker', 'add_commitment', 'set_goal_dates'],
   plan_day: ['add_commitment', 'complete_commitment', 'add_blocker'],
   edit_goal: [
     'update_goal',
