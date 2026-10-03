@@ -1,0 +1,280 @@
+@startuml SutraOverview
+title Sutra — AI SDK + LangGraph surface map
+
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+package "Frontend (React) — unchanged" {
+  [Coach / ChatConsole] as FE_CHAT
+  [MotivationCard] as FE_MOT
+  [Dashboard / Today / Timeline] as FE_DASH
+}
+
+package "api routes (thin adapters)" {
+  [POST /api/chat/stream] as RT_STREAM
+  [POST /api/chat/plan] as RT_PLAN
+  [POST /api/motivation/recommend] as RT_MOT
+  [POST /api/tools/confirm] as RT_CONFIRM
+}
+
+package "LangGraph StateGraphs" {
+  [chat ops graph (lib/chat/ops-graph.ts)] as G_OPS
+  [goal planner graph (lib/goal-planner/orchestrator.ts)] as G_PLAN
+  [motivation graph (lib/motivation/graph.ts)] as G_MOT
+}
+
+package "shared AI SDK" {
+  [lib/llm/client.ts (provider + generateObject/Text)] as SDK_CLIENT
+  [lib/emergent/stream-chat.ts (streamText to StreamEvent)] as SDK_STREAM
+  [lib/emergent/backend.ts (resolveBackend)] as SDK_BACKEND
+}
+
+database "Postgres" {
+  [checkpoints] as DB_CP
+  [motivation_cache / rejects / served_log] as DB_MOT
+  [goals / milestones / commitments / blockers] as DB_STATE
+}
+
+FE_CHAT --> RT_STREAM
+FE_CHAT --> RT_PLAN
+FE_MOT --> RT_MOT
+
+RT_STREAM --> G_OPS
+RT_PLAN --> G_PLAN
+RT_MOT --> G_MOT
+
+G_OPS --> SDK_STREAM
+G_PLAN --> SDK_CLIENT
+G_MOT --> SDK_CLIENT
+SDK_CLIENT --> SDK_BACKEND
+SDK_STREAM --> SDK_BACKEND
+
+G_PLAN --> DB_CP
+G_MOT --> DB_MOT
+FE_CHAT --> RT_CONFIRM
+RT_CONFIRM --> DB_STATE
+@enduml
+
+
+@startuml GoalPlannerOps
+title Sutra — Goal Planner ops graph (LangGraph StateGraph)
+
+skinparam state {
+  BackgroundColor #F7F9FC
+  BorderColor #4A6FA5
+  ArrowColor #4A6FA5
+}
+skinparam note {
+  BackgroundColor #FFF8E1
+  BorderColor #E0C878
+}
+
+state "n_intake\nIntakeSchema (AI SDK)" as INTAKE
+state "n_clarify\ninterrupt({kind:'clarify'})" as CLARIFY
+state "n_plan\nPlanSchema (AI SDK)" as PLAN
+state "n_headroom\ncheckHeadroom() programmatic" as HEADROOM
+state "n_emit\nEmitSchema (AI SDK)" as EMIT
+state "n_cross_validate\ncrossValidate() programmatic" as CV
+
+[*] --> INTAKE
+
+INTAKE --> CLARIFY : needs_clarification && questions > 0
+INTAKE --> [*] : result = early (meta_question / routine_return /\nover_committed && intent != add_goal)
+INTAKE --> [*] : result = no_change (intake LLM error)
+INTAKE --> PLAN : else
+
+CLARIFY --> PLAN : resume via Command{resume: answer}\n(re-runs only this node)
+
+PLAN --> HEADROOM : plan ready
+PLAN --> [*] : result = no_change (add_goal w/o goal / LLM error)
+
+HEADROOM --> EMIT : proceed / proceed_tight / advisory
+HEADROOM --> [*] : result = renegotiate (4 options; round < 2)
+HEADROOM --> [*] : result = no_change (round >= MAX_RENEGOTIATION_ROUNDS)
+
+EMIT --> CV
+EMIT --> [*] : result = no_change (emit LLM error)
+
+CV --> [*] : result = ok
+CV --> EMIT : cv failed && emitAttempts < 2\n(retry with emitRetrySuffix)
+CV --> [*] : result = no_change (cv failed twice)
+
+note right of INTAKE
+  Intent (op) in {add_goal, plan_day,
+  edit_goal, drop_goal, review_progress}
+end note
+
+note bottom of EMIT
+  Ops emitted: create_goal, update_goal, drop_goal,
+  pause_goal, set_goal_dates, add_milestone,
+  add_blocker, add_commitment, complete_commitment
+  (filtered to the intent's allowed set by crossValidate)
+end note
+
+note right of PLAN
+  Anti-hallucination gate: blockers the user
+  did not name are cleared (BLOCKER_CUE) and
+  their add_blocker tools dropped.
+end note
+
+note right of CV
+  add_goal: 3-5 milestones, 1-3 commitments.
+  goal_title / target_date / phase must match
+  the Stage 3 plan or an existing goal.
+  Verdict is computed in code, never by the LLM.
+end note
+
+note bottom of CLARIFY
+  Checkpointer: PostgresSaver in prod
+  (DATABASE_URL) else MemorySaver.
+  thread_id = conversationId.
+end note
+@enduml
+
+
+@startuml MotivationRecommendation
+title Sutra — Motivation recommendation (SWR entry + LangGraph pipeline)
+
+skinparam ActivityBackgroundColor #F7F9FC
+skinparam ActivityBorderColor #4A6FA5
+
+start
+:POST /api/motivation/recommend;
+:detectBucket(user) + auth;
+note right
+  bucket in {overdue, dormant, stuck}
+end note
+
+if (MOTIVATION_AGENT_ENABLED?) then (no)
+  :return catalogue;
+  stop
+else (yes)
+endif
+
+if (forceRefresh?) then (no)
+  :readCache(user, bucket, stateHash);
+  if (cache status?) then (hit, <= 60m)
+    :return cached items (cache = hit);
+    stop
+  elseif (stale, <= 24h) then
+    :return stale items (cache = stale);
+    :triggerPipelineOnce() in background;
+    stop
+  else (miss)
+    :return catalogue now (cache = miss);
+    :triggerPipelineOnce() in background;
+    stop
+  endif
+else (yes)
+  :skip cache read;
+endif
+
+note right
+  triggerPipelineOnce dedups concurrent polls by
+  userId:bucket:stateHash via the in-flight map.
+end note
+
+partition "runPipeline (LangGraph, 20s master deadline, $0.25 cost cap)" {
+  :n_signals - extractLackingSignals + buildQueries;
+  :n_search - searchTavily (Tavily, 3 query variants);
+  if (raw empty OR over cost cap?) then (yes)
+    :result = catalogue;
+  else (no)
+    :n_fetch - fetchCandidates + normalize;
+    if (candidates empty?) then (yes)
+      :result = catalogue;
+    else (no)
+      :n_critique - critiqueAll (concurrency 5,
+      AI SDK structured output, 10 dimensions);
+      note right
+        Deterministic verdict in code:
+        passesCoreFour && countAboveFloor >= 5
+        && weighted_total >= 6.5
+      end note
+      if (scored empty OR over cap?) then (yes)
+        :result = catalogue;
+      else (no)
+        :n_pick - pickTopN (gates + <=1 per domain)
+        + persistRejects;
+        if (picks empty?) then (yes)
+          :result = catalogue;
+        else (no)
+          :n_frame - frameCandidate (generateText) per pick;
+          :n_cache - writeCache + bumpServedCount;
+          :result = {bucket, items, cache:'miss'};
+        endif
+      endif
+    endif
+  endif
+}
+
+:RecommendationResponse;
+stop
+@enduml
+
+
+@startuml GeneralChatOps
+title Sutra — General chat / all ops (SSE adapter over LangGraph)
+
+skinparam sequence {
+  ArrowColor #4A6FA5
+  ParticipantBorderColor #4A6FA5
+  ParticipantBackgroundColor #F7F9FC
+}
+
+actor User
+participant "POST /api/chat/stream\n(Next route)" as R
+participant "buildOpsGraph\n(LangGraph StateGraph)" as G
+participant "streamChat\n(AI SDK streamText)" as L
+database "Postgres" as DB
+participant "POST /api/tools/confirm\nproposal-executor" as EX
+
+User -> R : message + scope/kind + autoAnswer/clarify
+R -> R : auth; resolve scopedKind; mint/redirect conversation
+R -> DB : insert user message
+R -> R : buildContext + loadHistory + loadState
+R -> G : buildOpsGraph(args)
+R -> G : graph.stream({ streamMode: 'custom' })
+
+group n_generate
+  G -> L : streamChat(system, messages)
+  L --> G : text_delta / stream_done
+  G --> R : getWriter({type:'delta'}) - prose only,\n[[TOOLS]] block suppressed
+  G -> G : splitProseAndTools(fullText)
+end
+
+alt prose-only AND autoAnswer AND scoped AND NOT clarify AND NOT hadToolsBlock
+  group n_refine (silent follow-up)
+    G -> L : "SYSTEM CORRECTION - emit ONLY a [[TOOLS]] block"
+    G -> G : parse follow-up proposals
+  end
+end
+
+group n_finalize
+  G -> G : grill-me clarifying questions (clarify mode)
+  G -> G : drop safety net (parseDropIntent + conversation title)
+  G -> G : general-chat read-only filter (navigate / ask only)
+  G --> R : getWriter({type:'result', prose, proposals, ...})
+end
+
+R -> DB : insert assistant message + pending proposals
+R --> User : SSE delta / tools / needs_clarification / done
+
+User -> EX : confirm(proposal_id)
+EX -> DB : apply op + audit row (LLM is the only writer)
+EX --> User : updated state
+
+note over G
+  Every state-changing op flows through this graph:
+  create_goal, update_goal, drop_goal, pause_goal,
+  set_goal_dates, add_milestone, add_blocker,
+  add_commitment, complete_commitment.
+  Scoped ops (kind != general) may instead run
+  through the Goal Planner graph at /api/chat/plan.
+end note
+
+note over R
+  Wire format preserved:
+  data: {"type":"delta"|"tools"|"needs_clarification"|"done"|"error", ...}
+end note
+@enduml
