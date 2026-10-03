@@ -207,7 +207,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, onAnswerChoice = null, showConfirm = true, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", emptyPrompt = "", onViewGoal = null }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, onAnswerChoice = null, showConfirm = true, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", emptyPrompt = "", onViewGoal = null, showModeSelect = true }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -716,12 +716,17 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
               right. */}
           <div className="flex items-center justify-between gap-2 px-1 py-1 border-t border-[var(--border)]">
             <div className="flex-1 min-w-0 max-w-[150px]">
-              <ChatModeSelect
-                autoAnswer={autoAnswer}
-                grillMe={grillMe}
-                setAutoAnswer={setAutoAnswer}
-                setGrillMe={setGrillMe}
-              />
+              {/* Mode switcher (may ask / auto / grill) only where the chat
+                  can actually change state. The general chat is read-only,
+                  so it hides this. */}
+              {showModeSelect && (
+                <ChatModeSelect
+                  autoAnswer={autoAnswer}
+                  grillMe={grillMe}
+                  setAutoAnswer={setAutoAnswer}
+                  setGrillMe={setGrillMe}
+                />
+              )}
             </div>
             <div className="flex items-center gap-0 shrink-0">
               {showSources && (

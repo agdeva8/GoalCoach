@@ -667,9 +667,11 @@ export default function ChatModal({
   // entity to anchor on — still rendered the generic header.
   const scoped = Boolean(title)
   const headerTitle = scoped ? `About: ${title}` : "Chat with your coach"
+  // The general chat is read-only — it answers about your state and routes
+  // you to the right screen; it never changes anything itself.
   const headerSubtitle = scoped
     ? (helperText || "Ask anything about this — proposals only land after you confirm.")
-    : "Ask anything. The coach writes to your goals only after you confirm a proposal."
+    : "Ask about your goals, progress, or what to focus on. To change something, I'll take you to the right screen."
 
   return (
     <CenteredDialog
@@ -713,6 +715,13 @@ export default function ChatModal({
           focusOnMount={open}
           scopeLabel={scoped ? title : ""}
           scopeIntent={scoped ? (helperText || "Talk to the coach about this —") : ""}
+          // General chat is read-only — no mode switcher there.
+          showModeSelect={scoped}
+          emptyPrompt={
+            scoped
+              ? ""
+              : "Ask me anything about your goals and progress — or name what you want to change and I'll take you to the right screen."
+          }
           onClearChat={async () => {
             try {
               await api.clearHistory();
