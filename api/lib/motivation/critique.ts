@@ -23,16 +23,15 @@
 
 import 'server-only'
 
-import { streamChat } from '@/lib/emergent/stream-chat'
+import { z } from 'zod'
+
+import { completeJsonWithMeta } from '@/lib/llm/client'
 
 import {
-  CHEAP_MODEL,
-  REASONING_MODEL,
   REASONING_PROVIDER,
   STAGE_TIMEOUTS,
   computeWeightedTotal,
   countAboveFloor,
-  llmCallCostUsd,
   passesCoreFour,
 } from './config'
 import {
@@ -219,76 +218,34 @@ Return the JSON object now.`
 }
 
 /* -------------------------------------------------------------------------- */
-/* LLM call — non-streaming JSON via streamChat + parse                      */
+/* LLM call — AI SDK structured output via the shared client                  */
 /* -------------------------------------------------------------------------- */
 
-interface CritiqueRaw {
-  scores: Record<string, number>
-  top_reasons?: string[]
-}
-
 /**
- * Issue a single non-streaming chat completion, parse the JSON
- * response, and return the structured output.
- *
- * Uses `streamChat` under the hood and accumulates the full text.
- * For task #2 we keep the call path minimal; task #5 will move this
- * to a dedicated `llm.ts` module with proper structured-output
- * (`response_format: { type: "json_object" }`) support.
+ * Output contract the model must satisfy. Every score is optional so a
+ * partial response does not fail the whole critique — missing keys are
+ * coerced to 0 in `critiqueCandidate` (same tolerance as before, when the
+ * raw JSON was read defensively).
  */
-async function chatJson(args: {
-  system: string
-  user: string
-  model: string
-  sessionId: string
-  signal?: AbortSignal
-}): Promise<{ content: CritiqueRaw; costUsd: number }> {
-  let full = ''
-  for await (const ev of streamChat({
-    // Provider id (for the registry lookup); the actual model name
-    // comes from `args.model`, which `critiqueCandidate` reads off
-    // `REASONING_MODEL` — the registry's `claude` row, which at MVP
-    // resolves to `deepseek-flash` whenever `DEEPSEEK_API_KEY` is
-    // set (see `lib/emergent/model-registry.ts` MVP note).
-    provider: REASONING_PROVIDER,
-    model: args.model,
-    system: args.system,
-    messages: [{ role: 'user', content: args.user }],
-    sessionId: args.sessionId,
-    signal: args.signal,
-  })) {
-    if (ev.type === 'text_delta') full += ev.content
-    else if (ev.type === 'stream_done') full = ev.content
-  }
-  // Strip markdown fences if the model added them anyway.
-  const trimmed = full
-    .trim()
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/i, '')
-    .trim()
+const CritiqueOutputSchema = z.object({
+  scores: z
+    .object({
+      credibility: z.number().optional(),
+      recency: z.number().optional(),
+      depth: z.number().optional(),
+      actionability: z.number().optional(),
+      citation_density: z.number().optional(),
+      engagement_volume: z.number().optional(),
+      engagement_quality: z.number().optional(),
+      voice_fit: z.number().optional(),
+      source_independence: z.number().optional(),
+      accessibility: z.number().optional(),
+    })
+    .optional(),
+  top_reasons: z.array(z.string()).optional(),
+})
 
-  // Find the first '{' and last '}' to handle leading prose.
-  const start = trimmed.indexOf('{')
-  const end = trimmed.lastIndexOf('}')
-  const slice = start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed
-
-  const parsed = JSON.parse(slice) as CritiqueRaw
-
-  // Cost estimate — the Emergent proxy doesn't return usage tokens in
-  // the streaming shape we use, so this is a conservative estimate
-  // based on input chars / 4 and output chars / 4. Task #10 will
-  // replace this with real usage when the proxy exposes it.
-  const inputChars = args.system.length + args.user.length
-  const outputChars = full.length
-  const isReasoning = args.model === REASONING_MODEL
-  const costUsd = llmCallCostUsd(
-    isReasoning ? 'reasoning' : 'cheap',
-    Math.ceil(inputChars / 4),
-    Math.ceil(outputChars / 4),
-  )
-
-  return { content: parsed, costUsd }
-}
+type CritiqueRaw = z.infer<typeof CritiqueOutputSchema>
 
 /* -------------------------------------------------------------------------- */
 /* Public API                                                                 */
@@ -307,14 +264,17 @@ export async function critiqueCandidate(args: {
   sessionId: string
   signal?: AbortSignal
 }): Promise<ScoredCandidate> {
-  const { candidate, sessionId, signal } = args
+  const { candidate, signal } = args
 
-  const { content: raw } = await chatJson({
+  const { object: raw } = await completeJsonWithMeta({
+    provider: REASONING_PROVIDER,
+    schema: CritiqueOutputSchema,
+    schemaName: 'CritiqueScores',
+    schemaDescription:
+      'Per-dimension 0-1 scores plus 1-3 short reasons for a curated content candidate.',
     system: buildSystemPrompt(),
-    user: buildUserPrompt(candidate),
-    model: REASONING_MODEL,
-    sessionId,
-    signal,
+    prompt: buildUserPrompt(candidate),
+    abortSignal: signal,
   })
 
   // Coerce the raw scores into a typed ScoreBreakdown. We do NOT

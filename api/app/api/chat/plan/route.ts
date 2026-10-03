@@ -26,7 +26,7 @@ import { eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { isGoalPlannerEnabledFor } from '@/lib/goal-planner/config'
-import { runPlanPipeline } from '@/lib/goal-planner/orchestrator'
+import { runPlanPipeline, getPendingPlanInterrupt } from '@/lib/goal-planner/orchestrator'
 import type { PlanPipelineArgs } from '@/lib/goal-planner/orchestrator'
 import {
   INTENTS,
@@ -35,6 +35,7 @@ import {
   type Intent,
 } from '@/lib/goal-planner/schemas'
 import { MODEL_REGISTRY, type ProviderId } from '@/lib/emergent/model-registry'
+import { parseDropIntent } from '@/lib/emergent/llm'
 import { resolveRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
@@ -191,6 +192,11 @@ export async function POST(req: NextRequest) {
 
   let result
   try {
+    // HITL resume: if this conversation's planner thread is paused on a
+    // clarify interrupt, the incoming message is the user's answer — resume
+    // the graph instead of starting a fresh run. Falls back to a fresh run
+    // when persistence is off (dev/test) or nothing is pending.
+    const pending = await getPendingPlanInterrupt(conversationId)
     result = await runPlanPipeline({
       userId,
       intent,
@@ -201,6 +207,8 @@ export async function POST(req: NextRequest) {
       existingGoalTitles,
       budgetHours,
       activeGoalWeeklyHours,
+      threadId: conversationId,
+      resume: pending ? message : undefined,
       renegotiation: parseRenegotiation(body.renegotiation),
       abortSignal: AbortSignal.timeout(PIPELINE_TIMEOUT_MS),
     })
@@ -233,16 +241,55 @@ export async function POST(req: NextRequest) {
   }
 
   // Determine persisted assistant text + proposals per result kind.
-  const assistantText = result.kind === 'clarify' ? result.prompt : result.prose
+  let assistantText = result.kind === 'clarify' ? result.prompt : result.prose
 
-  const proposals =
+  const proposals: Array<{
+    id: string
+    action: string
+    args: Record<string, unknown>
+  }> =
     result.kind === 'ok'
       ? result.tools.map((t) => ({
           id: newId('prop'),
-          action: t.action,
+          action: t.action as string,
           args: t.args as Record<string, unknown>,
         }))
       : []
+
+  // Deterministic drop guarantee. Stage 4 legitimately returns zero tools
+  // for a drop_goal turn — e.g. the user answered the coach's "pause or
+  // drop?" ask with "Drop it for good", which carries the decision but not
+  // the goal name — and the cross-validator does not require a tool for
+  // this intent. A drop conversation must never dead-end on prose only, so
+  // resolve the target from the message + the conversation title
+  // ("Drop \"X\"?") and emit exactly one drop_goal/pause_goal proposal.
+  let forcedDrop: { action: string; args: Record<string, unknown> } | null = null
+  if (intent === 'drop_goal') {
+    const alreadyActs =
+      result.kind === 'ok' &&
+      result.tools.some(
+        (t) => t.action === 'drop_goal' || t.action === 'pause_goal',
+      )
+    if (!alreadyActs) {
+      const dropCandidates = state.goals
+        .filter((g) => g.status !== 'dropped')
+        .map((g) => ({ title: g.title, goalId: g.id }))
+      const p = parseDropIntent(message, dropCandidates, {
+        contextText: convTitle,
+      })
+      if (p) {
+        forcedDrop = { action: p.action, args: p.args }
+        proposals.push({ id: newId('prop'), action: p.action, args: p.args })
+        // The clarifier's question would read oddly next to a concrete
+        // drop card — replace it with a short confirmation line. Any
+        // pipeline prose (ok / no_change / early) is kept as-is.
+        if (result.kind === 'clarify') {
+          const label = p.action === 'pause_goal' ? 'pause' : 'drop'
+          assistantText = `Confirming: ${label} "${String(p.args.goal_title ?? 'that goal')}".`
+        }
+      }
+    }
+  }
 
   const assistantMessageId = `msg_${Date.now()}_${randomUUID().slice(0, 8)}`
   await db.transaction(async (tx: any) => {
@@ -271,6 +318,20 @@ export async function POST(req: NextRequest) {
     message_id: assistantMessageId,
     conversation_id: conversationId,
     ref_id: refId,
+  }
+
+  // Forced drop — the pipeline produced no drop/pause tool but the user
+  // clearly confirmed one. Return it as a normal `ok` so the existing
+  // confirm flow (and the drop-flow auto-apply) applies it.
+  if (forcedDrop) {
+    return NextResponse.json({
+      status: 'ok',
+      ...base,
+      prose: assistantText,
+      proposals: proposals.map((p) => ({ ...p, status: 'pending' })),
+      headroom: result.kind === 'ok' ? result.headroom : null,
+      plan: result.kind === 'ok' ? result.plan : null,
+    })
   }
 
   switch (result.kind) {

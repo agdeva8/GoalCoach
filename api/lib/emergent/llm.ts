@@ -496,6 +496,43 @@ interface DropCandidate {
   goalId?: string
 }
 
+/**
+ * Extra signal beyond the user's literal message. The drop flow opens a
+ * dedicated surface titled `Drop "X"?`; when the user taps a generic choice
+ * ("Drop it for good"), the DECISION is in the message while the TARGET is
+ * only in the title. Passing the title here keeps that answer from
+ * dead-ending on an unresolved goal.
+ */
+export interface ParseDropIntentOptions {
+  contextText?: string
+}
+
+/** Explicit "leave it alone" answers — never resolve these to a drop. */
+const KEEP_INTENT =
+  /\b(?:keep|leave|stay|remain)\b/i
+/** Explicit negation of the action — "don't drop it", "never remove it". */
+const NEGATED_INTENT = /\b(?:don'?t|do not|never)\b/i
+const PAUSE_OR_DROP_ACTION = /\b(?:pause|hold|shelve|park|drop|delete|remove|cancel|kill|forget|scratch|ditch|abandon)\b/i
+
+/**
+ * Longest goal title that appears verbatim in arbitrary text (e.g. a modal
+ * title). Unlike `findGoalByReference` this is a "does the text contain the
+ * goal's name" scan, so `Drop "Switch jobs"?` resolves to `Switch jobs`.
+ */
+function goalNamedInText(
+  text: string | undefined,
+  goals: DropCandidate[],
+): DropCandidate | null {
+  if (!text) return null
+  const lower = text.toLowerCase()
+  const sorted = [...goals].sort((a, b) => b.title.length - a.title.length)
+  for (const g of sorted) {
+    const t = g.title.trim().toLowerCase()
+    if (t.length >= 4 && lower.includes(t)) return g
+  }
+  return null
+}
+
 function findGoalByReference(
   needle: string,
   goals: DropCandidate[],
@@ -516,11 +553,19 @@ function findGoalByReference(
 export function parseDropIntent(
   messageText: string,
   goals: DropCandidate[],
+  opts?: ParseDropIntentOptions,
 ): Proposal | null {
   const raw = (messageText ?? '').trim()
   if (raw.length < 3 || raw.length > 280) return null
   const lower = raw.toLowerCase()
   if (!goals || goals.length === 0) return null
+
+  // Explicit "keep it active" / "don't drop it" answers must never resolve
+  // to a drop, even when the surrounding conversation names a target goal.
+  if (KEEP_INTENT.test(lower) && !PAUSE_OR_DROP_ACTION.test(lower)) return null
+  if (NEGATED_INTENT.test(lower) && !/\b(?:pause|hold|shelve|park)\b/i.test(lower)) {
+    return null
+  }
 
   // 1) Phrase-style intent first — "no longer doing X" / "stop tracking X".
   for (const phrase of DROP_PHRASES) {
@@ -534,6 +579,7 @@ export function parseDropIntent(
       const hit = findGoalByReference(tail, goals)
         || findGoalByReference(raw, goals)
         || bestEffortGoal(raw, goals)
+        || goalNamedInText(opts?.contextText, goals)
       if (hit) return buildDropProposal(raw, hit, phrase)
     }
   }
@@ -568,6 +614,7 @@ export function parseDropIntent(
   if (!target) target = findGoalByReference(after, goals)
   if (!target) target = findGoalByReference(raw, goals)
   if (!target) target = bestEffortGoal(raw, goals)
+  if (!target) target = goalNamedInText(opts?.contextText, goals)
 
   if (!target) return null
   return buildDropProposal(raw, target, matchedVerb)

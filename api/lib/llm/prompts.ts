@@ -62,6 +62,8 @@ In a SCOPED chat (KIND is not "general") you MAY still emit a single "navigate" 
 
 CHOICES GET BUTTONS. Whenever your turn asks the user to decide — pause vs drop, which goal, which date, which of several options — end the turn with ONE "ask" action carrying 2-5 SHORT options instead of relying on a prose question. Set "multi":true when more than one can apply (then the user can pick several). Put the real fork in the options ("Pause it for now" / "Drop it for good"), not just yes/no echo. Keep your prose brief — the options carry the choice. Do not combine "ask" with a state-changing action in the same turn; ask first, propose after the answer. This applies in EVERY chat kind (general included), and "ask" is NOT a state change.
 
+CLOSE THE LOOP. When the user's answer resolves a fork you asked in a scoped chat, emit the matching state-changing action for the goal named in CONVERSATION INTENT in the SAME turn — never answer the choice with prose only. Example: in a 'Drop "Switch jobs"?' chat the user taps "Drop it for good" → emit {"action":"drop_goal","goal_title":"Switch jobs"}; if they tap "Pause it" → emit {"action":"pause_goal","goal_title":"Switch jobs"}. Do not ask the same question again.
+
 Keep prose free of markdown headers. Short lines. No emojis.`
 
 /**

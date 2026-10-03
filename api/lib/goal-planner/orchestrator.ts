@@ -1,24 +1,51 @@
 /**
- * Goal Planner — orchestrator (Slice 3).
+ * Goal Planner — orchestrator, now a LangGraph StateGraph.
  *
- * Runs the typed 5-stage pipeline (Intake → [empty] → Plan → Headroom →
- * Emit) for the five planned intents and returns a discriminated union the
- * route turns into JSON. Pure with respect to infrastructure: it makes LLM
- * calls through an injected `complete` (defaulting to `completeJsonWithMeta`)
- * and touches no DB — the route owns persistence. That injection is what
- * makes the whole pipeline unit-testable without a network.
+ * The pipeline is expressed as an explicit graph instead of a linear
+ * function so state is durable and HITL is first-class:
  *
- * Safety contract: never throws for a model/cross-validation failure — such
- * failures become `kind: 'no_change'` with a `plan_rejects` record. Only
- * programmer errors (bad intent enum, etc.) throw.
+ *   START → intake ─┬─(needs_clarification)→ clarify ─┐
+ *                   ├─(early shape)────────→ END      │
+ *                   └──────────────(else)──→ plan ←────┘ (resume)
+ *                                             │
+ *                                          headroom
+ *                                             │
+ *                          ┌─(over budget)→ renegotiate (result)
+ *                          └─(fits)───────→ emit → cross_validate ─┐
+ *                                                            │     │
+ *                                            (cv fail, retry)└─────┘
+ *
+ * `intake` → `clarify` is a real LangGraph `interrupt()`: the graph pauses,
+ * the checkpointer (`PostgresSaver` in prod, `MemorySaver` in dev/test)
+ * persists state, and the next request resumes with `Command({ resume })`.
+ *
+ * Everything else — the deterministic cross-validator, the programmatic
+ * headroom check, the anti-hallucination blocker gate — is unchanged and
+ * lives in the same pure modules (`cross-validator.ts`, `headroom.ts`).
+ *
+ * Safety contract (unchanged): never throws for a model/cross-validation
+ * failure — such failures become `kind: 'no_change'` with a `plan_rejects`
+ * record. Only programmer errors throw.
  */
 
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
+import {
+  Annotation,
+  Command,
+  END,
+  START,
+  StateGraph,
+  interrupt,
+  type BaseCheckpointSaver,
+} from '@langchain/langgraph'
 import type { z } from 'zod'
 
 import type { ProviderId } from '@/lib/emergent/model-registry'
 
+import { clearPlanThread, ensurePlanCheckpointerSetup, getPlanCheckpointer, isPlanPersistenceEnabled } from './checkpointer'
 import { MAX_RENEGOTIATION_ROUNDS } from './config'
 import { crossValidate } from './cross-validator'
 import { checkHeadroom, type HeadroomResult } from './headroom'
@@ -43,6 +70,10 @@ import {
   type Plan,
   type RenegotiationOption,
 } from './schemas'
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 export type CompleteFn = <S extends z.ZodTypeAny>(
   args: CompleteJsonArgs<S>,
@@ -82,6 +113,17 @@ export interface PlanPipelineArgs {
     priorPlan: Plan
     constraint: string
   }
+  /**
+   * Stable thread id for durable execution. When set, the graph is compiled
+   * with the shared checkpointer and state persists across requests. Omitted
+   * in unit tests (an ephemeral MemorySaver + random thread id is used).
+   */
+  threadId?: string
+  /**
+   * HITL resume value. When defined, the graph is re-invoked with
+   * `Command({ resume })` against `threadId`, continuing a paused clarify.
+   */
+  resume?: unknown
   abortSignal?: AbortSignal
   deps?: { complete: CompleteFn }
 }
@@ -108,6 +150,36 @@ export type PlanPipelineResult =
       rejects: PlanRejectRecord[]
     }
 
+/* -------------------------------------------------------------------------- */
+/* Graph state                                                                */
+/* -------------------------------------------------------------------------- */
+
+const PlannerState = Annotation.Root({
+  intake: Annotation<Intake | null>({ reducer: (_a, b) => b, default: () => null }),
+  plan: Annotation<Plan | null>({ reducer: (_a, b) => b, default: () => null }),
+  headroom: Annotation<HeadroomResult | null>({ reducer: (_a, b) => b, default: () => null }),
+  emit: Annotation<Emit | null>({ reducer: (_a, b) => b, default: () => null }),
+  cvErrors: Annotation<string[]>({ reducer: (_a, b) => b, default: () => [] }),
+  emitAttempts: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
+  /** Accumulated across nodes AND across resume — reducer concatenates. */
+  rejects: Annotation<PlanRejectRecord[]>({
+    reducer: (a, b) => a.concat(b),
+    default: () => [],
+  }),
+  modes: Annotation<CompleteJsonMeta['mode'][]>({
+    reducer: (a, b) => a.concat(b),
+    default: () => [],
+  }),
+  result: Annotation<PlanPipelineResult | null>({ reducer: (_a, b) => b, default: () => null }),
+})
+
+type PlanState = typeof PlannerState.State
+type PlanUpdate = typeof PlannerState.Update
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
@@ -124,13 +196,22 @@ export function messageMentionsBlocker(message: string): boolean {
   return BLOCKER_CUE.test(message)
 }
 
-export async function runPlanPipeline(
-  args: PlanPipelineArgs,
-): Promise<PlanPipelineResult> {
-  const complete = args.deps?.complete ?? DEFAULT_COMPLETE
-  const rejects: PlanRejectRecord[] = []
-  const modes: CompleteJsonMeta['mode'][] = []
+/* -------------------------------------------------------------------------- */
+/* Graph builder                                                              */
+/* -------------------------------------------------------------------------- */
 
+interface BuildGraphArgs {
+  config: PlanPipelineArgs
+  complete: CompleteFn
+  checkpointer: BaseCheckpointSaver
+}
+
+/**
+ * Build the compiled planner graph. Built per invocation because `complete`
+ * and `config` are captured in the node closures (the unit tests inject a
+ * fake `complete`); the checkpointer is the shared/durable piece.
+ */
+function buildPlannerGraph({ config: pArgs, complete, checkpointer }: BuildGraphArgs) {
   const reject = (
     stage: PlanStage,
     reason: string,
@@ -138,7 +219,7 @@ export async function runPlanPipeline(
     rawOutput: unknown,
     recovered = false,
   ): PlanRejectRecord => ({
-    intent: args.intent,
+    intent: pArgs.intent,
     stage,
     reason,
     rawInput,
@@ -149,230 +230,390 @@ export async function runPlanPipeline(
   const call = async <S extends z.ZodTypeAny>(
     schema: S,
     prompt: string,
-  ): Promise<z.infer<S>> => {
+  ): Promise<{ object: z.infer<S>; mode: CompleteJsonMeta['mode'] }> => {
     const { object, meta } = await complete({
-      provider: args.provider,
+      provider: pArgs.provider,
       schema,
       prompt,
-      abortSignal: args.abortSignal,
+      abortSignal: pArgs.abortSignal,
     })
-    modes.push(meta.mode)
-    return object
+    return { object, mode: meta.mode }
   }
 
   /* Stage 1 — Intake ---------------------------------------------------- */
-  let intake: Intake
-  try {
-    intake = await call(
-      IntakeSchema,
-      intakePrompt({
-        intent: args.intent,
-        message: args.message,
-        context: args.context,
-        today: args.today,
-      }),
-    )
-  } catch (e) {
-    const reason = `intake failed: ${errMsg(e)}`
-    rejects.push(reject('intake', reason, { message: args.message }, null))
-    return {
-      kind: 'no_change',
-      reason,
-      prose:
-        'I could not read that as a planning request. Rephrase it or add a concrete next step.',
-      rejects,
+  const intakeNode = async (): Promise<PlanUpdate> => {
+    try {
+      const { object: intake, mode } = await call(
+        IntakeSchema,
+        intakePrompt({
+          intent: pArgs.intent,
+          message: pArgs.message,
+          context: pArgs.context,
+          today: pArgs.today,
+        }),
+      )
+      const updates: PlanUpdate = { intake, modes: [mode] }
+
+      // Pure conversational shapes early-return; `over_committed` only for
+      // non-add_goal (add_goal must flow through headroom to make room).
+      if (
+        intake.shape === 'meta_question' ||
+        intake.shape === 'routine_return' ||
+        (intake.shape === 'over_committed' && pArgs.intent !== 'add_goal')
+      ) {
+        updates.result = {
+          kind: 'early',
+          shape: intake.shape,
+          prose: intake.framing_line,
+          rejects: [],
+        }
+      }
+      return updates
+    } catch (e) {
+      const rec = reject('intake', `intake failed: ${errMsg(e)}`, { message: pArgs.message }, null)
+      return {
+        rejects: [rec],
+        result: {
+          kind: 'no_change',
+          reason: rec.reason,
+          prose:
+            'I could not read that as a planning request. Rephrase it or add a concrete next step.',
+          rejects: [],
+        },
+      }
     }
   }
 
-  if (intake.needs_clarification && intake.clarifying_questions.length > 0) {
-    return {
+  /* HITL — clarify (LangGraph interrupt) -------------------------------- */
+  const clarifyNode = async (s: PlanState): Promise<PlanUpdate> => {
+    // Pauses here; the checkpointer persists state. On resume, `interrupt`
+    // returns the user's answer and the graph continues to `plan` (the
+    // resumed request's `message` is already the answer).
+    interrupt({
       kind: 'clarify',
       prompt:
-        intake.framing_line ||
+        s.intake?.framing_line ||
         'A couple of details would change the plan meaningfully:',
-      questions: intake.clarifying_questions,
-      rejects,
-    }
-  }
-  // `over_committed` is NOT an early exit when the user named a concrete new
-  // goal: it must flow through Plan → Stage 3.5 so the headroom check can
-  // offer concrete ways to make room. Only the pure conversational shapes
-  // (meta_question / routine_return) early-return.
-  if (
-    intake.shape === 'meta_question' ||
-    intake.shape === 'routine_return' ||
-    (intake.shape === 'over_committed' && args.intent !== 'add_goal')
-  ) {
-    return { kind: 'early', shape: intake.shape, prose: intake.framing_line, rejects }
+      questions: s.intake?.clarifying_questions ?? [],
+    })
+    return {}
   }
 
   /* Stage 3 — Plan ------------------------------------------------------ */
-  let plan: Plan
-  try {
-    plan = await call(
-      PlanSchema,
-      planPrompt({
-        intent: args.intent,
-        message: args.message,
-        context: args.context,
-        today: args.today,
-        renegotiation: args.renegotiation,
-      }),
-    )
-  } catch (e) {
-    const reason = `plan failed: ${errMsg(e)}`
-    rejects.push(reject('plan', reason, { message: args.message }, null))
-    return {
-      kind: 'no_change',
-      reason,
-      prose:
-        'I could not turn that into a concrete plan. Add a deadline or a smallest first step and I will try again.',
-      rejects,
+  const planNode = async (): Promise<PlanUpdate> => {
+    let plan: Plan
+    let mode: CompleteJsonMeta['mode']
+    try {
+      const res = await call(
+        PlanSchema,
+        planPrompt({
+          intent: pArgs.intent,
+          message: pArgs.message,
+          context: pArgs.context,
+          today: pArgs.today,
+          renegotiation: pArgs.renegotiation,
+        }),
+      )
+      plan = res.object
+      mode = res.mode
+    } catch (e) {
+      const rec = reject('plan', `plan failed: ${errMsg(e)}`, { message: pArgs.message }, null)
+      return {
+        rejects: [rec],
+        result: {
+          kind: 'no_change',
+          reason: rec.reason,
+          prose:
+            'I could not turn that into a concrete plan. Add a deadline or a smallest first step and I will try again.',
+          rejects: [],
+        },
+      }
     }
-  }
 
-  // Anti-hallucination gate — drop blockers the user did not name.
-  if (plan.blockers.length > 0 && !messageMentionsBlocker(args.message)) {
-    const invented = plan.blockers
-    plan = { ...plan, blockers: [] }
-    rejects.push(
-      reject(
-        'plan',
-        `cleared ${invented.length} invented blocker(s)`,
-        { blockers: invented },
-        null,
-        true,
-      ),
-    )
-  }
-
-  if (args.intent === 'add_goal' && !plan.goal) {
-    const reason = 'add_goal plan produced no goal'
-    rejects.push(reject('plan', reason, { plan }, null))
-    return {
-      kind: 'no_change',
-      reason,
-      prose: plan.prose || 'I did not get a concrete goal out of that.',
-      rejects,
+    const rejects: PlanRejectRecord[] = []
+    // Anti-hallucination gate — drop blockers the user did not name.
+    if (plan.blockers.length > 0 && !messageMentionsBlocker(pArgs.message)) {
+      const invented = plan.blockers
+      plan = { ...plan, blockers: [] }
+      rejects.push(
+        reject(
+          'plan',
+          `cleared ${invented.length} invented blocker(s)`,
+          { blockers: invented },
+          null,
+          true,
+        ),
+      )
     }
+
+    if (pArgs.intent === 'add_goal' && !plan.goal) {
+      const rec = reject('plan', 'add_goal plan produced no goal', { plan }, null)
+      return {
+        plan,
+        modes: [mode],
+        rejects: [...rejects, rec],
+        result: {
+          kind: 'no_change',
+          reason: rec.reason,
+          prose: plan.prose || 'I did not get a concrete goal out of that.',
+          rejects: [],
+        },
+      }
+    }
+
+    return { plan, modes: [mode], rejects }
   }
 
   /* Stage 3.5 — Headroom (programmatic) -------------------------------- */
-  let headroom: HeadroomResult | null = null
-  if (plan.goal) {
-    headroom = checkHeadroom({
-      budgetHours: args.budgetHours,
-      activeGoals: args.activeGoalWeeklyHours.map((weeklyHours) => ({ weeklyHours })),
+  const headroomNode = async (s: PlanState): Promise<PlanUpdate> => {
+    const plan = s.plan
+    if (!plan?.goal) return { headroom: null }
+
+    const headroom = checkHeadroom({
+      budgetHours: pArgs.budgetHours,
+      activeGoals: pArgs.activeGoalWeeklyHours.map((weeklyHours) => ({ weeklyHours })),
       newWeeklyHours: plan.goal.weekly_hours,
     })
+
     if (headroom.decision === 'renegotiate') {
-      const round = args.renegotiation?.round ?? 0
+      const round = pArgs.renegotiation?.round ?? 0
       if (round >= MAX_RENEGOTIATION_ROUNDS) {
-        const reason = `renegotiation exhausted: ${headroom.message}`
-        rejects.push(reject('plan', reason, { headroom }, null))
+        const rec = reject('plan', `renegotiation exhausted: ${headroom.message}`, { headroom }, null)
         return {
-          kind: 'no_change',
-          reason,
-          prose: `Still over budget after ${MAX_RENEGOTIATION_ROUNDS} attempts. ${headroom.message} Try a smaller goal, or drop an existing one first.`,
-          rejects,
+          headroom,
+          rejects: [rec],
+          result: {
+            kind: 'no_change',
+            reason: rec.reason,
+            prose: `Still over budget after ${MAX_RENEGOTIATION_ROUNDS} attempts. ${headroom.message} Try a smaller goal, or drop an existing one first.`,
+            rejects: [],
+          },
         }
       }
       return {
-        kind: 'renegotiate',
-        prose: plan.prose,
         headroom,
-        options: [...RENEGOTIATION_OPTIONS],
-        plan,
-        rejects,
+        result: {
+          kind: 'renegotiate',
+          prose: plan.prose,
+          headroom,
+          options: [...RENEGOTIATION_OPTIONS],
+          plan,
+          rejects: [],
+        },
       }
     }
+
+    return { headroom }
   }
 
   /* Stage 4 — Emit ------------------------------------------------------ */
-  let emit: Emit
-  try {
-    emit = await call(EmitSchema, emitPrompt({ intent: args.intent, plan }))
-  } catch (e) {
-    const reason = `emit failed: ${errMsg(e)}`
-    rejects.push(reject('emit', reason, { plan }, null))
-    return { kind: 'no_change', reason, prose: plan.prose, rejects }
-  }
-
-  // Keep only add_blocker tools grounded in the (possibly-emptied) plan, so a
-  // hallucinated blocker is dropped rather than failing the whole plan.
-  const allowedBlockerKeys = new Set(
-    plan.blockers.map((b) => `${b.start_date}|${b.end_date}`),
-  )
-  const beforeFilter = emit.tools.length
-  emit = {
-    tools: emit.tools.filter((t) => {
-      if (t.action !== 'add_blocker') return true
-      const a = t.args as Record<string, unknown>
-      return allowedBlockerKeys.has(`${a.start_date}|${a.end_date}`)
-    }),
-  }
-  if (emit.tools.length !== beforeFilter) {
-    rejects.push(
-      reject(
-        'cross_validate',
-        `dropped ${beforeFilter - emit.tools.length} ungrounded blocker tool(s)`,
-        {},
-        null,
-        true,
-      ),
-    )
-  }
-
-  let cv = crossValidate({
-    intent: args.intent,
-    plan,
-    emit,
-    existingGoalTitles: args.existingGoalTitles,
-  })
-
-  if (!cv.ok) {
-    const firstErrors = [...cv.errors]
+  const emitNode = async (s: PlanState): Promise<PlanUpdate> => {
+    const attempt = s.emitAttempts + 1
+    const plan = s.plan
+    if (!plan) {
+      const rec = reject('emit', 'emit called with no plan', {}, null)
+      return { rejects: [rec], result: { kind: 'no_change', reason: rec.reason, prose: '', rejects: [] } }
+    }
+    let emit: Emit
     try {
-      emit = await call(
-        EmitSchema,
-        emitPrompt({ intent: args.intent, plan }) + emitRetrySuffix(firstErrors),
-      )
-      cv = crossValidate({
-        intent: args.intent,
-        plan,
-        emit,
-        existingGoalTitles: args.existingGoalTitles,
+      const suffix = s.cvErrors.length > 0 ? emitRetrySuffix(s.cvErrors) : ''
+      const res = await call(EmitSchema, emitPrompt({ intent: pArgs.intent, plan }) + suffix)
+      emit = res.object
+      // Keep only add_blocker tools grounded in the plan.
+      const allowedBlockerKeys = new Set(plan.blockers.map((b) => `${b.start_date}|${b.end_date}`))
+      const before = emit.tools.length
+      const tools = emit.tools.filter((t) => {
+        if (t.action !== 'add_blocker') return true
+        const a = t.args as Record<string, unknown>
+        return allowedBlockerKeys.has(`${a.start_date}|${a.end_date}`)
       })
+      const rejects: PlanRejectRecord[] = []
+      if (tools.length !== before) {
+        rejects.push(
+          reject('cross_validate', `dropped ${before - tools.length} ungrounded blocker tool(s)`, {}, null, true),
+        )
+      }
+      return { emit: { tools }, emitAttempts: attempt, modes: [res.mode], rejects }
     } catch (e) {
-      const reason = `emit retry failed: ${errMsg(e)}`
-      rejects.push(reject('emit', reason, { plan }, null))
-      return { kind: 'no_change', reason, prose: plan.prose, rejects }
+      const rec = reject('emit', `emit ${attempt > 1 ? 'retry ' : ''}failed: ${errMsg(e)}`, { plan }, null)
+      return { rejects: [rec], result: { kind: 'no_change', reason: rec.reason, prose: plan.prose, rejects: [] } }
     }
-
-    if (!cv.ok) {
-      const reason = `cross-validation failed: ${cv.errors.join('; ')}`
-      rejects.push(reject('cross_validate', reason, { plan, emit }, cv.errors))
-      return { kind: 'no_change', reason, prose: plan.prose, rejects }
-    }
-    // Recovered on retry — still record it, flagged.
-    rejects.push(
-      reject(
-        'cross_validate',
-        firstErrors.join('; '),
-        { plan },
-        firstErrors,
-        true,
-      ),
-    )
   }
 
+  /* Stage 4.5 — Cross-validate (programmatic) --------------------------- */
+  const crossValidateNode = async (s: PlanState): Promise<PlanUpdate> => {
+    if (!s.plan || !s.emit) {
+      const rec = reject('cross_validate', 'missing plan or emit', {}, null)
+      return { rejects: [rec], result: { kind: 'no_change', reason: rec.reason, prose: '', rejects: [] } }
+    }
+
+    const cv = crossValidate({
+      intent: pArgs.intent,
+      plan: s.plan,
+      emit: s.emit,
+      existingGoalTitles: pArgs.existingGoalTitles,
+    })
+
+    if (cv.ok) {
+      const rejects: PlanRejectRecord[] = []
+      // Recovered on retry — record the earlier failure, flagged.
+      if (s.emitAttempts > 1 && s.cvErrors.length > 0) {
+        rejects.push(reject('cross_validate', s.cvErrors.join('; '), { plan: s.plan }, s.cvErrors, true))
+      }
+      return {
+        rejects,
+        result: {
+          kind: 'ok',
+          prose: s.plan.prose,
+          tools: s.emit.tools,
+          plan: s.plan,
+          headroom: s.headroom,
+          modes: [],
+          rejects: [],
+        },
+      }
+    }
+
+    if (s.emitAttempts < 2) {
+      return { cvErrors: cv.errors }
+    }
+
+    const rec = reject(
+      'cross_validate',
+      `cross-validation failed: ${cv.errors.join('; ')}`,
+      { plan: s.plan, emit: s.emit },
+      cv.errors,
+    )
+    return { rejects: [rec], result: { kind: 'no_change', reason: rec.reason, prose: s.plan.prose, rejects: [] } }
+  }
+
+  /* Routers ------------------------------------------------------------- */
+  const afterIntake = (s: PlanState): string => {
+    if (s.result) return END
+    if (s.intake?.needs_clarification && s.intake.clarifying_questions.length > 0) return 'n_clarify'
+    return 'n_plan'
+  }
+  const afterPlan = (s: PlanState): string => (s.result ? END : 'n_headroom')
+  const afterHeadroom = (s: PlanState): string => (s.result ? END : 'n_emit')
+  const afterEmit = (s: PlanState): string => (s.result ? END : 'n_cross_validate')
+  const afterCrossValidate = (s: PlanState): string => (s.result ? END : 'n_emit')
+
+  return new StateGraph(PlannerState)
+    .addNode('n_intake', intakeNode)
+    .addNode('n_clarify', clarifyNode)
+    .addNode('n_plan', planNode)
+    .addNode('n_headroom', headroomNode)
+    .addNode('n_emit', emitNode)
+    .addNode('n_cross_validate', crossValidateNode)
+    .addEdge(START, 'n_intake')
+    .addConditionalEdges('n_intake', afterIntake, { n_clarify: 'n_clarify', n_plan: 'n_plan', [END]: END })
+    .addEdge('n_clarify', 'n_plan')
+    .addConditionalEdges('n_plan', afterPlan, { n_headroom: 'n_headroom', [END]: END })
+    .addConditionalEdges('n_headroom', afterHeadroom, { n_emit: 'n_emit', [END]: END })
+    .addConditionalEdges('n_emit', afterEmit, { n_cross_validate: 'n_cross_validate', [END]: END })
+    .addConditionalEdges('n_cross_validate', afterCrossValidate, { n_emit: 'n_emit', [END]: END })
+    .compile({ checkpointer })
+}
+
+/* -------------------------------------------------------------------------- */
+/* Public entry                                                               */
+/* -------------------------------------------------------------------------- */
+
+type CompiledPlanner = {
+  invoke: (
+    input: unknown,
+    config: unknown,
+  ) => Promise<PlanState & { __interrupt__?: Array<{ value: unknown }> }>
+  getState: (config: unknown) => Promise<{
+    next?: unknown[]
+    tasks?: Array<{ interrupts?: Array<{ value?: unknown }> }>
+  }>
+}
+
+export async function runPlanPipeline(args: PlanPipelineArgs): Promise<PlanPipelineResult> {
+  const complete = args.deps?.complete ?? DEFAULT_COMPLETE
+  const checkpointer = await getPlanCheckpointer()
+  if (args.threadId) await ensurePlanCheckpointerSetup()
+  // Fresh run on a conversation thread → clear prior checkpoints so reducers
+  // don't accumulate across runs. Resume keeps the thread intact.
+  if (args.threadId && args.resume === undefined) {
+    await clearPlanThread(args.threadId)
+  }
+
+  const graph = buildPlannerGraph({ config: args, complete, checkpointer }) as unknown as CompiledPlanner
+  const threadId = args.threadId ?? `plan-${randomUUID()}`
+  const config = { configurable: { thread_id: threadId } }
+  const input = args.resume !== undefined ? new Command({ resume: args.resume }) : {}
+
+  const out = await graph.invoke(input, config)
+
+  const rejects = out.rejects ?? []
+
+  if (out.__interrupt__ && out.__interrupt__.length > 0) {
+    const value = out.__interrupt__[0].value as {
+      kind?: string
+      prompt?: string
+      questions?: ClarifyQuestion[]
+    }
+    return {
+      kind: 'clarify',
+      prompt: value.prompt ?? 'A couple of details would change the plan meaningfully:',
+      questions: value.questions ?? [],
+      rejects,
+    }
+  }
+
+  if (!out.result) {
+    throw new Error('plan graph produced no result')
+  }
+
+  if (out.result.kind === 'ok') {
+    return { ...out.result, modes: out.modes ?? [], rejects }
+  }
+  return { ...out.result, rejects }
+}
+
+/**
+ * Inspect a thread for a pending clarify interrupt. Used by the route to
+ * decide whether an incoming message is a HITL resume or a fresh run.
+ * Returns null when persistence is off (dev/test) or nothing is pending.
+ */
+export async function getPendingPlanInterrupt(
+  threadId: string,
+): Promise<{ kind: 'clarify'; prompt: string; questions: ClarifyQuestion[] } | null> {
+  if (!threadId || !isPlanPersistenceEnabled()) return null
+  await ensurePlanCheckpointerSetup()
+  const checkpointer = await getPlanCheckpointer()
+  const graph = buildPlannerGraph({
+    config: stubArgs(threadId),
+    complete: DEFAULT_COMPLETE,
+    checkpointer,
+  }) as unknown as CompiledPlanner
+
+  const snap = await graph.getState({ configurable: { thread_id: threadId } })
+  for (const task of snap.tasks ?? []) {
+    for (const i of task.interrupts ?? []) {
+      const v = i.value as { kind?: string; prompt?: string; questions?: ClarifyQuestion[] } | undefined
+      if (v && v.kind === 'clarify') {
+        return { kind: 'clarify', prompt: v.prompt ?? '', questions: v.questions ?? [] }
+      }
+    }
+  }
+  return null
+}
+
+/** Minimal args for building a graph purely to read checkpoint state. */
+function stubArgs(threadId: string): PlanPipelineArgs {
   return {
-    kind: 'ok',
-    prose: plan.prose,
-    tools: emit.tools,
-    plan,
-    headroom,
-    modes,
-    rejects,
+    userId: '',
+    intent: 'add_goal',
+    message: '',
+    context: '',
+    provider: 'gemini',
+    today: new Date().toISOString().slice(0, 10),
+    existingGoalTitles: [],
+    budgetHours: null,
+    activeGoalWeeklyHours: [],
+    threadId,
   }
 }
