@@ -185,16 +185,16 @@ function GoalCard({ goal, commitments, milestones, onAction, onUploadSource, onA
   const goalMiles = milestones.filter((m) => m.goal_id === goal.id || m.goal_title === goal.title);
   const sources = goal.sources || [];
   return (
-    <div data-testid={`goal-card-${goal.id}`} className="group border border-[var(--border)] bg-[var(--bg-secondary)] p-3 rounded-md">
-      <div className="flex items-start gap-2">
+    <div data-testid={`goal-card-${goal.id}`} className="group p-4">
+      <div className="flex items-start gap-3">
         <span className="mt-0.5">{STATUS_ICON[goal.status] || <CircleDot className="w-3.5 h-3.5 text-[var(--text-muted)]" />}</span>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-[var(--text-primary)] leading-snug">{goal.title}</div>
-          {goal.why && <div className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{goal.why}</div>}
-          {goal.target_date && <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-[var(--accent)]">target · {goal.target_date}</div>}
+          <div className="text-[15px] font-semibold text-[var(--text-primary)] leading-snug">{goal.title}</div>
+          {goal.why && <div className="text-[13px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{goal.why}</div>}
+          {goal.target_date && <div className="mt-1 text-[11px] font-medium text-[var(--accent)]">Target · {goal.target_date}</div>}
           {goal.next_action && (
-            <div className="mt-2 text-xs text-[var(--text-secondary)]">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">next</span> {goal.next_action}
+            <div className="mt-2 text-[13px] text-[var(--text-secondary)]">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Next</span> {goal.next_action}
             </div>
           )}
           <MilestonesChip milestones={goalMiles} />
@@ -323,15 +323,15 @@ export default function TrackingDashboard({
   };
 
   return (
-    <div data-testid="tracking-dashboard" className="p-4 sm:p-6 space-y-6">
-      <div className="flex items-start justify-between gap-2">
+    <div data-testid="tracking-dashboard" className="px-4 sm:px-6 py-5 sm:py-6 space-y-7 max-w-[820px] mx-auto w-full">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-sm font-semibold tracking-tight text-[var(--text-primary)]">Your goals</h2>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Everything the coach is keeping track of for you.</p>
+          <h2 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[var(--text-primary)] leading-tight">Your goals</h2>
+          <p className="text-[13px] text-[var(--text-muted)] mt-1">Everything the coach is keeping track of for you.</p>
         </div>
         {visibleGoals.length > 0 && (
-          <button data-testid="add-goal-button" onClick={openAddGoalDialog} className="flex items-center gap-1.5 px-2.5 h-11 rounded-md bg-[var(--accent)] text-[var(--bg-primary)] text-xs font-medium hover:opacity-90 transition-opacity shrink-0">
-            <Plus className="w-3.5 h-3.5" /> Add goal
+          <button data-testid="add-goal-button" onClick={openAddGoalDialog} className="flex items-center gap-1.5 px-4 h-11 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] text-sm font-semibold hover:opacity-90 transition-opacity shrink-0">
+            <Plus className="w-4 h-4" /> Add goal
           </button>
         )}
       </div>
@@ -341,21 +341,21 @@ export default function TrackingDashboard({
       <TrackerCard state={state} onOpenChat={onOpenChatWith} onOpenToday={onOpenToday} />
 
       {visibleGoals.length === 0 ? (
-        <div data-testid="empty-state" className="border border-dashed border-[var(--border)] rounded-lg p-8 sm:p-12 text-center bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]">
-          <div className="mx-auto h-12 w-12 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center mb-4">
-            <Sparkles className="h-6 w-6 text-[var(--accent)]" aria-hidden="true" />
+        <div data-testid="empty-state" className="rounded-2xl bg-[var(--bg-secondary)] p-8 sm:p-12 text-center">
+          <div className="mx-auto h-14 w-14 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] flex items-center justify-center mb-4">
+            <Sparkles className="h-7 w-7 text-[var(--accent)]" aria-hidden="true" />
           </div>
-          <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">
+          <h3 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
             What's the first thing you want to sort out?
           </h3>
-          <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
+          <p className="mt-2 text-[15px] text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
             Pick a category and the coach will propose a goal with milestones — you confirm it before anything gets saved.
           </p>
           <div className="mt-6 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3">
             <button
               data-testid="empty-state-add-goal"
               onClick={openAddGoalDialog}
-              className="min-h-11 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+              className="min-h-11 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[var(--bg-primary)] font-semibold text-sm hover:opacity-90 active:scale-[0.98] transition-[opacity,transform] duration-150 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
               <Plus className="h-4 w-4" aria-hidden="true" /> Add your first goal
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -363,7 +363,7 @@ export default function TrackingDashboard({
             <button
               data-testid="empty-state-open-chat"
               onClick={onOpenChat}
-              className="min-h-11 inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] text-sm hover:border-[var(--border-accent)] active:scale-[0.98] transition-[border-color,transform] duration-150 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+              className="min-h-11 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm font-medium hover:text-[var(--text-primary)] active:scale-[0.98] transition-[color,transform] duration-150 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
             >
               <MessageSquare className="h-4 w-4" aria-hidden="true" /> Or just chat with the coach
             </button>
@@ -372,8 +372,8 @@ export default function TrackingDashboard({
       ) : (
         grouped.map((group) => (
           <div key={group.horizon} data-testid={`horizon-${group.horizon}`}>
-            <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-secondary)] mb-2 pb-1 border-b border-[var(--border)]">{HORIZON_LABELS[group.horizon]}</div>
-            <div className="space-y-2">
+            <div className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{HORIZON_LABELS[group.horizon]}</div>
+            <div className="rounded-2xl bg-[var(--bg-secondary)] overflow-hidden divide-y divide-[var(--border)]">
               {group.goals.map((g) => (
                 <GoalCard key={g.id} goal={g} commitments={state.commitments} milestones={milestones} onAction={onAction} onUploadSource={onUploadSource} onAddLink={onAddLink} onDeleteSource={onDeleteSource} onAddMemory={openGoalMemory} />
               ))}
