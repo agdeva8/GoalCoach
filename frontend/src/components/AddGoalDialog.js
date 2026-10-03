@@ -443,15 +443,18 @@ export default function AddGoalDialog({
   };
 
   const reject = (messageId, proposalId, reason) => {
-    // Local-only: mark the card rejected + store the reason. The pinned
-    // "Refine goals" button applies all refinements + rejections at once.
+    // Local-only: mark rejected + store the reason, and CLEAR any
+    // refinement (a card is either refined or rejected, never both). The
+    // pinned "Refine goals" button applies everything at once.
     setMessages((prev) =>
       prev.map((m) =>
         m.id === messageId
           ? {
               ...m,
               proposals: m.proposals.map((p) =>
-                p.id === proposalId ? { ...p, status: "rejected", rejection: reason || "" } : p,
+                p.id === proposalId
+                  ? { ...p, status: "rejected", rejection: reason || "", refinement: "" }
+                  : p,
               ),
             }
           : m,
@@ -479,13 +482,39 @@ export default function AddGoalDialog({
 
   const submitRefine = (thought) => {
     if (!refiningProposal) return;
-    // Local-only: store the note on the card. No LLM call here — the
-    // pinned "Refine goals" button applies ALL refinements at once.
+    // Local-only: store the note and CLEAR any rejection (a card is either
+    // refined or rejected, never both). Applied in a batch from the pinned
+    // "Refine goals" button.
+    const id = refiningProposal.id;
     setMessages((prev) =>
       prev.map((m) => ({
         ...m,
         proposals: (m.proposals || []).map((p) =>
-          p.id === refiningProposal.id ? { ...p, refinement: thought } : p,
+          p.id === id ? { ...p, refinement: thought, rejection: "", status: "pending" } : p,
+        ),
+      })),
+    );
+  };
+
+  // Revert: clear the saved refinement / rejection from a card.
+  const clearRefine = () => {
+    if (!refiningProposal) return;
+    const id = refiningProposal.id;
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        proposals: (m.proposals || []).map((p) => (p.id === id ? { ...p, refinement: "" } : p)),
+      })),
+    );
+  };
+  const clearReject = () => {
+    if (!rejectingProposal) return;
+    const id = rejectingProposal.id;
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        proposals: (m.proposals || []).map((p) =>
+          p.id === id ? { ...p, rejection: "", status: "pending" } : p,
         ),
       })),
     );
@@ -791,6 +820,7 @@ export default function AddGoalDialog({
             proposalActionKey={refiningProposal?.action || ""}
             initialValue={refiningProposal?.refinement || ""}
             onSubmit={submitRefine}
+            onClear={clearRefine}
           />
           <RejectModal
             open={!!rejectingProposal}
@@ -799,6 +829,7 @@ export default function AddGoalDialog({
             proposalActionKey={rejectingProposal?.action || ""}
             initialValue={rejectingProposal?.rejection || ""}
             onSubmit={submitReject}
+            onClear={clearReject}
           />
         </>
       )}

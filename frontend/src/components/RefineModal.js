@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil, Check, Loader2 } from "lucide-react";
+import { Pencil, Check, Loader2, RotateCcw } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 
 // Per-action chip library — common refine instructions so users
@@ -64,6 +64,7 @@ export default function RefineModal({
   proposalActionKey = "",
   initialValue = "",
   onSubmit,
+  onClear,
 }) {
   const [thought, setThought] = useState("");
   const [busy, setBusy] = useState(false);
@@ -152,34 +153,47 @@ export default function RefineModal({
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <button
-            type="button"
-            data-testid="refine-modal-cancel"
-            onClick={onClose}
-            disabled={busy}
-            className="min-h-11 px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            data-testid="refine-modal-submit"
-            onClick={submit}
-            disabled={!thought.trim() || busy}
-            className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-semibold bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity rounded-xl"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Saving…
-              </>
-            ) : (
-              <>
-                <Check className="w-3.5 h-3.5" aria-hidden="true" />
-                {initialValue ? "Update refinement" : "Add refinement"}
-              </>
-            )}
-          </button>
+        <div className="flex items-center gap-2 pt-1">
+          {initialValue && (
+            <button
+              type="button"
+              data-testid="refine-modal-clear"
+              onClick={() => { onClear?.(); onClose?.(); }}
+              disabled={busy}
+              className="flex items-center gap-1.5 min-h-11 px-3 text-xs font-medium text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-xl transition-colors disabled:opacity-40"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" /> Revert
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              data-testid="refine-modal-cancel"
+              onClick={onClose}
+              disabled={busy}
+              className="min-h-11 px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              data-testid="refine-modal-submit"
+              onClick={submit}
+              disabled={!thought.trim() || busy}
+              className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-semibold bg-[var(--accent)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity rounded-xl"
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> Saving…
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                  {initialValue ? "Update refinement" : "Add refinement"}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </CenteredDialog>

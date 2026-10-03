@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, RotateCcw } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 
 // Per-action reject reasons (Iteration 9 — quick chips so users
@@ -91,6 +91,7 @@ export default function RejectModal({
   proposalActionKey = "",
   initialValue = "",
   onSubmit,
+  onClear,
 }) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -205,22 +206,34 @@ export default function RejectModal({
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <button
-            type="button"
-            data-testid="reject-modal-cancel"
-            onClick={onClose}
-            disabled={busy}
-            className="min-h-11 px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            data-testid="reject-modal-submit"
-            onClick={submit}
-            disabled={busy || (!skipReason && !reason.trim())}
-            className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-medium bg-[var(--danger)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity"
+        <div className="flex items-center gap-2 pt-1">
+          {initialValue && (
+            <button
+              type="button"
+              data-testid="reject-modal-clear"
+              onClick={() => { onClear?.(); onClose?.(); }}
+              disabled={busy}
+              className="flex items-center gap-1.5 min-h-11 px-3 text-xs font-medium text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] rounded-xl transition-colors disabled:opacity-40"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" /> Un-reject
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              data-testid="reject-modal-cancel"
+              onClick={onClose}
+              disabled={busy}
+              className="min-h-11 px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              data-testid="reject-modal-submit"
+              onClick={submit}
+              disabled={busy || (!skipReason && !reason.trim())}
+              className="flex items-center gap-1.5 min-h-11 px-4 text-xs font-medium bg-[var(--danger)] text-[var(--bg-primary)] disabled:opacity-40 hover:opacity-90 transition-opacity rounded-xl"
           >
             {busy ? (
               <>
@@ -232,6 +245,7 @@ export default function RejectModal({
               </>
             )}
           </button>
+          </div>
         </div>
       </div>
     </CenteredDialog>

@@ -382,14 +382,12 @@ export default function ChatModal({
 
   const submitRefine = useCallback((thought) => {
     if (!refiningProposal) return;
-    // Local-only: store the note on the card. Applied in a batch from the
-    // pinned "Refine goals" button.
     const id = refiningProposal.id;
     setMessages((prev) =>
       prev.map((m) => ({
         ...m,
         proposals: (m.proposals || []).map((p) =>
-          p.id === id ? { ...p, refinement: thought } : p,
+          p.id === id ? { ...p, refinement: thought, rejection: "", status: "pending" } : p,
         ),
       })),
     );
@@ -402,7 +400,31 @@ export default function ChatModal({
       prev.map((m) => ({
         ...m,
         proposals: (m.proposals || []).map((p) =>
-          p.id === id ? { ...p, status: "rejected", rejection: reason || "" } : p,
+          p.id === id ? { ...p, status: "rejected", rejection: reason || "", refinement: "" } : p,
+        ),
+      })),
+    );
+  }, [rejectingProposal]);
+
+  const clearRefine = useCallback(() => {
+    if (!refiningProposal) return;
+    const id = refiningProposal.id;
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        proposals: (m.proposals || []).map((p) => (p.id === id ? { ...p, refinement: "" } : p)),
+      })),
+    );
+  }, [refiningProposal]);
+
+  const clearReject = useCallback(() => {
+    if (!rejectingProposal) return;
+    const id = rejectingProposal.id;
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        proposals: (m.proposals || []).map((p) =>
+          p.id === id ? { ...p, rejection: "", status: "pending" } : p,
         ),
       })),
     );
@@ -603,6 +625,7 @@ export default function ChatModal({
         proposalActionKey={refiningProposal?.action || ""}
         initialValue={refiningProposal?.refinement || ""}
         onSubmit={submitRefine}
+        onClear={clearRefine}
       />
       <RejectModal
         open={!!rejectingProposal}
@@ -611,6 +634,7 @@ export default function ChatModal({
         proposalActionKey={rejectingProposal?.action || ""}
         initialValue={rejectingProposal?.rejection || ""}
         onSubmit={submitReject}
+        onClear={clearReject}
       />
     </CenteredDialog>
   );
