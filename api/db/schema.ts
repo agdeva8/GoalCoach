@@ -28,10 +28,12 @@
  *    generated 0001_init.sql matches the plan byte-for-byte.
  */
 
+import { desc, sql } from 'drizzle-orm'
 import {
   boolean,
   date,
   doublePrecision,
+  index,
   integer,
   jsonb,
   time,
@@ -39,6 +41,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
 /* -------------------------------------------------------------------------- */
@@ -66,10 +69,23 @@ export const users = pgTable('users', {
   // founder is always first.
   personaKey: text('persona_key'),
   personaWeight: integer('persona_weight').notNull().default(0),
+  // Iteration 10 (Goal Planner) — weekly hours the user is willing to give
+  // to tracked goals across ALL life areas (a discretionary time budget, not
+  // office hours). NULL = not set; Stage 3.5 then treats headroom as advisory
+  // (names the tension in prose, does not auto-renegotiate) until the user
+  // sets it in Settings. See memory/PRD.md Iteration 10.
+  availableWeeklyHours: integer('available_weekly_hours'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-})
+}, (t) => [
+  // Declared here (rather than in a hand-written migration) so the schema is
+  // the source of truth — without this, drizzle-kit generate proposes
+  // dropping this live index on every run. Mirrors 0006_personas.sql.
+  uniqueIndex('users_persona_key_unique')
+    .on(t.personaKey)
+    .where(sql`"users"."persona_key" is not null`),
+])
 
 export const goals = pgTable('goals', {
   id: text('id').primaryKey(),
@@ -84,6 +100,22 @@ export const goals = pgTable('goals', {
   nextAction: text('next_action').notNull().default(''),
   startDate: date('start_date'),
   targetDate: date('target_date'),
+  // Iteration 10 (Goal Planner) — the three plan fields.
+  //   weeklyHours: NULL = not yet estimated. Excluded from the Stage 3.5
+  //     load sum until the LLM estimates it during a (re)plan, so existing
+  //     goals never read as phantom over-commitment.
+  //   phaseObjectives: JSONB map { "<phase name>": "<verifiable objective>" },
+  //     2-4 entries, keys referenced by milestones.phase / commitments.phase.
+  //   driftStatus: plan-vs-actual drift flag (see Iteration 10 §Drift).
+  //   lifeArea: one of the six UI areas (Health | Career | Learning |
+  //     Relationship | Finance | Side project) or '' when unsorted. Display +
+  //     balance reasoning only — capacity stays a single global pool.
+  weeklyHours: integer('weekly_hours'),
+  phaseObjectives: jsonb('phase_objectives').notNull().default({}),
+  driftStatus: text('drift_status', { enum: ['on_track', 'at_risk'] })
+    .notNull()
+    .default('on_track'),
+  lifeArea: text('life_area').notNull().default(''),
   status: text('status', {
     enum: ['active', 'paused', 'dropped'],
   })
@@ -112,6 +144,8 @@ export const commitments = pgTable('commitments', {
   // optimistic-save path on TodayTimetable leaves no half-written state.
   note: text('note').default(''),
   due: date('due'),
+  // Iteration 10 (Goal Planner) — phase name; key in goal.phase_objectives.
+  phase: text('phase').notNull().default(''),
   status: text('status', { enum: ['open', 'done'] })
     .notNull()
     .default('open'),
@@ -129,6 +163,8 @@ export const milestones = pgTable('milestones', {
   goalTitle: text('goal_title').notNull().default(''),
   title: text('title').notNull(),
   targetDate: date('target_date'),
+  // Iteration 10 (Goal Planner) — phase name; key in goal.phase_objectives.
+  phase: text('phase').notNull().default(''),
   status: text('status').notNull().default('open'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
@@ -183,7 +219,13 @@ export const conversations = pgTable('conversations', {
   // Iteration N — sealed on first confirm; chat route refuses to append
   // to closed buckets (defensive redirect). See migration 0009.
   closedAt: timestamp('closed_at', { withTimezone: true }),
-})
+}, (t) => [
+  // Mirror 0006_conversations.sql so generate doesn't drop them.
+  index('conversations_user_open_idx')
+    .on(t.userId)
+    .where(sql`status = 'open'`),
+  index('conversations_user_recent_idx').on(t.userId, desc(t.lastMessageAt)),
+])
 
 export const messages = pgTable('messages', {
   id: text('id').primaryKey(),
@@ -205,7 +247,10 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-})
+}, (t) => [
+  // Mirror 0006_conversations.sql.
+  index('messages_conversation_created_idx').on(t.conversationId, t.createdAt),
+])
 
 export const proposals = pgTable('proposals', {
   id: text('id').primaryKey(),
@@ -229,7 +274,10 @@ export const proposals = pgTable('proposals', {
     .notNull()
     .defaultNow(),
   resolvedAt: timestamp('resolved_at', { withTimezone: true }),
-})
+}, (t) => [
+  // Mirror 0006_conversations.sql.
+  index('proposals_conversation_created_idx').on(t.conversationId, t.createdAt),
+])
 
 export const auditLog = pgTable('audit_log', {
   id: text('id').primaryKey(),
@@ -301,7 +349,10 @@ export const memories = pgTable('memories', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-})
+}, (t) => [
+  // Mirror 0006_memories_dates.sql.
+  index('memories_user_date_idx').on(t.userId, t.occurredOn),
+])
 
 /* -------------------------------------------------------------------------- */
 /* Timetable blocks — Phase 6 planner                                          */
@@ -338,7 +389,10 @@ export const timetableBlocks = pgTable('timetable_blocks', {
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-})
+}, (t) => [
+  // Mirror 0006_timetable_blocks.sql.
+  index('timetable_blocks_user_date_idx').on(t.userId, t.blockDate, t.startTime),
+])
 
 /* -------------------------------------------------------------------------- */
 /* Auth.js v5 tables (per @auth/drizzle-adapter spec)                         */
@@ -498,3 +552,69 @@ export const motivationServedLog = pgTable(
     primaryKey({ columns: [t.userId, t.servedOn] }),
   ],
 )
+
+/* -------------------------------------------------------------------------- */
+/* Goal Planner tables (Iteration 10)                                         */
+/*                                                                             */
+/* See memory/PRD.md Iteration 10. Both tables are independent of the rest of */
+/* the schema (no migration of existing data).                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row per (user, day) — the coach's memory of the day across sessions.
+ *
+ * Upserted by `PUT /api/daily_log` (effect 5.3). Carries the section-level
+ * free text from the Today tab plus JSON snapshots of that day's commitment
+ * tick states / notes and blocker skips. Without it every chat starts blank
+ * because the transcript is scoped per-conversation.
+ *
+ * Composite PK (userId, logDate) rather than a synthetic id: the upsert is
+ * the identifier. The PRD's illustrative `id` column is omitted on purpose.
+ */
+export const dailyLog = pgTable(
+  'daily_log',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    logDate: date('log_date').notNull(),
+    text: text('text').notNull().default(''),
+    /** [{ commitment_id, completed, note }] */
+    commitments: jsonb('commitments').notNull().default([]),
+    /** [{ blocker_id, skipped, note }] */
+    blockers: jsonb('blockers').notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.logDate] })],
+)
+
+/**
+ * Observability mirror of `motivation_rejects` — one row per candidate a
+ * pipeline stage produced that failed a gate or the cross-validator. Used to
+ * tune the per-stage prompts and to compute the rollout gate (roll back if
+ * rejection rate > 10% over 48h). `recovered` records whether a retry or the
+ * legacy fallback ultimately salvaged a usable plan.
+ */
+export const planRejects = pgTable('plan_rejects', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  /** Conversation intent: add_goal | plan_day | edit_goal | drop_goal | review_progress. */
+  intent: text('intent').notNull(),
+  stage: text('stage', {
+    enum: ['intake', 'plan', 'emit', 'cross_validate'],
+  }).notNull(),
+  reason: text('reason').notNull().default(''),
+  rawInput: jsonb('raw_input').notNull().default({}),
+  rawOutput: jsonb('raw_output').notNull().default({}),
+  recovered: boolean('recovered').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})

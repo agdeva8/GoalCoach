@@ -46,7 +46,7 @@ const DEFAULT_DEEPSEEK_URL = 'https://api.deepseek.com'
  * only requires `DEEPSEEK_API_KEY` (URL defaults); the Emergent path
  * keeps its `sk-emergent-` prefix check so misconfiguration is loud.
  */
-function resolveBackend(): { url: string; apiKey: string } {
+export function resolveBackend(): { url: string; apiKey: string } {
   const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim()
   if (deepseekKey && deepseekKey.length > 0) {
     const deepseekUrl = process.env.DEEPSEEK_API_URL?.trim()

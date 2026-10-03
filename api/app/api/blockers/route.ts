@@ -32,6 +32,7 @@ import {
 import { AUDIT_TYPES, newId, todayIso, writeAudit } from '@/lib/audit'
 import { cachedGet } from '@/lib/cache'
 import { db } from '@/lib/db'
+import { recomputeGoalDrift } from '@/lib/drift-service'
 import { blockers } from '@/db/schema'
 
 export const runtime = 'nodejs'
@@ -98,6 +99,9 @@ export async function POST(req: NextRequest) {
       },
     })
   })
+
+  // Effect 5.5 — a new blocker can change the plan's feasibility.
+  await recomputeGoalDrift(auth.userId!).catch(() => {})
 
   const row = await db
     .select()

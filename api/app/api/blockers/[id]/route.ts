@@ -35,6 +35,7 @@ import {
 } from '@/lib/auth-route'
 import { AUDIT_TYPES, writeAudit } from '@/lib/audit'
 import { db } from '@/lib/db'
+import { recomputeGoalDrift } from '@/lib/drift-service'
 import { blockers } from '@/db/schema'
 
 export const runtime = 'nodejs'
@@ -110,6 +111,9 @@ export async function PUT(
     })
   })
 
+  // Effect 5.5 — best-effort drift recompute.
+  await recomputeGoalDrift(auth.userId!).catch(() => {})
+
   const row = await db
     .select()
     .from(blockers)
@@ -149,6 +153,8 @@ export async function DELETE(
       payload: { blocker_id: id },
     })
   })
+
+  await recomputeGoalDrift(auth.userId!).catch(() => {})
 
   return NextResponse.json({ ok: true })
 }
