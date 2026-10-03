@@ -250,9 +250,19 @@ export default function Coach() {
       add_step: "plan_day",
     };
     const kind = ACTION_KIND[act?.type] || "plan_day";
+    // Plain-chat empty line per action — keeps the follow-up a simple
+    // back-and-forth instead of the "About this / scoped" boilerplate.
+    const ACTION_EMPTY_PROMPT = {
+      drop: "Tell me why. If it makes sense, I'll drop it.",
+      pause: "Tell me why you want to pause, and for how long.",
+      edit: "What should change?",
+      add_step: "What step should I add?",
+    };
     setFocusedTask({
       title: frameTitle,
-      subtitle: "This chat is scoped to the action you just described. It starts empty and resets when you close it.",
+      // Deliberately no "This chat is scoped…" subtitle — plain chat.
+      subtitle: "",
+      emptyPrompt: ACTION_EMPTY_PROMPT[act?.type] || "Talk it through with me.",
       prefillMessage: msg,
       icon: Sparkles,
       // Spec §10.7 — focused-task chat runs in its own bucket; the dialog
@@ -655,6 +665,7 @@ export default function Coach() {
         onClose={() => setFocusedTask(null)}
         title={focusedTask?.title}
         subtitle={focusedTask?.subtitle}
+        emptyPrompt={focusedTask?.emptyPrompt}
         prefillMessage={focusedTask?.prefillMessage}
         icon={focusedTask?.icon}
         user={user}

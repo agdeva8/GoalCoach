@@ -37,6 +37,10 @@ export default function FocusedTaskChatDialog({
   onClose,
   title = "Chat with your coach",
   subtitle = "Focus on this task. The chat below starts fresh and resets when you close it.",
+  // When set, the empty body shows this one plain line instead of the
+  // "About this / scoped" block — used by goal actions (drop/pause/edit)
+  // so the follow-up reads as a simple chat, not a scoped-task screen.
+  emptyPrompt = "",
   prefillMessage = "",
   icon: Icon = MessageSquare,
   user,
@@ -598,9 +602,11 @@ export default function FocusedTaskChatDialog({
           // Focused-task dialogs always have a specific subject —
           // mirror AddGoalDialog's per-category subtitle so the empty
           // body says what this chat is for, not the generic "tell
-          // me everything" onboarding.
-          scopeLabel={title && title !== "Chat with your coach" ? title : ""}
-          scopeIntent={helperText || (subtitle && subtitle !== "Focus on this task. The chat below starts fresh and resets when you close it." ? subtitle : "Talk to the coach about this —")}
+          // me everything" onboarding. Goal actions pass `emptyPrompt`
+          // to keep it a plain chat (no scoping boilerplate).
+          scopeLabel={emptyPrompt ? "" : (title && title !== "Chat with your coach" ? title : "")}
+          scopeIntent={emptyPrompt ? "" : (helperText || (subtitle && subtitle !== "Focus on this task. The chat below starts fresh and resets when you close it." ? subtitle : "Talk to the coach about this —"))}
+          emptyPrompt={emptyPrompt}
           pendingClarifications={pendingClarifications}
           onAnswerClarification={onAnswerClarification}
           onDismissClarifications={onDismissClarifications}

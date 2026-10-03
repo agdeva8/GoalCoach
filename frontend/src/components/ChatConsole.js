@@ -205,7 +205,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", onViewGoal = null }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", emptyPrompt = "", onViewGoal = null }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -593,7 +593,18 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
         className={`flex-1 min-h-0 ${messages.length ? "overflow-y-auto" : "overflow-hidden"} px-4 sm:px-6 py-6 space-y-6`}
       >
         {messages.length === 0 && (
-          <EmptyState scopeLabel={scopeLabel} scopeIntent={scopeIntent} />
+          emptyPrompt ? (
+            <div
+              data-testid="chat-empty-simple"
+              className="h-full flex flex-col justify-center max-w-lg"
+            >
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                {emptyPrompt}
+              </p>
+            </div>
+          ) : (
+            <EmptyState scopeLabel={scopeLabel} scopeIntent={scopeIntent} />
+          )
         )}
         {/* B5#8 — cap the rendered log; the full history stays in the
             parent's state, we just don't mount a thousand bubbles. */}
