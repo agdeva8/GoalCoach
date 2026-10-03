@@ -44,6 +44,11 @@ export default function FocusedTaskChatDialog({
   // When true, the prefill is SENT on open (goal actions) so the coach
   // replies immediately instead of leaving it in the composer.
   autoSend = false,
+  // Drop flow: when the coach agrees and proposes dropping THE target goal,
+  // apply it automatically instead of showing a confirm card. A counter-
+  // proposal (pause / edit / a different goal) still renders as a card.
+  autoApplyDrop = false,
+  targetGoalTitle = "",
   prefillMessage = "",
   icon: Icon = MessageSquare,
   user,
@@ -392,6 +397,27 @@ export default function FocusedTaskChatDialog({
     },
     [onStateChange],
   );
+
+  // Drop flow — once the coach agrees and proposes dropping the goal the
+  // user asked about, apply it immediately: the user already chose to drop,
+  // so a confirm card is redundant. Counter-proposals (pause / edit / a
+  // different goal) still render as a normal card for the user to decide.
+  const autoAppliedDropRef = useRef(new Set());
+  useEffect(() => {
+    if (!autoApplyDrop) return;
+    const norm = (s) => (s || "").trim().toLowerCase();
+    for (const m of messages) {
+      for (const p of m.proposals || []) {
+        if (p.action !== "drop_goal") continue;
+        if ((p.status || "pending") !== "pending") continue;
+        if (autoAppliedDropRef.current.has(p.id)) continue;
+        const t = p.args?.goal_title || p.args?.title || p.title || "";
+        if (targetGoalTitle && norm(t) && norm(t) !== norm(targetGoalTitle)) continue;
+        autoAppliedDropRef.current.add(p.id);
+        confirmProposal(m.id, p.id);
+      }
+    }
+  }, [messages, autoApplyDrop, targetGoalTitle, confirmProposal]);
 
   const rejectProposal = useCallback((messageId, proposalId, reason) => {
     // Optimistic — flip the UI immediately, persist in the background.

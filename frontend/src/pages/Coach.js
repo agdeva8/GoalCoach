@@ -265,6 +265,10 @@ export default function Coach() {
       emptyPrompt: ACTION_EMPTY_PROMPT[act?.type] || "Talk it through with me.",
       // Send the reason on open so the coach replies immediately.
       autoSend: true,
+      // Drop flow: auto-apply the coach's drop_goal proposal for THIS goal
+      // (the user already chose to drop) instead of showing a confirm card.
+      autoApplyDrop: act?.type === "drop",
+      targetGoalTitle: act?.goalTitle || "",
       prefillMessage: msg,
       icon: Sparkles,
       // Spec §10.7 — focused-task chat runs in its own bucket; the dialog
@@ -669,6 +673,8 @@ export default function Coach() {
         subtitle={focusedTask?.subtitle}
         emptyPrompt={focusedTask?.emptyPrompt}
         autoSend={focusedTask?.autoSend}
+        autoApplyDrop={focusedTask?.autoApplyDrop}
+        targetGoalTitle={focusedTask?.targetGoalTitle}
         prefillMessage={focusedTask?.prefillMessage}
         icon={focusedTask?.icon}
         user={user}
