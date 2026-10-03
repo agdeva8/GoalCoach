@@ -37,6 +37,12 @@ Return a JSON object with:
 - "referenced_goal_titles": existing goal titles the message names.
 - "framing_line": one short line, or "".
 
+Rules:
+- For intent "add_goal": if the message already names a goal AND a timeframe or
+  a weekly-hours figure, set needs_clarification to false. Ask only when the
+  goal itself is genuinely ambiguous.
+- Never set needs_clarification true for drop_goal.
+
 Do not plan here. Classify only.
 
 === LIVE STATE ===
@@ -84,16 +90,17 @@ Return a JSON object:
 }
 
 Rules:
-- Decompose into 2-4 phases; each phase_objectives value must be OBSERVABLE
-  from outside ("Pass 5 SD mocks", not "read Ch 5"). 3-5 milestones, grouped by
-  phase (milestone.phase MUST be a phase_objectives key).
-- Commitments are the SMALLEST next actions in the next 1-4 days (setup
+- Decompose into 2-3 phases; each phase_objectives value must be OBSERVABLE
+  from outside ("Pass 5 SD mocks", not "read Ch 5"). Emit EXACTLY 3 milestones
+  (max 4), grouped by phase (milestone.phase MUST be a phase_objectives key).
+- Emit 1-2 commitments: the SMALLEST next actions in the next 1-4 days (setup
   actions), and their "due" must be one of them.
 - Emit blockers ONLY if the user named them. Never invent a blocker.
 - If the user already did something, do not re-propose it.
 - Prefer a realistic target_date with buffer over an optimistic one, and name
   the trade-off in prose.
-- prose must name the load-bearing constraint that, if it breaks, breaks the plan.
+- prose is a single tight paragraph, at most 280 characters, naming the
+  load-bearing constraint that, if it breaks, breaks the plan.
 - If intent is drop_goal / review_progress and no new goal is warranted, goal
   may be null and milestones may be empty.
 

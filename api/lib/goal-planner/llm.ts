@@ -1,28 +1,28 @@
 /**
- * Goal Planner — typed structured-output client (Slices 2 + 3b).
+ * Goal Planner — typed structured-output client (Slices 2 + 3b + 3c).
  *
  * Three paths, tried in order, all pointed at the SAME backend the streaming
  * chat uses (`resolveBackend()`: DeepSeek when `DEEPSEEK_API_KEY` is set,
- * otherwise the Emergent proxy). This is a client wrapper, not a provider
- * swap — the Emergent integration/key is unchanged (hard constraint #1).
+ * otherwise the Emergent proxy). Client wrapper, not a provider swap — the
+ * Emergent key/integration is unchanged (hard constraint #1).
  *
- *   1. OBJECT (opt-in, `GOAL_PLANNER_USE_OBJECT_MODE=true`): the Vercel AI
- *      SDK's `generateObject`, which sends OpenAI-style
- *      `response_format: json_schema`. Only real OpenAI / capable proxies
- *      accept this — DeepSeek rejects it.
- *   2. JSON (default): a raw `response_format: { type: 'json_object' }`
- *      completion. DeepSeek supports this; it is ONE call and far faster than
- *      the old text fallback (Slice 3b latency fix).
+ *   1. OBJECT (opt-in, `GOAL_PLANNER_USE_OBJECT_MODE=true`): AI SDK
+ *      `generateObject` (json_schema). DeepSeek rejects it; OpenAI honors it.
+ *   2. JSON (default): raw `response_format: { type: 'json_object' }`.
  *   3. TEXT (last resort): AI SDK `generateText` + JSON extraction.
  *
- * Every path is followed by Zod validation and ONE repair retry (the raw
- * answer + validation errors are sent back and corrected JSON is requested).
- * Capability caches remember which paths a backend rejects, so the doomed
- * attempt is paid once per process, not per call.
+ * Reasoning is DISABLED by default (`reasoning_effort: 'none'`). The MVP
+ * backend (`deepseek-flash`) is a reasoning model: its hidden
+ * `reasoning_content` counts against `max_tokens` and was consuming ~1100
+ * tokens on a trivial task, truncating/emptying the JSON. Disabling it fixes
+ * both reliability (Slice 3c) and latency. Override with
+ * `GOAL_PLANNER_REASONING_EFFORT`.
  *
- * NOTE: deliberately does NOT `import 'server-only'` — mirroring
- * `lib/emergent/stream-chat.ts`, so smoke scripts can import it under tsx.
- * The Next-facing orchestrator carries the `server-only` guard.
+ * Every path is Zod-validated with one repair retry; a truncated response is
+ * labelled so the repair asks for a SHORTER answer.
+ *
+ * NOTE: no `import 'server-only'` (mirrors stream-chat.ts) so smoke scripts
+ * can import it under tsx. The Next-facing orchestrator carries the guard.
  */
 
 import { createOpenAI } from '@ai-sdk/openai'
@@ -51,22 +51,27 @@ export interface CompleteJsonMeta {
   mode: CompleteJsonMode
 }
 
-const FALLBACK_SUFFIX =
-  'Respond with ONLY a single JSON object matching the required shape. ' +
-  'Include EVERY required field, using the exact key names. ' +
-  'No prose, no markdown fences, no commentary.'
+/** Reasoning effort sent to OpenAI-compatible backends. Default disables it. */
+const REASONING_EFFORT = process.env.GOAL_PLANNER_REASONING_EFFORT ?? 'none'
+
+/** Output cap (reasoning excluded now). Was 1400, which truncated once
+ *  reasoning tokens were counted. */
+const MAX_TOKENS = Number(process.env.GOAL_PLANNER_MAX_TOKENS ?? 3000)
 
 /** Opt-in native structured outputs (json_schema). Off by default. */
 const USE_OBJECT_MODE = process.env.GOAL_PLANNER_USE_OBJECT_MODE === 'true'
 
+const FALLBACK_SUFFIX =
+  'Respond with ONLY a single JSON object matching the required shape. ' +
+  'Include EVERY required field, using the exact key names. Be concise. ' +
+  'No prose, no markdown fences, no commentary.'
+
 let cachedProvider: ReturnType<typeof createOpenAI> | null = null
 let cachedKey: string | null = null
 
-/** Backends that rejected json_schema / json_object — skip straight past them. */
 const objectModeUnsupported = new Set<string>()
 const jsonModeUnsupported = new Set<string>()
 
-/** Test hook — clears provider + capability caches between tests. */
 export function __resetLlmCaches(): void {
   cachedProvider = null
   cachedKey = null
@@ -87,7 +92,6 @@ function getProvider(fetchImpl?: typeof fetch) {
   return cachedProvider
 }
 
-/** Extract the first top-level JSON object from arbitrary text. */
 export function extractJsonObject(text: string): unknown {
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
@@ -108,11 +112,9 @@ function fallbackSystem(system?: string): string {
   return system ? `${system}\n\n${FALLBACK_SUFFIX}` : FALLBACK_SUFFIX
 }
 
-/**
- * Raw JSON-mode completion (`response_format: json_object`). Returns the
- * assistant content string. Throws on non-2xx (caller records the backend as
- * json-mode-unsupported and falls through).
- */
+type CompletionCall = (prompt: string) => Promise<{ text: string; truncated: boolean }>
+
+/** Raw JSON-mode completion. Returns content + whether it hit the token cap. */
 async function rawJsonCompletion(args: {
   backend: { url: string; apiKey: string }
   modelId: string
@@ -120,7 +122,7 @@ async function rawJsonCompletion(args: {
   prompt: string
   abortSignal?: AbortSignal
   fetchImpl?: typeof fetch
-}): Promise<string> {
+}): Promise<{ text: string; truncated: boolean }> {
   const doFetch = args.fetchImpl ?? fetch
   const resp = await doFetch(`${args.backend.url}/chat/completions`, {
     method: 'POST',
@@ -136,6 +138,8 @@ async function rawJsonCompletion(args: {
       ],
       response_format: { type: 'json_object' },
       temperature: 0.2,
+      reasoning_effort: REASONING_EFFORT,
+      max_tokens: MAX_TOKENS,
     }),
     signal: args.abortSignal,
     cache: 'no-store',
@@ -150,33 +154,36 @@ async function rawJsonCompletion(args: {
     throw new Error(`json-mode ${resp.status}${detail ? `: ${detail}` : ''}`)
   }
   const json = (await resp.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
+    choices?: Array<{ finish_reason?: string; message?: { content?: string } }>
   }
-  const content = json?.choices?.[0]?.message?.content
+  const choice = json?.choices?.[0]
+  const content = choice?.message?.content
   if (typeof content !== 'string' || content.length === 0) {
     throw new Error('json-mode returned empty content')
   }
-  return content
+  return { text: content, truncated: choice?.finish_reason === 'length' }
 }
 
-/** Run a text-producing call, Zod-parse it, and repair once on failure. */
+/** Run a completion call, Zod-parse it, and repair once on failure. */
 async function runWithRepair<S extends z.ZodTypeAny>(
-  call: (prompt: string) => Promise<string>,
+  call: CompletionCall,
   schema: S,
   basePrompt: string,
 ): Promise<z.infer<S>> {
   const first = await call(basePrompt)
   try {
-    return schema.parse(extractJsonObject(first)) as z.infer<S>
+    return schema.parse(extractJsonObject(first.text)) as z.infer<S>
   } catch (firstErr) {
+    const hint = first.truncated
+      ? 'Your previous answer was TRUNCATED because it was too long. ' +
+        'Return a SHORTER response that still includes every required field.'
+      : 'Your previous answer did not match the required JSON shape.'
     const repairPrompt =
-      `${basePrompt}\n\nYour previous answer did not match the required JSON shape.\n` +
-      `Previous answer:\n${first}\n\n` +
-      `Problems:\n${zodIssues(firstErr)}\n\n` +
-      'Return ONLY corrected JSON with every required field present.'
+      `${basePrompt}\n\n${hint}\nPrevious answer:\n${first.text}\n\n` +
+      `Problems:\n${zodIssues(firstErr)}\n\nReturn ONLY corrected JSON.`
     const second = await call(repairPrompt)
     try {
-      return schema.parse(extractJsonObject(second)) as z.infer<S>
+      return schema.parse(extractJsonObject(second.text)) as z.infer<S>
     } catch (secondErr) {
       throw new Error(
         `failed after repair. first: ${zodIssues(firstErr)} | second: ${zodIssues(secondErr)}`,
@@ -185,11 +192,6 @@ async function runWithRepair<S extends z.ZodTypeAny>(
   }
 }
 
-/**
- * Typed structured completion. Returns a value already validated against
- * `args.schema`; throws only when every path fails. Callers (the
- * orchestrator) catch and degrade to `no_change`.
- */
 export async function completeJsonWithMeta<S extends z.ZodTypeAny>(
   args: CompleteJsonArgs<S>,
 ): Promise<{ object: z.infer<S>; meta: CompleteJsonMeta }> {
@@ -209,6 +211,8 @@ export async function completeJsonWithMeta<S extends z.ZodTypeAny>(
         schemaDescription: args.schemaDescription,
         system: args.system,
         prompt: args.prompt,
+        maxOutputTokens: MAX_TOKENS,
+        providerOptions: { openai: { reasoningEffort: REASONING_EFFORT } },
         abortSignal: args.abortSignal,
       })
       return { object: object as z.infer<S>, meta: { mode: 'object' } }
@@ -218,7 +222,7 @@ export async function completeJsonWithMeta<S extends z.ZodTypeAny>(
     }
   }
 
-  // Path 2 — JSON mode (default; fast, DeepSeek-friendly).
+  // Path 2 — JSON mode (default).
   if (!jsonModeUnsupported.has(capKey)) {
     try {
       const object = await runWithRepair(
@@ -236,8 +240,6 @@ export async function completeJsonWithMeta<S extends z.ZodTypeAny>(
       )
       return { object, meta: { mode: 'json' } }
     } catch (e) {
-      // If the endpoint itself rejected json_object, remember it. If it was a
-      // validation failure, the text path may still succeed.
       if (isJsonModeUnsupported(e)) jsonModeUnsupported.add(capKey)
       if (args.abortSignal?.aborted) throw e
     }
@@ -247,13 +249,15 @@ export async function completeJsonWithMeta<S extends z.ZodTypeAny>(
   const model = getProvider(args.fetch).chat(modelId)
   const object = await runWithRepair(
     async (prompt) => {
-      const { text } = await generateText({
+      const { text, finishReason } = await generateText({
         model,
         system,
         prompt,
+        maxOutputTokens: MAX_TOKENS,
+        providerOptions: { openai: { reasoningEffort: REASONING_EFFORT } },
         abortSignal: args.abortSignal,
       })
-      return text
+      return { text, truncated: finishReason === 'length' }
     },
     args.schema,
     args.prompt,
@@ -261,13 +265,11 @@ export async function completeJsonWithMeta<S extends z.ZodTypeAny>(
   return { object, meta: { mode: 'text-fallback' } }
 }
 
-/** True when the failure was the endpoint rejecting json_object (vs. bad output). */
 function isJsonModeUnsupported(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e)
   return msg.startsWith('json-mode ') || msg === 'json-mode returned empty content'
 }
 
-/** Convenience wrapper — the object without the path metadata. */
 export async function completeJson<S extends z.ZodTypeAny>(
   args: CompleteJsonArgs<S>,
 ): Promise<z.infer<S>> {
