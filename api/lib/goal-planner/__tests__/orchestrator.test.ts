@@ -127,12 +127,48 @@ describe('runPlanPipeline', () => {
     if (res.kind === 'clarify') expect(res.questions).toEqual(['By when?'])
   })
 
-  it('early-returns for over_committed/meta/routine shapes', async () => {
+  it('early-returns for the pure conversational shapes (meta / routine)', async () => {
+    for (const shape of ['meta_question', 'routine_return'] as const) {
+      const res = await runPlanPipeline(
+        base({
+          deps: {
+            complete: fakeComplete({
+              intake: { ...intakeOk, shape, framing_line: '…' },
+            }),
+          },
+        }),
+      )
+      expect(res.kind).toBe('early')
+      if (res.kind === 'early') expect(res.shape).toBe(shape)
+    }
+  })
+
+  it('routes over_committed add_goal into headroom instead of early-returning', async () => {
+    // Full plate: the pipeline must PLAN first, then let Stage 3.5 offer ways
+    // to make room — not early-return with a clarifying question.
     const res = await runPlanPipeline(
       base({
+        budgetHours: 10,
+        activeGoalWeeklyHours: [5, 5],
         deps: {
           complete: fakeComplete({
-            intake: { ...intakeOk, shape: 'over_committed', framing_line: 'Too many goals.' },
+            intake: { ...intakeOk, shape: 'over_committed', framing_line: 'Plate is full.' },
+            plan,
+            emits: [emitOk],
+          }),
+        },
+      }),
+    )
+    expect(res.kind).toBe('renegotiate')
+  })
+
+  it('over_committed on a non-add_goal intent still early-returns', async () => {
+    const res = await runPlanPipeline(
+      base({
+        intent: 'plan_day',
+        deps: {
+          complete: fakeComplete({
+            intake: { ...intakeOk, shape: 'over_committed', framing_line: 'Plate is full.' },
           }),
         },
       }),

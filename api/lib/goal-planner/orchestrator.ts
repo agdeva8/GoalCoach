@@ -193,10 +193,14 @@ export async function runPlanPipeline(
       rejects,
     }
   }
+  // `over_committed` is NOT an early exit when the user named a concrete new
+  // goal: it must flow through Plan → Stage 3.5 so the headroom check can
+  // offer concrete ways to make room. Only the pure conversational shapes
+  // (meta_question / routine_return) early-return.
   if (
     intake.shape === 'meta_question' ||
     intake.shape === 'routine_return' ||
-    intake.shape === 'over_committed'
+    (intake.shape === 'over_committed' && args.intent !== 'add_goal')
   ) {
     return { kind: 'early', shape: intake.shape, prose: intake.framing_line, rejects }
   }

@@ -24,26 +24,46 @@ export function intakePrompt(args: {
 }): string {
   return `${VOICE}
 
-You are stage 1 (Intake) of a planning pipeline. Classify the user's message.
-Today is ${args.today}. Conversation intent: ${args.intent}.
+You are stage 1 (Intake) of a planning pipeline. You ONLY classify. You do not
+plan, and you do not decide whether something is possible — a later stage does
+that arithmetic. Today is ${args.today}. Conversation intent: ${args.intent}.
 
 Return a JSON object with:
 - "shape": one of "one_new_goal" | "multiple_goals" | "over_committed" |
   "returning_after_gap" | "meta_question" | "routine_return".
-- "needs_clarification": boolean. True only when a plan is impossible without
-  one or two facts (and intent is not drop_goal / review_progress).
-- "clarifying_questions": array of 0-2 sharp questions. Ask only what changes
-  the plan.
+- "needs_clarification": boolean (see the hard rule below).
+- "clarifying_questions": array of 0-2 sharp questions.
 - "referenced_goal_titles": existing goal titles the message names.
 - "framing_line": one short line, or "".
 
-Rules:
-- For intent "add_goal": if the message already names a goal AND a timeframe or
-  a weekly-hours figure, set needs_clarification to false. Ask only when the
-  goal itself is genuinely ambiguous.
-- Never set needs_clarification true for drop_goal.
+HARD RULE for needs_clarification — default to FALSE. Set it true only when a
+required fact is ACTUALLY ABSENT from the user's message. Before you decide,
+extract these three things from the message and treat each as present if it
+appears in any form:
+  1. WHAT — the goal or activity. "run a half marathon", "learn Japanese".
+  2. WHEN — any timeframe. "in 5 months", "by March", "3 months".
+  3. HOW MUCH — any weekly effort. "6 hours a week", "12h/week".
+If all three are present, needs_clarification MUST be false. If two of the
+three are present, still false — fill the gap with a reasonable assumption
+and let the plan state it. Ask ONLY when WHAT is genuinely missing or truly
+ambiguous (e.g. "help me get better at stuff").
 
-Do not plan here. Classify only.
+Rules:
+- "over_committed" is a SHAPE, not a reason to ask. If the user names a
+  concrete new goal while their plate is already full, shape = "over_committed"
+  AND needs_clarification = false. The pipeline's headroom stage will then
+  offer concrete ways to make room. Do NOT ask which goal to drop — that is
+  the headroom stage's job, and it presents the choices as buttons.
+- Never set needs_clarification true for drop_goal.
+- framing_line: a single clause, or "". Do not editorialize or explain your
+  reasoning here.
+
+Worked examples:
+- "I want to run a half marathon in 5 months. I can train 6 hours a week."
+  → shape "one_new_goal", needs_clarification FALSE (WHAT+WHEN+HOW MUCH all present).
+- "5 goals already active. Also add: learn Japanese in 3 months, 12h/week."
+  → shape "over_committed", needs_clarification FALSE.
+- "I want to get better at something." → needs_clarification TRUE, ask WHAT.
 
 === LIVE STATE ===
 ${args.context}`
@@ -90,6 +110,11 @@ Return a JSON object:
 }
 
 Rules:
+- For intent "add_goal" the goal MUST NOT be null — even when the user's plate
+  is already full. Whether the plan fits is a LATER stage's arithmetic, not
+  yours. Always produce the plan; the headroom stage will offer ways to make
+  room. Set goal to null ONLY for drop_goal / review_progress when no new goal
+  is warranted.
 - Decompose into 2-3 phases; each phase_objectives value must be OBSERVABLE
   from outside ("Pass 5 SD mocks", not "read Ch 5"). Emit EXACTLY 3 milestones
   (max 4), grouped by phase (milestone.phase MUST be a phase_objectives key).
