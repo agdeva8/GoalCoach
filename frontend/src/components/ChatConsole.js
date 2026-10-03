@@ -144,7 +144,7 @@ function SetLines({ content, settled }) {
   ));
 }
 
-function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate, showConfirm = true, busyProposal, onViewGoal }) {
+function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate, onAnswerChoice, showConfirm = true, busyProposal, onViewGoal }) {
   // Success divider — appended by the parent after a confirm closes the
   // conversation bucket (spec §10.5). Rendered inline in the same
   // stream; the messages are never cleared on confirm.
@@ -194,6 +194,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
               onOpenRefine={onOpenRefine ? () => onOpenRefine(p) : undefined}
               onOpenReject={onOpenReject ? () => onOpenReject(p) : undefined}
               onNavigate={onNavigate}
+              onAnswerChoice={onAnswerChoice}
               showConfirm={showConfirm}
             />
           ))}
@@ -206,7 +207,7 @@ function Message({ m, settled = false, onConfirm, onReject, onRefine, onOpenRefi
   );
 }
 
-export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, showConfirm = true, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", emptyPrompt = "", onViewGoal = null }) {
+export default function ChatConsole({ messages, onSend, sending, input, setInput, onConfirm, onReject, onRefine, onOpenRefine, onOpenReject, onNavigate = null, onAnswerChoice = null, showConfirm = true, busyProposal, autoAnswer, setAutoAnswer, grillMe = false, setGrillMe = () => {}, onUploadFile = () => {}, onAddLink = () => {}, sources = [], onDeleteSource = () => {}, onClearChat = () => {}, pendingClarifications = null, onAnswerClarification = () => {}, onDismissClarifications = () => {}, showSources = true, focusOnMount = false, scopeLabel = "", scopeIntent = "", emptyPrompt = "", onViewGoal = null }) {
   const endRef = useRef(null);
   const taRef = useRef(null);
   const fileRef = useRef(null);
@@ -615,7 +616,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
           </div>
         )}
         {messages.slice(-CHAT_RENDER_CAP).map((m) => (
-          <Message key={m.id} m={m} settled={settledId === m.id} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} onOpenRefine={onOpenRefine} onOpenReject={onOpenReject} onNavigate={onNavigate} showConfirm={showConfirm} busyProposal={busyProposal} onViewGoal={onViewGoal} />
+          <Message key={m.id} m={m} settled={settledId === m.id} onConfirm={onConfirm} onReject={onReject} onRefine={onRefine} onOpenRefine={onOpenRefine} onOpenReject={onOpenReject} onNavigate={onNavigate} onAnswerChoice={onAnswerChoice} showConfirm={showConfirm} busyProposal={busyProposal} onViewGoal={onViewGoal} />
         ))}
         <div ref={endRef} />
       </div>
@@ -798,18 +799,51 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
                 </p>
                 {/* Claude-style: full-width single-choice options + a free-text fallback input below */}
                 <div className="mt-2.5 space-y-2">
-                  {pendingClarifications.questions.map((q, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      data-testid={`clarification-chip-${i}`}
-                      onClick={() => onAnswerClarification(q)}
-                      className="w-full text-left min-h-11 text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors"
-                    >
-                      <span className="tabular-nums text-xs text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
-                      {q}
-                    </button>
-                  ))}
+                  {pendingClarifications.questions.map((q, i) => {
+                    const item = typeof q === "string" ? { question: q } : (q || {});
+                    const opts = Array.isArray(item.options)
+                      ? item.options.filter((o) => typeof o === "string" && o.trim())
+                      : [];
+                    if (opts.length > 0) {
+                      return (
+                        <div
+                          key={i}
+                          data-testid={`clarification-question-${i}`}
+                          className="rounded-md border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2"
+                        >
+                          <div className="text-xs leading-relaxed text-[var(--text-primary)]">
+                            <span className="tabular-nums text-xs text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
+                            {item.question}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {opts.map((o, j) => (
+                              <button
+                                key={j}
+                                type="button"
+                                data-testid={`clarification-option-${i}-${j}`}
+                                onClick={() => onAnswerClarification(o)}
+                                className="min-h-11 text-left text-xs px-2.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                              >
+                                {o}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        data-testid={`clarification-chip-${i}`}
+                        onClick={() => onAnswerClarification(item.question)}
+                        className="w-full text-left min-h-11 text-xs leading-relaxed px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-colors"
+                      >
+                        <span className="tabular-nums text-xs text-[var(--text-muted)] mr-2">{String(i + 1).padStart(2, "0")}</span>
+                        {item.question}
+                      </button>
+                    );
+                  })}
                 </div>
                 <div className="mt-2.5 flex items-center gap-1.5">
                   <input

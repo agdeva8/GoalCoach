@@ -575,7 +575,12 @@ export default function AddGoalDialog({
         };
       }
 
-      const pending = proposals.filter((p) => (p.status || "pending") === "pending");
+      const pending = proposals.filter(
+        (p) =>
+          (p.status || "pending") === "pending" &&
+          p.action !== "ask" &&
+          p.action !== "navigate",
+      );
       const hasCreateGoal = pending.some((p) => p.action === "create_goal");
 
       if (hasCreateGoal) {
@@ -771,6 +776,7 @@ export default function AddGoalDialog({
               }}
               onOpenRefine={onOpenRefine}
               onOpenReject={onOpenReject}
+              onAnswerChoice={(text) => send(text)}
               busyProposal={busyProposal}
               autoAnswer={autoAnswer}
               setAutoAnswer={setAutoAnswer}

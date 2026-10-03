@@ -615,6 +615,7 @@ export default function FocusedTaskChatDialog({
           onOpenRefine={onOpenRefine}
           onOpenReject={onOpenReject}
           onNavigate={onNavigate}
+          onAnswerChoice={(text) => send(text)}
           busyProposal={busyProposal}
           autoAnswer={autoAnswer}
           setAutoAnswer={setAutoAnswer}

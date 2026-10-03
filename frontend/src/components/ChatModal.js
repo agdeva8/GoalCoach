@@ -700,6 +700,7 @@ export default function ChatModal({
           onOpenRefine={onOpenRefine}
           onOpenReject={onOpenReject}
           onNavigate={onNavigate}
+          onAnswerChoice={(text) => send(text)}
           busyProposal={busyProposal}
           autoAnswer={autoAnswer}
           setAutoAnswer={setAutoAnswer}

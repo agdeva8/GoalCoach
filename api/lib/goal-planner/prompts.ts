@@ -32,7 +32,11 @@ Return a JSON object with:
 - "shape": one of "one_new_goal" | "multiple_goals" | "over_committed" |
   "returning_after_gap" | "meta_question" | "routine_return".
 - "needs_clarification": boolean (see the hard rule below).
-- "clarifying_questions": array of 0-2 sharp questions.
+- "clarifying_questions": array of 0-2 items. Each item is EITHER a plain
+  string question OR an object {"question": "...", "options": ["...","..."],
+  "multi": false}. Use the object form whenever the answer is a CHOICE — give
+  2-5 short options so the user can tap instead of typing; set "multi": true
+  when more than one option can apply.
 - "referenced_goal_titles": existing goal titles the message names.
 - "framing_line": one short line, or "".
 

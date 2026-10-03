@@ -167,6 +167,16 @@ export const ACTION_ARG_SCHEMAS: Record<ToolAction, z.ZodTypeAny> = {
 /* Stage 1 — Intake                                                           */
 /* -------------------------------------------------------------------------- */
 
+export const ClarifyQuestionSchema = z.union([
+  z.string().min(1),
+  z.object({
+    question: z.string().min(1),
+    options: z.array(z.string().min(1)).max(6).optional(),
+    multi: z.boolean().optional(),
+  }),
+])
+export type ClarifyQuestion = z.infer<typeof ClarifyQuestionSchema>
+
 export const IntakeSchema = z.object({
   shape: z.enum([
     'one_new_goal',
@@ -177,7 +187,7 @@ export const IntakeSchema = z.object({
     'routine_return',
   ]),
   needs_clarification: z.boolean(),
-  clarifying_questions: z.array(z.string().min(1)).max(MAX_CLARIFYING_QUESTIONS),
+  clarifying_questions: z.array(ClarifyQuestionSchema).max(MAX_CLARIFYING_QUESTIONS),
   referenced_goal_titles: z.array(z.string()),
   framing_line: z.string(),
 })

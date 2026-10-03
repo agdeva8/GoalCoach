@@ -34,6 +34,7 @@ import {
 import {
   EmitSchema,
   IntakeSchema,
+  type ClarifyQuestion,
   PlanSchema,
   type Emit,
   type EmittedTool,
@@ -86,7 +87,7 @@ export interface PlanPipelineArgs {
 }
 
 export type PlanPipelineResult =
-  | { kind: 'clarify'; prompt: string; questions: string[]; rejects: PlanRejectRecord[] }
+  | { kind: 'clarify'; prompt: string; questions: ClarifyQuestion[]; rejects: PlanRejectRecord[] }
   | { kind: 'early'; shape: Intake['shape']; prose: string; rejects: PlanRejectRecord[] }
   | { kind: 'no_change'; reason: string; prose: string; rejects: PlanRejectRecord[] }
   | {

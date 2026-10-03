@@ -539,9 +539,12 @@ export async function POST(req: NextRequest) {
 
         // General chat is a read-only navigator — never let a stray tool
         // block apply an edit from the free-form chat. Keep only `navigate`
-        // suggestions; the actual change happens on the dedicated surface.
+        // suggestions and `ask` choice prompts (neither is a state change);
+        // the actual change happens on the dedicated surface.
         if (scopedKind === 'general') {
-          proposals = proposals.filter((p) => p.action === 'navigate')
+          proposals = proposals.filter(
+            (p) => p.action === 'navigate' || p.action === 'ask',
+          )
         }
 
         // Persist the assistant message + proposals in a single
