@@ -707,7 +707,7 @@ export default function AddGoalDialog({
               showSources={false} hides the attach / link buttons —
               sources don't apply to a goal-add chat, and the no-op
               stubs were surfacing as a confusing dead UI. */}
-          <div className="flex-1 min-h-0 -mx-5 sm:mx-0 border-t border-[var(--border)] flex flex-col">
+          <div className="flex-1 min-h-0 sm:flex-none sm:h-[62vh] -mx-5 sm:mx-0 border-t border-[var(--border)] flex flex-col">
             <ChatConsole
               key={focusToken}
               messages={messages}
