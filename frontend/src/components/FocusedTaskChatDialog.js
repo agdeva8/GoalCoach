@@ -41,6 +41,9 @@ export default function FocusedTaskChatDialog({
   // "About this / scoped" block — used by goal actions (drop/pause/edit)
   // so the follow-up reads as a simple chat, not a scoped-task screen.
   emptyPrompt = "",
+  // When true, the prefill is SENT on open (goal actions) so the coach
+  // replies immediately instead of leaving it in the composer.
+  autoSend = false,
   prefillMessage = "",
   icon: Icon = MessageSquare,
   user,
@@ -553,13 +556,29 @@ export default function FocusedTaskChatDialog({
     [onStateChange],
   );
 
-  // When the dialog opens, kick off the first message with the prefill
-  // so the user lands in a populated chat, not an empty box.
+  // Auto-send mode (goal actions) — hand the prefilled reason to the coach
+  // the moment the dialog opens so it replies immediately and the user just
+  // continues the conversation. Guarded so it fires once per open.
+  const autoSentRef = useRef(false);
   useEffect(() => {
+    if (!open) {
+      autoSentRef.current = false;
+      return;
+    }
+    if (!autoSend || autoSentRef.current) return;
+    if (!prefillMessage || !user) return;
+    if (messages.length > 0 || sending) return;
+    autoSentRef.current = true;
+    send(prefillMessage);
+  }, [open, autoSend, prefillMessage, user, messages.length, sending, send]);
+
+  // Otherwise: prefill the composer so the user can review/edit before send.
+  useEffect(() => {
+    if (autoSend) return;
     if (open && prefillMessage && !historyLoaded && input === "" && messages.length === 0) {
       setInput(prefillMessage);
     }
-  }, [open, prefillMessage, historyLoaded, input, messages.length]);
+  }, [autoSend, open, prefillMessage, historyLoaded, input, messages.length]);
 
   return (
     <CenteredDialog

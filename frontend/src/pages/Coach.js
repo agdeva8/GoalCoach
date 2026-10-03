@@ -263,6 +263,8 @@ export default function Coach() {
       // Deliberately no "This chat is scoped…" subtitle — plain chat.
       subtitle: "",
       emptyPrompt: ACTION_EMPTY_PROMPT[act?.type] || "Talk it through with me.",
+      // Send the reason on open so the coach replies immediately.
+      autoSend: true,
       prefillMessage: msg,
       icon: Sparkles,
       // Spec §10.7 — focused-task chat runs in its own bucket; the dialog
@@ -666,6 +668,7 @@ export default function Coach() {
         title={focusedTask?.title}
         subtitle={focusedTask?.subtitle}
         emptyPrompt={focusedTask?.emptyPrompt}
+        autoSend={focusedTask?.autoSend}
         prefillMessage={focusedTask?.prefillMessage}
         icon={focusedTask?.icon}
         user={user}
