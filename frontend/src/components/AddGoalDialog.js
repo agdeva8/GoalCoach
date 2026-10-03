@@ -309,9 +309,14 @@ export default function AddGoalDialog({
   };
 
   const pickCategory = (cat) => {
-    const isActive = activeCategory === cat.id;
-    setActiveCategory(isActive ? null : cat.id);
-    if (!isActive) enterChat();
+    // Always select the tapped category and enter the chat. The old
+    // toggle-off (`isActive ? null : cat.id`) meant that returning to
+    // the tiles step with a category still active made a second tap
+    // DESELECT it instead of re-opening that category's chat — the
+    // user had to tap twice. There's no deselect use case here: the
+    // "Change category" control is the way back.
+    setActiveCategory(cat.id);
+    enterChat();
   };
 
   const goBackToTiles = () => {

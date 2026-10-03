@@ -676,7 +676,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
             the focus highlight, the textarea has no outline of its own.
             Tapping it expands to a comfortable writing area; send /
             clear collapses it back to one slim row. */}
-        <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors rounded-2xl overflow-hidden">
+        <div className="border border-[var(--border)] focus-within:border-[var(--border-accent)] bg-[var(--bg-secondary)] transition-colors rounded-2xl">
           <textarea
             ref={taRef}
             data-testid="chat-input"
