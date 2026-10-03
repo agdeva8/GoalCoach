@@ -50,7 +50,17 @@ export const api = {
   setProvider: (model_provider) => req("/preferences", { method: "PUT", body: JSON.stringify({ model_provider }) }),
   models: () => req("/preferences/models"),
   state: () => req("/state"),
-  history: () => req("/chat/history"),
+  // Conversation-scoped history. Pass { refId, kind } (or { scope }) to
+  // fetch a specific chat bucket; omit for the general bucket. Without
+  // this every chat surface showed the user's entire message history.
+  history: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.refId) qs.set("refId", params.refId);
+    if (params.kind) qs.set("kind", params.kind);
+    if (params.scope) qs.set("scope", params.scope);
+    const q = qs.toString();
+    return req(`/chat/history${q ? `?${q}` : ""}`);
+  },
   clearHistory: () => req("/chat/history", { method: "DELETE" }),
   audit: () => req("/audit"),
   confirm: (message_id, proposal_id) =>
