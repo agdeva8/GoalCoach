@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, AlertOctagon, CheckCircle2, Circle, Milestone } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Plus, X, AlertOctagon, CheckCircle2, Circle, Milestone, Clock } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
+import AutoTextarea from "./AutoTextarea";
 import { api } from "../lib/api";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -66,6 +67,91 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
   const [blockerEnd, setBlockerEnd] = useState("");
   const [blockerNote, setBlockerNote] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // --- Timetable blocks (direct CRUD, Hard constraint #2) ------------------
+  const [blocks, setBlocks] = useState([]);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [editBlock, setEditBlock] = useState(null);
+  const [blockLabel, setBlockLabel] = useState("");
+  const [blockKind, setBlockKind] = useState("focus");
+  const [blockStart, setBlockStart] = useState("09:00");
+  const [blockEnd, setBlockEnd] = useState("10:00");
+  const [blockNote, setBlockNote] = useState("");
+
+  const loadBlocks = useCallback(() => {
+    api.timetable()
+      .then((res) => setBlocks(res?.blocks || []))
+      .catch(() => { /* offline — keep the last list */ });
+  }, []);
+  useEffect(() => { loadBlocks(); }, [loadBlocks]);
+
+  const addHour = (hhmm) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return `${String(Math.min(23, (h + 1) % 24)).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
+  const openAddBlock = (dayDate, startTime) => {
+    setEditBlock(null);
+    setBlockDialogOpen(true);
+    setBlockLabel("");
+    setBlockKind("focus");
+    setBlockStart(startTime || "09:00");
+    setBlockEnd(startTime ? addHour(startTime) : "10:00");
+    setBlockNote("");
+    setSelectedDay(dayDate);
+  };
+
+  const openEditBlock = (b) => {
+    setEditBlock(b);
+    setBlockDialogOpen(true);
+    setBlockLabel(b.label || "");
+    setBlockKind(b.kind || "focus");
+    setBlockStart(b.start_time || "09:00");
+    setBlockEnd(b.end_time || "10:00");
+    setBlockNote(b.note || "");
+  };
+
+  const closeBlockDialog = () => {
+    setEditBlock(null);
+    setBlockDialogOpen(false);
+  };
+
+  const saveBlock = async () => {
+    if (!blockLabel.trim() || !blockStart || !blockEnd) return;
+    setSaving(true);
+    try {
+      const payload = {
+        block_date: fmtDate(selectedDay || new Date()),
+        start_time: blockStart,
+        end_time: blockEnd,
+        label: blockLabel.trim(),
+        kind: blockKind,
+        note: blockNote,
+      };
+      if (editBlock) await api.updateBlock(editBlock.id, payload);
+      else await api.createBlock(payload);
+      loadBlocks();
+      closeBlockDialog();
+    } catch (e) {
+      console.error("Failed to save block", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteBlock = async () => {
+    if (!editBlock) return;
+    const id = editBlock.id;
+    // Optimistic — drop it from the list and close immediately.
+    setBlocks((prev) => prev.filter((b) => b.id !== id));
+    closeBlockDialog();
+    try {
+      await api.deleteBlock(id);
+    } catch (e) {
+      console.error("Failed to delete block", e);
+      loadBlocks();
+    }
+  };
 
   // Calendar grid days
   const calendarDays = useMemo(() => {
@@ -218,7 +304,10 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
     const dayCommitments = commitments.filter((c) => c.due === dateStr);
     const dayBlockers = blockers.filter((b) => blockerCoversDay(b, dayStart));
     const dayGoals = goals.filter((g) => g.target_date === dateStr && g.status !== "dropped");
-    return { dayMilestones, dayCommitments, dayBlockers, dayGoals };
+    const dayBlocks = blocks
+      .filter((b) => b.block_date === dateStr)
+      .sort((a, b) => String(a.start_time || "").localeCompare(String(b.start_time || "")));
+    return { dayMilestones, dayCommitments, dayBlockers, dayGoals, dayBlocks };
   };
 
   const label = `${MONTHS[current.getMonth()]} ${current.getFullYear()}`;
@@ -412,13 +501,28 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
           </div>
 
           {(() => {
-            const { dayMilestones, dayCommitments, dayBlockers } = dayItems(selectedDay);
-            const hasItems = dayMilestones.length + dayCommitments.length + dayBlockers.length > 0;
+            const { dayMilestones, dayCommitments, dayBlockers, dayBlocks } = dayItems(selectedDay);
+            const hasItems = dayMilestones.length + dayCommitments.length + dayBlockers.length + dayBlocks.length > 0;
             return (
               <div className="space-y-2">
                 {!hasItems && (
                   <p className="text-[13px] text-[var(--text-muted)]">Nothing on this day yet.</p>
                 )}
+                {/* Schedule — time-boxed blocks (direct CRUD) */}
+                {dayBlocks.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    data-testid={`detail-block-${b.id}`}
+                    onClick={() => openEditBlock(b)}
+                    className="w-full flex items-center gap-2.5 text-[13px] rounded-xl bg-[var(--bg-tertiary)] px-3 py-2.5 text-left hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--bg-tertiary))] transition-colors"
+                  >
+                    <Clock className="w-4 h-4 shrink-0 text-[var(--accent)]" />
+                    <span className="tabular-nums text-[12px] text-[var(--text-muted)] shrink-0">{b.start_time}–{b.end_time}</span>
+                    <span className="truncate flex-1 text-[var(--text-primary)]">{b.label}</span>
+                    <span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)] shrink-0">{b.kind}</span>
+                  </button>
+                ))}
                 {dayBlockers.map((b) => (
                   <button
                     key={b.id}
@@ -460,20 +564,27 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                     </span>
                   </div>
                 ))}
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    data-testid={`add-block-detail-${fmtDate(selectedDay)}`}
+                    onClick={() => openAddBlock(selectedDay)}
+                    className="min-h-11 flex-1 basis-[30%] flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[var(--accent)] text-[13px] font-semibold text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
+                  >
+                    <Clock className="w-4 h-4" /> Add block
+                  </button>
                   <button
                     data-testid={`add-blocker-detail-${fmtDate(selectedDay)}`}
                     onClick={() => openAddBlocker(selectedDay)}
-                    className="min-h-11 flex-1 flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[var(--bg-tertiary)] text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    className="min-h-11 flex-1 basis-[30%] flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[var(--bg-tertiary)] text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                   >
-                    <AlertOctagon className="w-4 h-4" /> Add blocker
+                    <AlertOctagon className="w-4 h-4" /> Blocker
                   </button>
                   <button
                     data-testid={`add-commitment-detail-${fmtDate(selectedDay)}`}
                     onClick={() => { setAddCommitmentOpen(true); setCommitmentText(""); }}
-                    className="min-h-11 flex-1 flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[var(--bg-tertiary)] text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    className="min-h-11 flex-1 basis-[30%] flex items-center justify-center gap-1.5 px-3 rounded-xl bg-[var(--bg-tertiary)] text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                   >
-                    <Plus className="w-4 h-4" /> Add commitment
+                    <Plus className="w-4 h-4" /> Commitment
                   </button>
                 </div>
               </div>
@@ -561,6 +672,113 @@ export default function Calendar({ state, onPrefill, onBlockerChange }) {
                 className="min-h-11 px-3 py-1.5 rounded text-xs bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {saving ? "Saving…" : editBlocker ? "Save" : "Add"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </CenteredDialog>
+
+      {/* Add/Edit Block Dialog — time-boxed timetable block (direct CRUD) */}
+      <CenteredDialog
+        open={blockDialogOpen}
+        onClose={closeBlockDialog}
+        title={editBlock ? "Edit block" : "Add a time block"}
+        subtitle={selectedDay ? fmtDate(selectedDay) : ""}
+        maxWidth="max-w-sm"
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1">Label *</label>
+            <input
+              data-testid="block-label-input"
+              type="text"
+              value={blockLabel}
+              onChange={(e) => setBlockLabel(e.target.value)}
+              placeholder="e.g. Deep work — draft proposal"
+              className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1">Start *</label>
+              <input
+                data-testid="block-start-input"
+                type="time"
+                value={blockStart}
+                onChange={(e) => setBlockStart(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1">End *</label>
+              <input
+                data-testid="block-end-input"
+                type="time"
+                value={blockEnd}
+                onChange={(e) => setBlockEnd(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1">Kind</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {["focus", "routine", "commitment", "blocker"].map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  data-testid={`block-kind-${k}`}
+                  onClick={() => setBlockKind(k)}
+                  aria-pressed={blockKind === k}
+                  className={`h-10 rounded-xl text-[12px] font-medium capitalize transition-colors ${
+                    blockKind === k
+                      ? "bg-[var(--accent)] text-[var(--bg-primary)]"
+                      : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1">Note</label>
+            <AutoTextarea
+              data-testid="block-note-input"
+              value={blockNote}
+              onChange={(e) => setBlockNote(e.target.value)}
+              minRows={2}
+              maxRows={4}
+              placeholder="Optional details…"
+              className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] text-sm leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            {editBlock && (
+              <button
+                data-testid="block-delete-btn"
+                onClick={deleteBlock}
+                disabled={saving}
+                className="min-h-11 px-3 rounded-xl text-xs border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-colors disabled:opacity-50"
+              >
+                Remove
+              </button>
+            )}
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={closeBlockDialog}
+                disabled={saving}
+                className="min-h-11 px-4 rounded-xl text-xs font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="block-save-btn"
+                onClick={saveBlock}
+                disabled={saving || !blockLabel.trim() || !blockStart || !blockEnd}
+                className="min-h-11 px-4 rounded-xl text-xs font-semibold bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {saving ? "Saving…" : editBlock ? "Save" : "Add"}
               </button>
             </div>
           </div>

@@ -75,6 +75,11 @@ export const api = {
   createBlocker: (b) => req("/blockers", { method: "POST", body: JSON.stringify(b) }),
   updateBlocker: (id, b) => req(`/blockers/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteBlocker: (id) => req(`/blockers/${id}`, { method: "DELETE" }),
+  // Timetable blocks (direct edit — Hard constraint #2)
+  timetable: () => req("/timetable"),
+  createBlock: (b) => req("/timetable", { method: "POST", body: JSON.stringify(b) }),
+  updateBlock: (id, b) => req(`/timetable/${id}`, { method: "PUT", body: JSON.stringify(b) }),
+  deleteBlock: (id) => req(`/timetable/${id}`, { method: "DELETE" }),
   // Commitments (direct edit)
   commitments: () => req("/commitments"),
   createCommitment: (c) => req("/commitments", { method: "POST", body: JSON.stringify(c) }),
