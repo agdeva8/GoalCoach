@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+import DayPlanner from "./DayPlanner";
 import useMediaQuery from "../hooks/useMediaQuery";
 
 /* ---------------------------------------------------------------------------
@@ -368,7 +369,7 @@ function makeBuckets(level, anchor) {
  * Timeline — root component.
  * ========================================================================= */
 
-export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat }) {
+export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat, onChange = () => {} }) {
   const [viewType, setViewType] = useState("calendar");
   const [view, setView] = useState({
     level: "year",
@@ -376,6 +377,9 @@ export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat 
   });
   const [calSpan, setCalSpan] = useState("month");
   const [calAnchor, setCalAnchor] = useState(() => startOfDay(new Date()));
+  // The editable day planner (timetable blocks / blockers / commitments)
+  // opens when a day is clicked in the calendar view.
+  const [selectedDay, setSelectedDay] = useState(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
@@ -662,6 +666,16 @@ export default function Timeline({ state, onPrefill, onOpenChatWith, onOpenChat 
           setAnchor={setCalAnchor}
           openChat={openChat}
           onPrefill={onPrefill}
+          onSelectDay={setSelectedDay}
+        />
+      )}
+
+      {viewType === "calendar" && selectedDay && (
+        <DayPlanner
+          day={selectedDay}
+          state={state}
+          onChange={onChange}
+          onClose={() => setSelectedDay(null)}
         />
       )}
     </div>
@@ -1882,6 +1896,7 @@ function CalendarView({
   setAnchor,
   openChat,
   onPrefill,
+  onSelectDay,
 }) {
   const preset = CAL_SPANS.find((s) => s.key === span) || CAL_SPANS[2];
   const days = preset.days;
@@ -2450,11 +2465,15 @@ function CalendarView({
                   return (
                     <div
                       key={ci}
-
-                      aria-label={`${MONTHS_FULL[cell.date.getMonth()]} ${cell.date.getDate()}${isToday ? ", today" : ""}${count ? `, ${count} item${count === 1 ? "" : "s"}` : ""}`}
+                      role={onSelectDay ? "button" : undefined}
+                      tabIndex={onSelectDay ? 0 : undefined}
+                      onClick={onSelectDay ? () => onSelectDay(cell.date) : undefined}
+                      onKeyDown={onSelectDay ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectDay(cell.date); } } : undefined}
+                      aria-label={`${MONTHS_FULL[cell.date.getMonth()]} ${cell.date.getDate()}${isToday ? ", today" : ""}${count ? `, ${count} item${count === 1 ? "" : "s"}` : ""}${onSelectDay ? " — open day planner" : ""}`}
                       className={[
                         "relative px-1.5 pt-1 pb-1 min-h-[36px]",
                         cell.inSpan ? "" : "opacity-70",
+                        onSelectDay ? "cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]" : "",
                         isToday
                           ? "ring-1 ring-inset ring-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-primary))]"
                           : "",

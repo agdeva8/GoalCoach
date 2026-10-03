@@ -22,7 +22,6 @@ const Sources = lazy(() => import("../components/Sources"));
 const Today = lazy(() => import("../components/Today"));
 const Overview = lazy(() => import("../components/Overview"));
 const Motivation = lazy(() => import("../components/Motivation"));
-const Calendar = lazy(() => import("../components/Calendar"));
 
 // Fallback while a panel's chunk fetches. Declared at module level rather
 // than inside Coach — a component defined during render is a new component
@@ -473,13 +472,13 @@ export default function Coach() {
                   to={s.to}
                   aria-current={active ? "page" : undefined}
                   data-testid={`panel-tab-${s.key}`}
-                  className={`font-medium flex items-center gap-1.5 h-11 sm:h-9 px-3 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                  className={`font-medium flex items-center gap-1.5 h-11 sm:h-9 px-3 text-xs whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
                     active
                       ? "text-[var(--accent)] border-b-2 border-[var(--accent)]"
                       : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" /> {s.label}
+                  <Icon className="w-3.5 h-3.5 shrink-0" /> {s.shortLabel || s.label}
                 </Link>
               );
             })}
@@ -497,8 +496,6 @@ export default function Coach() {
               />
             ) : panelView === "motivation" ? (
               <Motivation state={state} />
-            ) : panelView === "calendar" ? (
-              <Calendar state={state} onPrefill={() => setChatOpen(true)} onBlockerChange={refreshState} />
             ) : panelView === "state" ? (
               <TrackingDashboard
                 state={state}
@@ -524,6 +521,7 @@ export default function Coach() {
                 state={state}
                 onPrefill={() => setChatOpen(true)}
                 onOpenChatWith={openChatWith}
+                onChange={refreshState}
               />
             ) : panelView === "sources" ? (
               <Sources state={state} onChange={refreshState} />

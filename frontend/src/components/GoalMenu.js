@@ -33,7 +33,7 @@ export default function GoalMenu({ align = "end", className = "", large = false 
   // becomes the page title (28px bold) with a chevron; the icon is
   // dropped so it reads as a heading, not a control.
   const triggerClass = large
-    ? `inline-flex items-center gap-1.5 min-h-11 -mx-1 px-1 rounded-xl text-[19px] font-semibold tracking-tight text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${className}`
+    ? `inline-flex items-center gap-1.5 min-h-11 -mx-1 px-1 rounded-xl text-[19px] font-semibold tracking-tight whitespace-nowrap text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${className}`
     : `inline-flex items-center gap-1.5 min-h-11 px-2.5 -mx-1 rounded text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${className}`;
 
   return (
