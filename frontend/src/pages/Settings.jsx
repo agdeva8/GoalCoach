@@ -12,7 +12,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs"
 import Logo from "../components/Logo";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import useMediaQuery from "../hooks/useMediaQuery";
 import HonestyAuditView from "../components/HonestyAuditView";
 
 // Text size — 5 options, with the 3rd as the product default (16px,
@@ -31,18 +30,23 @@ const FONT_SIZE_OPTIONS = [
 const FONT_SIZE_DEFAULT_PX = 16;
 const FONT_SIZE_STORAGE_KEY = "sutra_font_size";
 
-// Settings sections. Mobile renders them as a vertical list (the
-// horizontal tab strip only makes room below 640px) — see the Tabs
-// markup below. Trigger styling: below sm each row gets a left accent
-// rail + tinted active background; from sm up it's the original
-// bottom-border tab strip, byte-for-byte.
+// Settings sections render as an iOS-style SEGMENTED CONTROL: a single
+// pill track with a raised "selected" segment. Same trigger for every
+// breakpoint (the control is `w-full` on phones, auto-width on desktop).
 const SECTION_TAB_TRIGGER =
-  "font-medium rounded-none text-xs px-4 text-left w-full justify-start whitespace-nowrap " +
-  "py-3 border-l-2 border-transparent shadow-none " +
-  "data-[state=active]:border-[var(--accent)] " +
-  "data-[state=active]:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] " +
-  "sm:w-auto sm:justify-center sm:py-2.5 sm:border-l-0 sm:border-b-2 " +
-  "sm:data-[state=active]:bg-transparent";
+  "flex-1 sm:flex-none font-medium rounded-lg text-[13px] px-3.5 py-1.5 " +
+  "text-[var(--text-secondary)] transition-colors whitespace-nowrap " +
+  "hover:text-[var(--text-primary)] " +
+  "data-[state=active]:bg-[var(--bg-primary)] data-[state=active]:text-[var(--text-primary)] " +
+  "data-[state=active]:shadow-[0_1px_3px_rgba(0,0,0,0.12)]";
+
+// iOS grouped inset list: one rounded card, hairline dividers between
+// rows, no outer border.
+const INSET_LIST = "rounded-2xl bg-[var(--bg-secondary)] overflow-hidden divide-y divide-[var(--border)]";
+const INSET_ROW =
+  "w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors " +
+  "hover:bg-[var(--bg-tertiary)] active:bg-[var(--bg-tertiary)] disabled:opacity-60";
+const GROUP_LABEL = "px-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]";
 
 function useProviders() {
   const [providers, setProviders] = useState([]);
@@ -70,7 +74,6 @@ export default function Settings() {
   const location = useLocation();
   const { user, setUser, logout } = useAuth();
   const isGuest = !user || user.is_guest;
-  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   // Leaving Settings is a *back* action (header back arrow, guest
   // sign-in shortcuts all return to the coach), so pop real history
@@ -222,8 +225,9 @@ export default function Settings() {
               the original horizontal strip. `orientation` keeps Radix's
               arrow-key semantics (aria-orientation) matching whichever
               layout is visible. */}
-          <Tabs defaultValue="coach" orientation={isDesktop ? "horizontal" : "vertical"}>
-            <TabsList className="mb-6 w-full flex-col justify-start rounded-none bg-transparent p-0 h-auto gap-1 border-[var(--border)] sm:flex-row sm:gap-0 sm:border-b">
+          <Tabs defaultValue="coach">
+            {/* iOS segmented control. */}
+            <TabsList className="mb-6 w-full sm:w-auto inline-flex p-[3px] bg-[var(--bg-tertiary)] rounded-[11px] gap-0.5">
               <TabsTrigger value="coach" className={SECTION_TAB_TRIGGER}>
                 Coach
               </TabsTrigger>
@@ -231,17 +235,16 @@ export default function Settings() {
                 Account
               </TabsTrigger>
               <TabsTrigger value="audit" className={SECTION_TAB_TRIGGER}>
-                Honesty audit
+                Audit
               </TabsTrigger>
             </TabsList>
 
             {/* Coach tab — model, persona, honesty tone */}
-            <TabsContent value="coach" className="space-y-6">
-              <section className="space-y-4">
-                <h2 className="font-medium text-xs text-[var(--text-muted)]">Model</h2>
+            <TabsContent value="coach" className="space-y-7">
+              <section>
+                <h2 className={GROUP_LABEL}>Model</h2>
                 <div
-                  className="space-y-2"
-                  style={{ position: "relative", zIndex: 1 }}
+                  className={INSET_LIST}
                   role="group"
                   aria-label="Model provider"
                   aria-busy={switchingProvider || undefined}
@@ -252,43 +255,38 @@ export default function Settings() {
                       onClick={() => changeProvider(p.id)}
                       disabled={switchingProvider}
                       aria-pressed={p.id === provider}
-                      className={`w-full flex items-center justify-between px-4 py-3 border rounded-lg transition-colors disabled:opacity-60 touch-manipulation ${
-                        p.id === provider
-                          ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
-                          : "border-[var(--border)] hover:border-[var(--border-accent)]"
-                      }`}
+                      className={INSET_ROW}
                     >
-                      <div>
-                        <div className="text-sm font-medium">{p.label}</div>
-                        <div className="text-xs text-[var(--text-muted)]">{p.model}</div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">{p.label}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">{p.model}</div>
                       </div>
                       {p.id === provider && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)]">
-                          <Check className="w-4 h-4" aria-hidden="true" />
-                          <span className="sr-only">Selected: </span>Current
-                        </span>
+                        <Check className="w-[18px] h-[18px] shrink-0 text-[var(--accent)]" aria-label="Selected" />
                       )}
                     </button>
                   ))}
                 </div>
+                <p className="px-1 pt-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                  The coach writes to your goals only after you confirm a proposal.
+                </p>
               </section>
             </TabsContent>
 
             {/* Account tab — display (text size) + sign in/out (theme moved to main header) */}
-            <TabsContent value="account" className="space-y-6">
-              <section className="space-y-4">
-                <div className="flex items-center gap-2">
+            <TabsContent value="account" className="space-y-7">
+              <section>
+                <div className="flex items-center gap-1.5 px-1 pb-2">
                   <Type className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-                  <h2 className="font-medium text-xs text-[var(--text-muted)]">Text size</h2>
+                  <h2 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Text size</h2>
                 </div>
-                {/* 5 button list — same shape as the model provider list so
-                    the page has one consistent selection vocabulary. Each
-                    option previews the actual rendered size in the right
-                    column so the user can compare before tapping. */}
+                {/* Same grouped-inset shape as the model list so the page
+                    has one consistent selection vocabulary. The right
+                    column previews the rendered size. */}
                 <div
                   role="radiogroup"
                   aria-label="Text size"
-                  className="space-y-2"
+                  className={INSET_LIST}
                   data-testid="text-size-options"
                 >
                   {FONT_SIZE_OPTIONS.map((opt) => {
@@ -300,23 +298,13 @@ export default function Settings() {
                         role="radio"
                         aria-checked={selected}
                         onClick={() => setFontSizePx(opt.value)}
-                        className={`w-full flex items-center justify-between px-4 py-3 border rounded-lg transition-colors touch-manipulation ${
-                          selected
-                            ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
-                            : "border-[var(--border)] hover:border-[var(--border-accent)]"
-                        }`}
+                        className={INSET_ROW}
                       >
-                        <div className="text-left">
+                        <div className="text-left min-w-0">
                           <div className="text-sm font-medium">{opt.label}</div>
                           <div className="text-xs text-[var(--text-muted)]">{opt.hint}</div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          {/* Preview rendered at the option's own size in
-                              px (so it doesn't shift when the live scale
-                              changes around it). Clamped to 12–18px so the
-                              row never blows out at Large or shrinks at
-                              Small — the actual setting the user picks is
-                              still stored in full. */}
+                        <div className="flex items-center gap-3 shrink-0">
                           <span
                             className="text-[var(--text-muted)] tabular-nums"
                             style={{ fontSize: `clamp(12px, ${opt.value}px, 18px)` }}
@@ -325,10 +313,7 @@ export default function Settings() {
                             Aa
                           </span>
                           {selected && (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)]">
-                              <Check className="w-4 h-4" aria-hidden="true" />
-                              <span className="sr-only">Selected: </span>Current
-                            </span>
+                            <Check className="w-[18px] h-[18px] text-[var(--accent)]" aria-label="Selected" />
                           )}
                         </div>
                       </button>
@@ -337,41 +322,38 @@ export default function Settings() {
                 </div>
               </section>
 
-              <section className="space-y-4">
-                <h2 className="font-medium text-xs text-[var(--text-muted)]">Session</h2>
+              <section>
+                <h2 className={GROUP_LABEL}>Session</h2>
                 {isGuest ? (
-                  <div className="space-y-3">
+                  <div className="rounded-2xl bg-[var(--bg-secondary)] p-4 space-y-3">
                     <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                      You're using a preview session. Sign in to keep it and unlock every feature.
-                    </p>
-                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                      Sign in with Google to migrate this session to your account.
+                      You're using a preview session. Sign in to keep it and unlock every feature — Google sign-in migrates this session to your account.
                     </p>
                     <button
                       onClick={leaveSettings}
-                      className="h-11 px-5 bg-[var(--accent)] text-[var(--bg-primary)] font-medium text-sm hover:opacity-90 transition-opacity"
+                      className="h-11 w-full rounded-xl bg-[var(--accent)] text-[var(--bg-primary)] font-semibold text-sm hover:opacity-90 transition-opacity"
                     >
                       Sign in with Google
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3 px-4 py-3 border border-[var(--border)] rounded-lg">
+                    <div className="flex items-center gap-3 rounded-2xl bg-[var(--bg-secondary)] px-4 py-3.5">
                       {user?.picture ? (
-                        <img src={user.picture} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                        <img src={user.picture} alt={user.name} className="w-11 h-11 rounded-full object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-xs">
+                        <div className="w-11 h-11 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-sm">
                           {user?.name?.[0] || "?"}
                         </div>
                       )}
-                      <div>
-                        <div className="text-sm font-medium">{user?.name}</div>
-                        <div className="text-xs text-[var(--text-muted)]">{user?.email}</div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">{user?.name}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">{user?.email}</div>
                       </div>
                     </div>
                     <button
                       onClick={doLogout}
-                      className="h-11 px-5 border border-[var(--border)] hover:border-[var(--danger)] text-[var(--text-secondary)] hover:text-[var(--danger)] font-medium text-sm transition-colors"
+                      className="h-11 w-full rounded-xl bg-[var(--bg-secondary)] text-[var(--danger)] font-semibold text-sm hover:bg-[var(--bg-tertiary)] transition-colors"
                     >
                       Sign out
                     </button>
@@ -384,9 +366,10 @@ export default function Settings() {
             <TabsContent value="audit">
               <button
                 onClick={() => setAuditOpen(true)}
-                className="h-11 px-5 border border-[var(--border)] hover:border-[var(--border-accent)] text-[var(--text-secondary)] font-medium text-sm hover:text-[var(--text-primary)] transition-colors"
+                className={INSET_ROW + " rounded-2xl bg-[var(--bg-secondary)]"}
               >
-                Open the honesty audit
+                <span className="text-sm font-medium">Open the honesty audit</span>
+                <span className="text-[var(--text-muted)]">›</span>
               </button>
             </TabsContent>
           </Tabs>
