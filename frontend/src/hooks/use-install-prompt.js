@@ -50,35 +50,30 @@ export function isIosSafari() {
   return !/crios|fxios|edgiOS|opios/i.test(ua);
 }
 
-/* Install-prompt suppression — after the user dismisses, don't ask again
- * for the next N app visits. A "visit" is one app load (the counter bumps
- * once per mount). Keyed in localStorage so it survives reloads. */
-const VISIT_KEY = "sutra_install_visits";
+/* Install-prompt suppression — after the user dismisses, don't show the
+ * in-app dialog again for SUPPRESS_MS (one day). The browser's own
+ * URL-bar install icon is NOT affected — we only suppress OUR dialog.
+ * Keyed in localStorage so it survives reloads. */
 const DISMISS_KEY = "sutra_install_dismissed_at";
-const SUPPRESS_VISITS = 3;
+const SUPPRESS_MS = 24 * 60 * 60 * 1000; // 1 day
+
+function dismissedRecently() {
+  try {
+    const at = Number(localStorage.getItem(DISMISS_KEY)) || 0;
+    return at > 0 && Date.now() - at < SUPPRESS_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markDismissed() {
+  try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* ignore */ }
+}
 
 export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
-  // Visit counter (once per app load). Computed before `dismissed` so the
-  // suppression window can be measured against it.
-  const [visit] = useState(() => {
-    try {
-      const next = (Number(localStorage.getItem(VISIT_KEY)) || 0) + 1;
-      localStorage.setItem(VISIT_KEY, String(next));
-      return next;
-    } catch {
-      return 1;
-    }
-  });
   const [deferred, setDeferred] = useState(null);
   const [installed, setInstalled] = useState(isStandalone);
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      const at = Number(localStorage.getItem(DISMISS_KEY)) || 0;
-      return at > 0 && (visit - at) < SUPPRESS_VISITS;
-    } catch {
-      return false;
-    }
-  });
+  const [dismissed, setDismissed] = useState(dismissedRecently);
   const [ready, setReady] = useState(false); // show-delay elapsed
 
   const iosSafari = isIosSafari();
@@ -129,18 +124,19 @@ export default function useInstallPrompt({ showDelayMs = 2500 } = {}) {
     setDeferred(null);
     if (outcome === "accepted") setInstalled(true);
     else {
-      // They said no to the native sheet too — suppress for the next N visits.
+      // They said no to the native sheet too — suppress our dialog for a day.
       setDismissed(true);
-      try { localStorage.setItem(DISMISS_KEY, String(visit)); } catch { /* ignore */ }
+      markDismissed();
     }
     return outcome;
-  }, [deferred, visit]);
+  }, [deferred]);
 
   const dismiss = useCallback(() => {
     setDismissed(true);
-    // Persist across the next SUPPRESS_VISITS app loads.
-    try { localStorage.setItem(DISMISS_KEY, String(visit)); } catch { /* ignore */ }
-  }, [visit]);
+    // Persist: don't show the in-app dialog again for 24h. The URL-bar
+    // install icon is untouched.
+    markDismissed();
+  }, []);
 
   return {
     // Dialog opens when the show-delay elapsed AND we can actually do
