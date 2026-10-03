@@ -4,6 +4,7 @@ import {
   Target,
   CalendarDays,
   CalendarClock,
+  CalendarRange,
   Image as ImageIcon,
   FileText,
 } from "lucide-react";
@@ -32,6 +33,7 @@ export const SCREENS = [
   { key: "state", label: "Goals", to: "/?panel=state", Icon: Target },
   { key: "today", label: "Today", to: "/?panel=today", Icon: CalendarDays },
   { key: "timeline", label: "Timeline", to: "/?panel=timeline", Icon: CalendarClock },
+  { key: "calendar", label: "Calendar", to: "/?panel=calendar", Icon: CalendarRange },
   { key: "memories", label: "Memories", to: "/?panel=memories", Icon: ImageIcon },
   { key: "sources", label: "Sources", to: "/?panel=sources", Icon: FileText },
   { key: "motivation", label: "Curated for you", to: "/?panel=motivation", Icon: Sparkles },

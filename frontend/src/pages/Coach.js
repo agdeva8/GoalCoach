@@ -22,6 +22,7 @@ const Sources = lazy(() => import("../components/Sources"));
 const Today = lazy(() => import("../components/Today"));
 const Overview = lazy(() => import("../components/Overview"));
 const Motivation = lazy(() => import("../components/Motivation"));
+const Calendar = lazy(() => import("../components/Calendar"));
 
 // Fallback while a panel's chunk fetches. Declared at module level rather
 // than inside Coach — a component defined during render is a new component
@@ -496,6 +497,8 @@ export default function Coach() {
               />
             ) : panelView === "motivation" ? (
               <Motivation state={state} />
+            ) : panelView === "calendar" ? (
+              <Calendar state={state} onPrefill={() => setChatOpen(true)} onBlockerChange={refreshState} />
             ) : panelView === "state" ? (
               <TrackingDashboard
                 state={state}
