@@ -518,10 +518,7 @@ export default function ChatConsole({ messages, onSend, sending, input, setInput
     const text = input.trim();
     if (!text || sending) return;
     onSend(text);
-    // Iteration 9+ — collapse the composer after send. The parent
-    // clears `input`, and blurring here resets the focus-expanded
-    // height back to the slim 1-row bar.
-    setComposerFocused(false);
+    // Collapse the composer after send: blur + let the input clear.
     try { taRef.current?.blur(); } catch { /* ignore */ }
   };
 

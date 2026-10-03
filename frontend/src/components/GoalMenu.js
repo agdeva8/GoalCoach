@@ -69,7 +69,7 @@ export default function GoalMenu({ align = "end", className = "", large = false 
                 className="flex items-center gap-2.5 cursor-pointer rounded-lg"
               >
                 <Icon className={active ? "w-4 h-4 text-[var(--accent)]" : "w-4 h-4 text-[var(--text-muted)]"} aria-hidden="true" />
-                <span className="flex-1">{s.label}</span>
+                <span className="flex-1 whitespace-nowrap">{s.label}</span>
                 {active && (
                   <span className="text-[10px] uppercase tracking-widest text-[var(--accent)]">
                     here

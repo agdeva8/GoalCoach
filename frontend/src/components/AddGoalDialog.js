@@ -9,6 +9,8 @@ import {
   TrendingUp,
   Wrench,
   Wand2,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 import CenteredDialog from "./CenteredDialog";
 import ChatConsole from "./ChatConsole";
@@ -439,22 +441,21 @@ export default function AddGoalDialog({
     }
   };
 
-  const reject = async (messageId, proposalId, reason) => {
-    setBusyProposal(proposalId);
-    try {
-      await api.reject(messageId, proposalId, reason);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "rejected" } : p)) }
-            : m,
-        ),
-      );
-    } catch {
-      toast.error("Couldn't reject that proposal. Try again.");
-    } finally {
-      setBusyProposal(null);
-    }
+  const reject = (messageId, proposalId, reason) => {
+    // Optimistic — flip the UI to 'rejected' immediately, persist in the
+    // background. Rejecting is a pure state change; the user shouldn't
+    // wait on a round-trip (founder feedback: "clicking reject takes too
+    // long — it should just be a UI state change").
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, proposals: m.proposals.map((p) => (p.id === proposalId ? { ...p, status: "rejected" } : p)) }
+          : m,
+      ),
+    );
+    api.reject(messageId, proposalId, reason).catch(() => {
+      toast.error("Couldn't record that rejection — check your connection.");
+    });
   };
 
   // Refine / Reject modal handlers (Iteration 9).
@@ -555,19 +556,27 @@ export default function AddGoalDialog({
       if (proposals.length === 0) continue;
       const pending = proposals.filter((p) => (p.status || "pending") === "pending");
       const hasCreateGoal = pending.some((p) => p.action === "create_goal");
-      if (!hasCreateGoal) continue;
-      const hasMilestones = pending.some((p) => p.action === "add_milestone");
-      const hasCommitments = pending.some((p) => p.action === "add_commitment");
-      const createProposal = pending.find((p) => p.action === "create_goal");
+
+      if (hasCreateGoal) {
+        const hasMilestones = pending.some((p) => p.action === "add_milestone");
+        const createProposal = pending.find((p) => p.action === "create_goal");
+        return {
+          messageId: m.id,
+          proposalId: createProposal.id,
+          label: hasMilestones
+            ? `Confirm${pending.length > 0 ? ` (${pending.length} ${pending.length === 1 ? "change" : "changes"})` : ""}`
+            : "Recreate goals & commitments",
+          variant: hasMilestones ? "confirm" : "recreate",
+        };
+      }
+
+      // No pending create_goal — everything was rejected / refined away,
+      // or the plan is milestones-only. Offer a redefine from scratch.
       return {
         messageId: m.id,
-        proposalId: createProposal.id,
-        hasMilestones,
-        hasCommitments,
-        label: hasMilestones
-          ? `Confirm${pending.length > 1 ? ` (${pending.length} changes)` : ""}`
-          : "Recreate goals & commitments",
-        variant: hasMilestones ? "confirm" : "recreate",
+        proposalId: null,
+        label: "Redefine goals & commitments",
+        variant: "redefine",
       };
     }
     return null;
@@ -577,14 +586,18 @@ export default function AddGoalDialog({
     if (!pinnedAction) return;
     if (pinnedAction.variant === "confirm") {
       confirm(pinnedAction.messageId, pinnedAction.proposalId);
-    } else {
-      // Recreate — re-ask the coach to bundle milestones + commitments.
-      // We don't fake a user message; we send an explicit system-flavored
-      // instruction so the LLM treats this as a re-propose, not a new turn.
-      send(
-        "Your last proposal was a goal with no milestones and no commitments. Re-propose the SAME goal but bundle at least 3 milestones (with target dates) and at least 2 weekly commitments (smallest first step + smallest second step). Same voice, same why, same first action.",
-      );
+      return;
     }
+    if (pinnedAction.variant === "redefine") {
+      send(
+        "Scrap that plan. Re-propose this goal from scratch — one goal, then 3-4 milestones with target dates, then 2-3 weekly commitments (smallest first step first). Same category, same voice.",
+      );
+      return;
+    }
+    // Recreate — re-ask the coach to bundle milestones + commitments.
+    send(
+      "Your last proposal was a goal with no milestones and no commitments. Re-propose the SAME goal but bundle at least 3 milestones (with target dates) and at least 2 weekly commitments (smallest first step + smallest second step). Same voice, same why, same first action.",
+    );
   };
 
   const activeCat = CATEGORIES.find((c) => c.id === activeCategory);
@@ -739,18 +752,23 @@ export default function AddGoalDialog({
             {pinnedAction && (
               <div
                 data-testid={`pinned-action-${pinnedAction.variant}`}
-                className="shrink-0 px-4 sm:px-5 py-2.5 border-t border-[var(--border)] bg-[var(--bg-secondary)]"
+                className="shrink-0 px-4 sm:px-5 pt-1 pb-2 bg-[var(--bg-primary)]"
               >
                 <button
                   data-testid="pinned-action-button"
                   onClick={onPinnedAction}
-                  disabled={sending || busyProposal === pinnedAction.proposalId}
-                  className={`w-full min-h-11 px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-40 hover:opacity-90 ${
+                  disabled={sending || (pinnedAction.proposalId != null && busyProposal === pinnedAction.proposalId)}
+                  className={`w-full h-12 rounded-full inline-flex items-center justify-center gap-2 text-[15px] font-semibold transition-opacity disabled:opacity-40 hover:opacity-90 active:scale-[0.99] ${
                     pinnedAction.variant === "confirm"
-                      ? "bg-[var(--success)] text-[var(--bg-primary)]"
-                      : "bg-[var(--accent)] text-[var(--bg-primary)]"
+                      ? "bg-[var(--accent)] text-[var(--bg-primary)]"
+                      : "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                   }`}
                 >
+                  {pinnedAction.variant === "confirm" ? (
+                    <Check className="w-4 h-4" aria-hidden="true" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                  )}
                   {pinnedAction.label}
                 </button>
               </div>
