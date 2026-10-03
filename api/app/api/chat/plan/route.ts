@@ -26,7 +26,7 @@ import { eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { isGoalPlannerEnabledFor } from '@/lib/goal-planner/config'
-import { runPlanPipeline } from '@/lib/goal-planner/orchestrator'
+import { runPlanPipeline, getPendingPlanInterrupt } from '@/lib/goal-planner/orchestrator'
 import type { PlanPipelineArgs } from '@/lib/goal-planner/orchestrator'
 import {
   INTENTS,
@@ -192,6 +192,11 @@ export async function POST(req: NextRequest) {
 
   let result
   try {
+    // HITL resume: if this conversation's planner thread is paused on a
+    // clarify interrupt, the incoming message is the user's answer — resume
+    // the graph instead of starting a fresh run. Falls back to a fresh run
+    // when persistence is off (dev/test) or nothing is pending.
+    const pending = await getPendingPlanInterrupt(conversationId)
     result = await runPlanPipeline({
       userId,
       intent,
@@ -202,6 +207,8 @@ export async function POST(req: NextRequest) {
       existingGoalTitles,
       budgetHours,
       activeGoalWeeklyHours,
+      threadId: conversationId,
+      resume: pending ? message : undefined,
       renegotiation: parseRenegotiation(body.renegotiation),
       abortSignal: AbortSignal.timeout(PIPELINE_TIMEOUT_MS),
     })

@@ -292,4 +292,30 @@ describe('runPlanPipeline', () => {
     if (res.kind !== 'ok') return
     expect(res.tools.some((t) => t.action === 'add_blocker')).toBe(true)
   })
+
+  it('pauses on a clarify interrupt and resumes with the answer (LangGraph)', async () => {
+    const complete = fakeComplete({
+      intake: {
+        ...intakeOk,
+        needs_clarification: true,
+        clarifying_questions: [{ question: 'By when?', options: ['3 months', '6 months'] }],
+      },
+      plan,
+      emits: [emitOk],
+    })
+    const threadId = `t-${Math.random().toString(36).slice(2)}`
+
+    const first = await runPlanPipeline(base({ threadId, deps: { complete } }))
+    expect(first.kind).toBe('clarify')
+    if (first.kind === 'clarify') {
+      expect(first.questions).toEqual([{ question: 'By when?', options: ['3 months', '6 months'] }])
+    }
+
+    // Resume: the graph re-runs only the clarify node, then plans + emits.
+    const second = await runPlanPipeline(
+      base({ threadId, message: '6 months', resume: '6 months', deps: { complete } }),
+    )
+    expect(second.kind).toBe('ok')
+    if (second.kind === 'ok') expect(second.tools).toHaveLength(3)
+  })
 })

@@ -17,7 +17,9 @@
 
 import 'server-only'
 
-import { streamChat } from '@/lib/emergent/stream-chat'
+import { generateText } from 'ai'
+
+import { sutraChatModel } from '@/lib/llm/client'
 
 import { CHEAP_MODEL, CHEAP_PROVIDER, STAGE_TIMEOUTS } from './config'
 import type { Bucket, ScoredCandidate } from './schema'
@@ -80,7 +82,7 @@ async function callFrame(args: {
   sessionId: string
   timeoutMs: number
 }): Promise<string> {
-  const { candidate, bucket, sessionId, timeoutMs } = args
+  const { candidate, bucket, timeoutMs } = args
 
   const systemPrompt = [
     'You are the voice of Sutra, a personal goal-coaching app.',
@@ -109,22 +111,16 @@ async function callFrame(args: {
 
   let full = ''
   try {
-    for await (const ev of streamChat({
-      // Provider id (for the registry lookup); the actual model name
-      // comes from `CHEAP_MODEL`, which reads `MODEL_REGISTRY.gemini.model`
-      // — at MVP that resolves to `deepseek-flash` whenever
-      // `DEEPSEEK_API_KEY` is set (see `lib/emergent/model-registry.ts`
-      // MVP note).
-      provider: CHEAP_PROVIDER,
-      model: CHEAP_MODEL,
+    const { text } = await generateText({
+      // `CHEAP_MODEL` reads `MODEL_REGISTRY.gemini.model` — at MVP that
+      // resolves to `deepseek-flash` whenever `DEEPSEEK_API_KEY` is set
+      // (see `lib/emergent/model-registry.ts` MVP note).
+      model: sutraChatModel({ provider: CHEAP_PROVIDER, model: CHEAP_MODEL }),
       system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      sessionId,
-      signal: ctrl.signal,
-    })) {
-      if (ev.type === 'text_delta') full += ev.content
-      else if (ev.type === 'stream_done') full = ev.content
-    }
+      prompt: userPrompt,
+      abortSignal: ctrl.signal,
+    })
+    full = text
   } finally {
     clearTimeout(timer)
   }
