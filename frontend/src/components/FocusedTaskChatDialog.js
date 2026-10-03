@@ -108,6 +108,66 @@ export default function FocusedTaskChatDialog({
     }
   }, [open, refId]);
 
+  /**
+   * Iteration 10 — render one /chat/plan result into the streaming bubble.
+   * Same contract as ChatModal.applyPlan.
+   */
+  const applyPlan = useCallback(
+    (result, { streamId }) => {
+      const finalize = (patch) =>
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamId ? { ...m, streaming: false, ...patch } : m)),
+        );
+
+      if (result.status === "ok") {
+        finalize({
+          id: result.message_id,
+          content:
+            (result.prose || "") +
+            (result.headroom?.message ? `\n\n(${result.headroom.message})` : ""),
+          proposals: result.proposals || [],
+        });
+        api.state().then((s) => onStateChange?.(s)).catch(() => {});
+      } else if (result.status === "clarify") {
+        finalize({
+          id: result.message_id,
+          content: result.prose || "A couple of details first:",
+        });
+        setPendingClarifications({
+          messageId: result.message_id,
+          prompt: result.prose || "",
+          questions: result.questions || [],
+        });
+      } else if (result.status === "renegotiate") {
+        finalize({ id: result.message_id, content: result.prose || "" });
+        setRenegotiation({
+          headroom: result.headroom,
+          options: result.options || [],
+        });
+      } else {
+        finalize({
+          id: result.message_id,
+          content: result.prose || "No changes needed.",
+        });
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // Must be declared BEFORE `send` — send references tryPlan in its body
+  // and deps (TDZ error otherwise).
+  const { tryPlan } = usePlanSend({
+    kind,
+    refIdRef,
+    title,
+    helperText,
+    autoAnswer,
+    grillMe,
+    setMessages,
+    applyPlan,
+  });
+
   const send = useCallback(
     async (text) => {
       if (!open || !user) return;
@@ -239,64 +299,6 @@ export default function FocusedTaskChatDialog({
     },
     [open, user, autoAnswer, grillMe, scope, kind, title, helperText, sources, tryPlan],
   );
-
-  /**
-   * Iteration 10 — render one /chat/plan result into the streaming bubble.
-   * Same contract as ChatModal.applyPlan.
-   */
-  const applyPlan = useCallback(
-    (result, { streamId }) => {
-      const finalize = (patch) =>
-        setMessages((prev) =>
-          prev.map((m) => (m.id === streamId ? { ...m, streaming: false, ...patch } : m)),
-        );
-
-      if (result.status === "ok") {
-        finalize({
-          id: result.message_id,
-          content:
-            (result.prose || "") +
-            (result.headroom?.message ? `\n\n(${result.headroom.message})` : ""),
-          proposals: result.proposals || [],
-        });
-        api.state().then((s) => onStateChange?.(s)).catch(() => {});
-      } else if (result.status === "clarify") {
-        finalize({
-          id: result.message_id,
-          content: result.prose || "A couple of details first:",
-        });
-        setPendingClarifications({
-          messageId: result.message_id,
-          prompt: result.prose || "",
-          questions: result.questions || [],
-        });
-      } else if (result.status === "renegotiate") {
-        finalize({ id: result.message_id, content: result.prose || "" });
-        setRenegotiation({
-          headroom: result.headroom,
-          options: result.options || [],
-        });
-      } else {
-        finalize({
-          id: result.message_id,
-          content: result.prose || "No changes needed.",
-        });
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-
-  const { tryPlan } = usePlanSend({
-    kind,
-    refIdRef,
-    title,
-    helperText,
-    autoAnswer,
-    grillMe,
-    setMessages,
-    applyPlan,
-  });
 
   // Iteration 10 — renegotiation choice → pipeline round 2.
   const onRenegotiationChoice = useCallback(
